@@ -2088,7 +2088,7 @@ function App() {
         <div className="login-page">
           <div className="login-box">
             <div className="login-logo">
-              <div className="login-logo-icon">N</div>
+              <img src="/logo_n.png" alt="Novel Tax Logo" style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover' }} />
               <div className="login-logo-text">
                 <span className="login-logo-title">노벨 세무회계 연구</span>
                 <span className="login-logo-subtitle">ADMIN PORTAL</span>
@@ -2126,7 +2126,7 @@ function App() {
           {/* Sidebar */}
           <aside className="sidebar">
             <div className="sidebar-logo">
-              <div className="logo-icon">N</div>
+              <img src="/logo_n.png" alt="Novel Tax Logo" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover' }} />
               <div className="sidebar-logo-text">
                 <span className="logo-title">노벨 세무회계 연구</span>
                 <span className="logo-subtitle">TAX & ACCOUNTING</span>

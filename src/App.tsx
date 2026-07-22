@@ -140,10 +140,18 @@ const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsObj?: an
 
 function App() {
   // Authentication State
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true);
-  const [loginId, setLoginId] = useState<string>('admin');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [loginId, setLoginId] = useState<string>('');
   const [loginPw, setLoginPw] = useState<string>('');
   const [passwordChangeText, setPasswordChangeText] = useState({ current: '', new: '', confirm: '' });
+  const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
+
+  // Sign Up State
+  const [isSignUpMode, setIsSignUpMode] = useState<boolean>(false);
+  const [signUpName, setSignUpName] = useState<string>('');
+  const [signUpEmail, setSignUpEmail] = useState<string>('');
+  const [signUpPassword, setSignUpPassword] = useState<string>('');
+  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState<string>('');
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password'>('customer');
@@ -514,8 +522,75 @@ function App() {
     return `${year}년 ${month}월 ${day}일 ${ampm} ${hours}:${minutes}`;
   };
 
+  // Listen to Supabase Auth state changes and check session on mount
+  useEffect(() => {
+    async function checkUserSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+          const { data: managerData, error: managerErr } = await supabase
+            .from('Manager')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!managerErr && managerData) {
+            if (managerData.isConfirmed) {
+              setIsLoggedIn(true);
+              setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
+            } else {
+              showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
+              await supabase.auth.signOut();
+              setIsLoggedIn(false);
+            }
+          } else {
+            showToast('등록되지 않은 관리자 계정입니다.', 'error');
+            await supabase.auth.signOut();
+            setIsLoggedIn(false);
+          }
+        } else {
+          setIsLoggedIn(false);
+        }
+      } catch (err) {
+        console.error('Session check error:', err);
+      } finally {
+        setIsSessionChecking(false);
+      }
+    }
+
+    checkUserSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session && session.user) {
+        const { data: managerData } = await supabase
+          .from('Manager')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (managerData) {
+          if (managerData.isConfirmed) {
+            setIsLoggedIn(true);
+            setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
+          } else {
+            showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
+            await supabase.auth.signOut();
+            setIsLoggedIn(false);
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   // Load Supabase initial data with ultra-fast 2-stage parallel streaming & dynamic staff mapping
   useEffect(() => {
+    if (!isLoggedIn) return;
     async function loadSupabaseData() {
       try {
         const teams = await fetchTeamsFromSupabase();
@@ -608,7 +683,7 @@ function App() {
       }
     }
     loadSupabaseData();
-  }, []);
+  }, [isLoggedIn]);
 
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
@@ -1967,18 +2042,165 @@ function App() {
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passwordChangeText.current || !passwordChangeText.new || !passwordChangeText.confirm) {
-      showToast('모든 비밀번호 필드를 채워주세요.', 'error');
+    if (!passwordChangeText.new || !passwordChangeText.confirm) {
+      showToast('새 비밀번호와 확인 비밀번호를 모두 입력해 주세요.', 'error');
       return;
     }
     if (passwordChangeText.new !== passwordChangeText.confirm) {
       showToast('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.', 'error');
       return;
     }
-    showToast('비밀번호가 성공적으로 변경되었습니다.', 'success');
-    setPasswordChangeText({ current: '', new: '', confirm: '' });
+
+    showToast('비밀번호를 업데이트하는 중입니다...', 'info');
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordChangeText.new
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      showToast('비밀번호가 성공적으로 변경되었습니다. 다음 로그인부터 적용됩니다.', 'success');
+      setPasswordChangeText({ current: '', new: '', confirm: '' });
+      setCurrentView('customer');
+    } catch (err: any) {
+      console.error('Password change error:', err);
+      showToast('비밀번호 변경 실패: ' + err.message, 'error');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginId || !loginPw) {
+      showToast('이메일과 비밀번호를 모두 입력해 주세요.', 'error');
+      return;
+    }
+
+    const email = loginId.includes('@') ? loginId.trim() : `${loginId.trim()}@novel-tax.kr`;
+    showToast('로그인을 진행 중입니다...', 'info');
+
+    try {
+      const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+        email,
+        password: loginPw
+      });
+
+      if (authErr) {
+        throw authErr;
+      }
+
+      if (authData && authData.user) {
+        const { data: managerData, error: managerErr } = await supabase
+          .from('Manager')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (managerErr || !managerData) {
+          showToast('등록되지 않은 매니저 계정입니다.', 'error');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (!managerData.isConfirmed) {
+          showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        setIsLoggedIn(true);
+        setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
+        showToast(`${managerData.name || '관리자'} 님, 환영합니다!`, 'success');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      showToast('로그인 실패: ' + err.message, 'error');
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signUpEmail || !signUpPassword || !signUpConfirmPassword || !signUpName) {
+      showToast('모든 가입 필드를 입력해 주세요.', 'error');
+      return;
+    }
+    if (signUpPassword !== signUpConfirmPassword) {
+      showToast('비밀번호가 일치하지 않습니다.', 'error');
+      return;
+    }
+
+    const email = signUpEmail.includes('@') ? signUpEmail.trim() : `${signUpEmail.trim()}@novel-tax.kr`;
+    showToast('회원가입 요청을 처리 중입니다...', 'info');
+
+    try {
+      const { count, error: countErr } = await supabase
+        .from('Manager')
+        .select('*', { count: 'exact', head: true });
+
+      if (countErr) throw countErr;
+
+      const isFirstUser = count === 0;
+
+      const { data: authData, error: authErr } = await supabase.auth.signUp({
+        email,
+        password: signUpPassword,
+        options: {
+          data: {
+            name: signUpName.trim()
+          }
+        }
+      });
+
+      if (authErr) {
+        throw authErr;
+      }
+
+      if (authData && authData.user) {
+        const { error: profileErr } = await supabase
+          .from('Manager')
+          .insert([{
+            id: authData.user.id,
+            name: signUpName.trim(),
+            teamId: null,
+            isAdmin: isFirstUser,
+            isConfirmed: isFirstUser
+          }]);
+
+        if (profileErr) {
+          throw profileErr;
+        }
+
+        if (isFirstUser) {
+          showToast('최초 관리자 계정으로 자동 가입 및 승인되었습니다! 즉시 로그인하실 수 있습니다.', 'success');
+        } else {
+          showToast('회원가입 신청이 정상 완료되었습니다. 기존 관리자의 승인 후 로그인할 수 있습니다.', 'success');
+        }
+
+        setSignUpEmail('');
+        setSignUpName('');
+        setSignUpPassword('');
+        setSignUpConfirmPassword('');
+        setIsSignUpMode(false);
+      }
+    } catch (err: any) {
+      console.error('Sign up error:', err);
+      showToast('회원가입 실패: ' + err.message, 'error');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      setIsLoggedIn(false);
+      showToast('로그아웃되었습니다.', 'info');
+    } catch (err: any) {
+      console.error('Logout error:', err);
+      setIsLoggedIn(false);
+    }
   };
 
   const handleResetFilters = () => {
@@ -2084,39 +2306,126 @@ function App() {
         </div>
       )}
 
-      {!isLoggedIn && (
+      {isSessionChecking && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', flexDirection: 'column', gap: '16px', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '4px solid rgba(255, 255, 255, 0.1)',
+            borderTop: '4px solid #3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+          <span>보안 인증 세션을 확인하는 중입니다...</span>
+        </div>
+      )}
+
+      {!isLoggedIn && !isSessionChecking && (
         <div className="login-page">
           <div className="login-box">
             <div className="login-logo">
               <img src="/logo_n.png" alt="Novel Tax Logo" style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'cover' }} />
               <div className="login-logo-text">
                 <span className="login-logo-title">노벨 세무회계 연구</span>
-                <span className="login-logo-subtitle">ADMIN PORTAL</span>
+                <span className="login-logo-subtitle">{isSignUpMode ? 'STAFF REGISTRATION' : 'ADMIN PORTAL'}</span>
               </div>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); setIsLoggedIn(true); showToast('관리자 시스템에 접속하였습니다.', 'success'); }}>
-              <div className="form-group">
-                <label>관리자 아이디</label>
-                <input
-                  type="text"
-                  className="login-input"
-                  value={loginId}
-                  onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="admin"
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: '24px' }}>
-                <label>비밀번호</label>
-                <input
-                  type="password"
-                  className="login-input"
-                  value={loginPw}
-                  onChange={(e) => setLoginPw(e.target.value)}
-                  placeholder="admin"
-                />
-              </div>
-              <button type="submit" className="btn-login">로그인</button>
-            </form>
+
+            {!isSignUpMode ? (
+              <form onSubmit={handleLogin}>
+                <div className="form-group">
+                  <label>관리자 이메일 / 아이디</label>
+                  <input
+                    type="text"
+                    className="login-input"
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
+                    placeholder="admin@novel-tax.kr"
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: '24px' }}>
+                  <label>비밀번호</label>
+                  <input
+                    type="password"
+                    className="login-input"
+                    value={loginPw}
+                    onChange={(e) => setLoginPw(e.target.value)}
+                    placeholder="비밀번호 입력"
+                    required
+                  />
+                </div>
+                <button type="submit" className="btn-login">로그인</button>
+                <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px' }}>
+                  <span style={{ color: '#64748b' }}>계정이 없으신가요? </span>
+                  <button type="button" onClick={() => setIsSignUpMode(true)} style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
+                    회원가입 신청
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSignUp}>
+                <div className="form-group">
+                  <label>이름 (실명)</label>
+                  <input
+                    type="text"
+                    className="login-input"
+                    value={signUpName}
+                    onChange={(e) => setSignUpName(e.target.value)}
+                    placeholder="홍길동"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>이메일 주소</label>
+                  <input
+                    type="email"
+                    className="login-input"
+                    value={signUpEmail}
+                    onChange={(e) => setSignUpEmail(e.target.value)}
+                    placeholder="manager@novel-tax.kr"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>비밀번호</label>
+                  <input
+                    type="password"
+                    className="login-input"
+                    value={signUpPassword}
+                    onChange={(e) => setSignUpPassword(e.target.value)}
+                    placeholder="6자 이상 입력"
+                    minLength={6}
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: '24px' }}>
+                  <label>비밀번호 확인</label>
+                  <input
+                    type="password"
+                    className="login-input"
+                    value={signUpConfirmPassword}
+                    onChange={(e) => setSignUpConfirmPassword(e.target.value)}
+                    placeholder="비밀번호 재입력"
+                    required
+                  />
+                </div>
+                <button type="submit" className="btn-login" style={{ backgroundColor: '#10b981' }}>회원가입 신청</button>
+                <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px' }}>
+                  <span style={{ color: '#64748b' }}>이미 계정이 있으신가요? </span>
+                  <button type="button" onClick={() => setIsSignUpMode(false)} style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
+                    로그인으로 돌아가기
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -2165,7 +2474,7 @@ function App() {
             </nav>
 
             <div className="sidebar-footer">
-              <button className="sidebar-item" onClick={() => { setIsLoggedIn(false); showToast('로그아웃되었습니다.', 'info'); }}>
+              <button className="sidebar-item" onClick={handleLogout}>
                 <LogOut size={18} />
                 로그아웃
               </button>

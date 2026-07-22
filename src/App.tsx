@@ -329,6 +329,12 @@ function App() {
   const [selectedNationality, setSelectedNationality] = useState<string>('');
   const [selectedRefundStatus, setSelectedRefundStatus] = useState<string>('');
   const [selectedManager, setSelectedManager] = useState<string>('');
+  const [filterBeforeDate, setFilterBeforeDate] = useState<string>('');
+  const [filterCompanyName, setFilterCompanyName] = useState<string>('');
+  const [filterVisaType, setFilterVisaType] = useState<string>('');
+  const [filterBirthDate, setFilterBirthDate] = useState<string>('');
+  const [filterRegDate, setFilterRegDate] = useState<string>('');
+  const [filterMonthlyRent, setFilterMonthlyRent] = useState<string>('');
 
   // Dashboard Filter State
   const [dashYearFilter, setDashYearFilter] = useState<string>('전체');
@@ -343,6 +349,7 @@ function App() {
   // Supabase Staff Management State (Team & Manager)
   const [dbTeams, setDbTeams] = useState<any[]>([]);
   const [dbManagers, setDbManagers] = useState<any[]>([]);
+  const [consultMemos, setConsultMemos] = useState<any[]>([]);
   const [managerPage, setManagerPage] = useState<number>(1);
   const managerItemsPerPage = 10;
 
@@ -605,6 +612,7 @@ function App() {
 
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
+    clientId: '',
     // Basic Details
     name: '',
     foreignerNumber: '',
@@ -799,6 +807,7 @@ function App() {
 
   const handleResetAll = () => {
     setRegForm({
+      clientId: '',
       name: '',
       foreignerNumber: '',
       nationality: '미얀마',
@@ -856,6 +865,7 @@ function App() {
         '2025': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' }
       }
     });
+    setConsultMemos([]);
     setTargetYears(['2021', '2022', '2023', '2024', '2025']);
     showToast('고객 등록 정보 및 정산 데이터가 전체 초기화되었습니다.', 'info');
   };
@@ -1519,7 +1529,15 @@ function App() {
 
       // Query Client records using multiple matching strategies to handle duplicate/legacy entries in Supabase
       let clientRecords: any[] = [];
-      if (customer.birthDate) {
+      if (customer.id) {
+        const { data } = await supabase
+          .from('Client')
+          .select('*')
+          .eq('serial', customer.id);
+        if (data && data.length > 0) clientRecords = data;
+      }
+
+      if (clientRecords.length === 0 && customer.birthDate) {
         const { data } = await supabase
           .from('Client')
           .select('*')
@@ -1546,6 +1564,20 @@ function App() {
           .in('clientId', clientIds);
         if (yData && yData.length > 0) yearRecords = yData;
       }
+
+      // Fetch ConsultMemo logs for this client
+      let consultMemosList: any[] = [];
+      if (clientDetails?.id) {
+        const { data: memoData, error: memoErr } = await supabase
+          .from('ConsultMemo')
+          .select('*')
+          .eq('clientId', clientDetails.id)
+          .order('createdAt', { ascending: false });
+        if (!memoErr && memoData) {
+          consultMemosList = memoData;
+        }
+      }
+      setConsultMemos(consultMemosList);
 
       const defaultYearObj = () => ({
         active: false,
@@ -1667,6 +1699,7 @@ function App() {
 
       setRegForm(prev => ({
         ...prev,
+        clientId: clientDetails?.id || '',
         name: clientDetails?.name || customer.name,
         foreignerNumber: clientDetails?.regNum || customer.birthDate,
         nationality: clientDetails?.country || customer.nationality,
@@ -1688,6 +1721,10 @@ function App() {
         feePaymentStatus: clientDetails?.feeMethod || '후불 22%',
         hometaxId: clientDetails?.hometaxId || '',
         hometaxPw: clientDetails?.hometaxPw || '',
+        snsName: clientDetails?.facebookName || '',
+        snsAddress: clientDetails?.facebookURL || '',
+        customerGrade: clientDetails?.clientRank || '',
+        greenContractDate: clientDetails?.recordFileDate ? clientDetails.recordFileDate.split('T')[0] : '',
         dependentsCount: Number(clientDetails?.dependentsCount) || 0,
         seniorCount: Number(clientDetails?.seniorCount) || 0,
         disabledCount: Number(clientDetails?.disabledCount) || 0,
@@ -1832,6 +1869,104 @@ function App() {
     setCurrentView('customer'); // Return to list view
   };
 
+  const handleSaveConsultInfo = async () => {
+    if (!regForm.clientId) {
+      showToast('상담 정보를 저장할 고객이 선택되지 않았습니다.', 'error');
+      return;
+    }
+    showToast('상담 정보를 저장 중입니다...', 'info');
+    try {
+      const { error } = await supabase
+        .from('Client')
+        .update({
+          facebookName: regForm.snsName || '',
+          facebookURL: regForm.snsAddress || '',
+          hometaxId: regForm.hometaxId || '',
+          hometaxPw: regForm.hometaxPw || '',
+          clientRank: regForm.customerGrade || '',
+          recordFileDate: (regForm.greenContractDate && regForm.greenContractDate !== '') ? new Date(regForm.greenContractDate).toISOString() : null,
+          updatedAt: new Date().toISOString()
+        })
+        .eq('id', regForm.clientId);
+
+      if (error) {
+        throw error;
+      }
+
+      showToast('상담 정보가 Supabase DB에 성공적으로 저장되었습니다.', 'success');
+    } catch (err: any) {
+      console.error('Error saving consult info:', err);
+      showToast('상담 정보 저장 실패: ' + err.message, 'error');
+    }
+  };
+
+  const handleRegisterConsultMemo = async () => {
+    if (!regForm.clientId) {
+      showToast('상담 메모를 등록할 고객이 선택되지 않았습니다. 고객을 먼저 등록하거나 상세 정보를 불러와주세요.', 'error');
+      return;
+    }
+    if (!regForm.consultMemo || regForm.consultMemo.trim() === '') {
+      showToast('등록할 상담 메모를 입력해 주세요.', 'error');
+      return;
+    }
+
+    showToast('상담 메모를 등록하는 중...', 'info');
+
+    // Find manager uuid associated with the client
+    const currentMgr = dbManagers.find(m => m.name === regForm.managerName);
+    const managerId = currentMgr?.id || 'a6f8d012-d555-414a-b78f-9110864dae3a'; // default/fallback to 관리자
+
+    try {
+      const { data, error } = await supabase
+        .from('ConsultMemo')
+        .insert([{
+          clientId: regForm.clientId,
+          content: regForm.consultMemo.trim(),
+          managerId: managerId,
+          createdAt: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setConsultMemos(prev => [data, ...prev]);
+        setRegForm(prev => ({ ...prev, consultMemo: '' }));
+        showToast('상담 내용 및 메모가 상담처리 로그에 등록되었습니다.', 'success');
+      }
+    } catch (err: any) {
+      console.error('Error inserting ConsultMemo:', err);
+      showToast('상담 메모 등록 실패: ' + err.message, 'error');
+    }
+  };
+
+  const handleDeleteConsultMemo = async (memoId: number) => {
+    const ok = window.confirm('이 상담 메모를 삭제하시겠습니까?');
+    if (!ok) return;
+
+    showToast('상담 메모를 삭제하는 중...', 'info');
+
+    try {
+      const { error } = await supabase
+        .from('ConsultMemo')
+        .delete()
+        .eq('id', memoId);
+
+      if (error) {
+        throw error;
+      }
+
+      setConsultMemos(prev => prev.filter(m => m.id !== memoId));
+      showToast('상담 메모가 성공적으로 삭제되었습니다.', 'success');
+    } catch (err: any) {
+      console.error('Error deleting ConsultMemo:', err);
+      showToast('상담 메모 삭제 실패: ' + err.message, 'error');
+    }
+  };
+
   const handleChangePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordChangeText.current || !passwordChangeText.new || !passwordChangeText.confirm) {
@@ -1851,6 +1986,12 @@ function App() {
     setSelectedNationality('');
     setSelectedRefundStatus('');
     setSelectedManager('');
+    setFilterBeforeDate('');
+    setFilterCompanyName('');
+    setFilterVisaType('');
+    setFilterBirthDate('');
+    setFilterRegDate('');
+    setFilterMonthlyRent('');
     showToast('필터가 초기화되었습니다.', 'info');
   };
 
@@ -1859,10 +2000,76 @@ function App() {
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(c.id).includes(searchQuery);
+    
     const matchesNationality = selectedNationality ? c.nationality === selectedNationality : true;
     const matchesRefundStatus = selectedRefundStatus ? c.refundStatus === selectedRefundStatus : true;
     const matchesManager = selectedManager ? c.managerName === selectedManager : true;
-    return matchesSearch && matchesNationality && matchesRefundStatus && matchesManager;
+
+    // Helper to parse dates formatted as "26. 7. 22."
+    const parseRegisteredDate = (dateStr: string): Date | null => {
+      if (!dateStr || dateStr === '-') return null;
+      const parts = dateStr.split('.').map(p => p.trim()).filter(Boolean);
+      if (parts.length === 3) {
+        const year = 2000 + parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+      return null;
+    };
+
+    let matchesBeforeDate = true;
+    if (filterBeforeDate) {
+      const bDate = new Date(filterBeforeDate);
+      bDate.setHours(0, 0, 0, 0);
+      const regDate = parseRegisteredDate(c.registeredDate);
+      if (regDate) {
+        regDate.setHours(0, 0, 0, 0);
+        matchesBeforeDate = regDate < bDate;
+      } else {
+        matchesBeforeDate = false;
+      }
+    }
+
+    let matchesRegDate = true;
+    if (filterRegDate) {
+      const targetDate = new Date(filterRegDate);
+      targetDate.setHours(0, 0, 0, 0);
+      const regDate = parseRegisteredDate(c.registeredDate);
+      if (regDate) {
+        regDate.setHours(0, 0, 0, 0);
+        matchesRegDate = regDate.getTime() === targetDate.getTime();
+      } else {
+        matchesRegDate = false;
+      }
+    }
+
+    const matchesCompanyName = filterCompanyName
+      ? c.companyName.toLowerCase().includes(filterCompanyName.toLowerCase())
+      : true;
+
+    const matchesVisaType = filterVisaType
+      ? c.visa.toLowerCase().includes(filterVisaType.toLowerCase())
+      : true;
+
+    const matchesBirthDate = filterBirthDate
+      ? c.birthDate.replace(/-/g, '').includes(filterBirthDate.replace(/-/g, ''))
+      : true;
+
+    const matchesMonthlyRent = filterMonthlyRent
+      ? c.monthlyRent === filterMonthlyRent
+      : true;
+
+    return matchesSearch &&
+      matchesNationality &&
+      matchesRefundStatus &&
+      matchesManager &&
+      matchesBeforeDate &&
+      matchesRegDate &&
+      matchesCompanyName &&
+      matchesVisaType &&
+      matchesBirthDate &&
+      matchesMonthlyRent;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
@@ -2169,31 +2376,59 @@ function App() {
 
                 {isFilterModalOpen && (
                   <div className="modal-backdrop" onClick={() => setIsFilterModalOpen(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content" style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
                       <div className="modal-header">
                         <h3>상세 필터 검색</h3>
                         <button className="btn-close" onClick={() => setIsFilterModalOpen(false)}><X size={18} /></button>
                       </div>
-                      <div className="modal-body">
-                        <div className="form-group">
-                          <label>국적 선택</label>
-                          <select className="form-control" value={selectedNationality} onChange={(e) => setSelectedNationality(e.target.value)}>
+                      <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '16px' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>국적 선택</label>
+                          <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={selectedNationality} onChange={(e) => setSelectedNationality(e.target.value)}>
                             <option value="">전체 국적</option>
                             {nationalities.map(n => <option key={n} value={n}>{n}</option>)}
                           </select>
                         </div>
-                        <div className="form-group">
-                          <label>환급처리상태</label>
-                          <select className="form-control" value={selectedRefundStatus} onChange={(e) => setSelectedRefundStatus(e.target.value)}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>환급처리상태</label>
+                          <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={selectedRefundStatus} onChange={(e) => setSelectedRefundStatus(e.target.value)}>
                             <option value="">전체 상태</option>
                             {refundStatuses.map(s => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
-                        <div className="form-group">
-                          <label>담당 매니저 선택</label>
-                          <select className="form-control" value={selectedManager} onChange={(e) => setSelectedManager(e.target.value)}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>담당 매니저</label>
+                          <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={selectedManager} onChange={(e) => setSelectedManager(e.target.value)}>
                             <option value="">전체 매니저</option>
                             {availableManagerList.map(m => <option key={m} value={m}>{m}</option>)}
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>비자종류</label>
+                          <input type="text" className="form-control" style={{ height: '36px', fontSize: '13px' }} placeholder="예: E9, E10" value={filterVisaType} onChange={(e) => setFilterVisaType(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>회사명</label>
+                          <input type="text" className="form-control" style={{ height: '36px', fontSize: '13px' }} placeholder="회사명 검색" value={filterCompanyName} onChange={(e) => setFilterCompanyName(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>생년월일</label>
+                          <input type="text" className="form-control" style={{ height: '36px', fontSize: '13px' }} placeholder="생년월일 (YYMMDD)" value={filterBirthDate} onChange={(e) => setFilterBirthDate(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>등록일</label>
+                          <input type="date" className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterRegDate} onChange={(e) => setFilterRegDate(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>특정일 이전 등록</label>
+                          <input type="date" className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterBeforeDate} onChange={(e) => setFilterBeforeDate(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>월세거주 여부</label>
+                          <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterMonthlyRent} onChange={(e) => setFilterMonthlyRent(e.target.value)}>
+                            <option value="">전체</option>
+                            <option value="예">예</option>
+                            <option value="아니오">아니오</option>
                           </select>
                         </div>
                       </div>
@@ -3933,7 +4168,7 @@ function App() {
                       <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>고객 상담 정보 관리</span>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button className="btn-cancel" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setRegForm(prev => ({ ...prev, snsName: '', snsAddress: '', hometaxId: '', hometaxPw: '', consultMemo: '' }))}>초기화</button>
-                        <button className="btn-submit" style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={() => showToast('상담 정보 임시 저장완료', 'success')}>저장</button>
+                        <button className="btn-submit" style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={handleSaveConsultInfo}>저장</button>
                       </div>
                     </div>
 
@@ -3975,7 +4210,7 @@ function App() {
                       </div>
                       
                       <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
-                        <button type="button" className="btn-submit" style={{ backgroundColor: '#10b981', fontSize: '13px', padding: '8px 16px' }} onClick={() => showToast('상담 내용 및 메모가 상담처리 로그에 등록되었습니다.', 'success')}>상담처리 등록</button>
+                        <button type="button" className="btn-submit" style={{ backgroundColor: '#10b981', fontSize: '13px', padding: '8px 16px' }} onClick={handleRegisterConsultMemo}>상담처리 등록</button>
                       </div>
 
                       <div>
@@ -4002,16 +4237,54 @@ function App() {
                     <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
                       상담처리 로그
                     </div>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8', fontSize: '13px', border: '1px dashed #cbd5e1', borderRadius: '6px', minHeight: '200px' }}>
-                      {regForm.consultMemo ? (
-                        <div style={{ width: '100%', height: '100%', padding: '12px', color: '#334155', alignSelf: 'flex-start', textAlign: 'left', overflowY: 'auto' }}>
-                          <div style={{ padding: '6px 8px', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
-                            [기록시간: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}]
-                          </div>
-                          <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.4', fontSize: '13px' }}>{regForm.consultMemo}</p>
+                    <div style={{ flex: 1, minHeight: '200px', display: 'flex', flexDirection: 'column' }}>
+                      {consultMemos.length > 0 ? (
+                        <div style={{ width: '100%', overflowY: 'auto', maxHeight: '350px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '65%', borderBottom: '1px solid #e2e8f0' }}>상담처리 메모</th>
+                                <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '25%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>처리일시/담당자</th>
+                                <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '10%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>삭제</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {consultMemos.map((memo) => {
+                                const resolvedManager = dbManagers.find(m => m.id === memo.managerId)?.name || memo.managerId || '관리자';
+                                const formattedDate = memo.createdAt
+                                  ? new Date(memo.createdAt).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' })
+                                  : '-';
+                                return (
+                                  <tr key={memo.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                    <td style={{ padding: '10px 12px', color: '#334155', whiteSpace: 'pre-wrap', verticalAlign: 'top', lineHeight: '1.4' }}>
+                                      {memo.content}
+                                    </td>
+                                    <td style={{ padding: '10px 12px', color: '#64748b', verticalAlign: 'top', textAlign: 'center', lineHeight: '1.3' }}>
+                                      <div>{formattedDate}</div>
+                                      <div style={{ fontWeight: '500', color: '#334155', marginTop: '2px' }}>{resolvedManager}</div>
+                                    </td>
+                                    <td style={{ padding: '10px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
+                                      <button 
+                                        type="button" 
+                                        onClick={() => handleDeleteConsultMemo(memo.id)}
+                                        style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', transition: 'background-color 0.2s' }}
+                                        title="삭제"
+                                        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#fee2e2')}
+                                        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                                      >
+                                        <Trash2 size={15} />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       ) : (
-                        '상담처리 기록이 없습니다.'
+                        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#94a3b8', fontSize: '13px', border: '1px dashed #cbd5e1', borderRadius: '6px', minHeight: '200px' }}>
+                          상담처리 기록이 없습니다.
+                        </div>
                       )}
                     </div>
                   </div>

@@ -380,9 +380,16 @@ export async function createManagerInSupabase(payload: {
   facebookMessenger?: string;
 }) {
   try {
+    // Generate random UUID for Manager ID since it's the primary key and doesn't have a default value in DB
+    const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+
     const { data, error } = await supabase
       .from('Manager')
       .insert([{
+        id: newId,
         name: payload.name,
         teamId: payload.teamId,
         phone: payload.phone || '',

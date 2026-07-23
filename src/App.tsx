@@ -2188,7 +2188,8 @@ function App() {
         password: signUpPassword,
         options: {
           data: {
-            name: signUpName.trim()
+            name: signUpName.trim(),
+            teamId: 1
           }
         }
       });
@@ -2200,13 +2201,13 @@ function App() {
       if (authData && authData.user) {
         const { error: profileErr } = await supabase
           .from('Manager')
-          .insert([{
+          .upsert([{
             id: authData.user.id,
             name: signUpName.trim(),
-            teamId: null,
+            teamId: 1,
             isAdmin: isFirstUser,
             isConfirmed: isFirstUser
-          }]);
+          }], { onConflict: 'id' });
 
         if (profileErr) {
           throw profileErr;

@@ -145,6 +145,7 @@ function App() {
   const [loginPw, setLoginPw] = useState<string>('');
   const [passwordChangeText, setPasswordChangeText] = useState({ current: '', new: '', confirm: '' });
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
+  const [currentManager, setCurrentManager] = useState<any>(null);
 
   // Sign Up State
   const [isSignUpMode, setIsSignUpMode] = useState<boolean>(false);
@@ -387,6 +388,16 @@ function App() {
     return Array.from(names).filter(Boolean);
   }, [dbManagers, customers]);
 
+  const currentManagerCountry = useMemo(() => {
+    if (!currentManager) return null;
+    if (currentManager.email === 'admin@novel.com' || currentManager.isAdmin) return 'ALL';
+    const team = dbTeams.find(t => t.id === currentManager.teamId);
+    if (team) {
+      return team.name ? team.name.replace(/팀$/, '').trim() : null;
+    }
+    return null;
+  }, [currentManager, dbTeams]);
+
   const [isManagerModalOpen, setIsManagerModalOpen] = useState<boolean>(false);
   const [tempModalTeam, setTempModalTeam] = useState<string>('');
   const [tempModalManager, setTempModalManager] = useState<string>('');
@@ -537,16 +548,22 @@ function App() {
           if (!managerErr && managerData) {
             if (managerData.isConfirmed) {
               setIsLoggedIn(true);
+              setCurrentManager({
+                ...managerData,
+                email: session.user.email
+              });
               setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
             } else {
               showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
               await supabase.auth.signOut();
               setIsLoggedIn(false);
+              setCurrentManager(null);
             }
           } else {
             showToast('등록되지 않은 관리자 계정입니다.', 'error');
             await supabase.auth.signOut();
             setIsLoggedIn(false);
+            setCurrentManager(null);
           }
         } else {
           setIsLoggedIn(false);
@@ -879,6 +896,13 @@ function App() {
       return prev;
     });
   }, [regForm.foreignerNumber, regForm.residentAddress, selectedFeeRate]);
+
+  // Redirect regular managers away from dashboard if they somehow access it
+  useEffect(() => {
+    if (currentView === 'dashboard' && currentManager?.email !== 'admin@novel.com') {
+      setCurrentView('customer');
+    }
+  }, [currentView, currentManager]);
 
   const handleResetAll = () => {
     setRegForm({
@@ -2123,6 +2147,10 @@ function App() {
         }
 
         setIsLoggedIn(true);
+        setCurrentManager({
+          ...managerData,
+          email: authData.user.email
+        });
         setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
         showToast(`${managerData.name || '관리자'} 님, 환영합니다!`, 'success');
       }
@@ -2206,10 +2234,12 @@ function App() {
     try {
       await supabase.auth.signOut();
       setIsLoggedIn(false);
+      setCurrentManager(null);
       showToast('로그아웃되었습니다.', 'info');
     } catch (err: any) {
       console.error('Logout error:', err);
       setIsLoggedIn(false);
+      setCurrentManager(null);
     }
   };
 
@@ -2228,6 +2258,13 @@ function App() {
   };
 
   const filteredCustomers = customers.filter(c => {
+    // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
+    const matchesManagerCountry = currentManagerCountry && currentManagerCountry !== 'ALL'
+      ? c.nationality === currentManagerCountry
+      : true;
+
+    if (!matchesManagerCountry) return false;
+
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -2460,13 +2497,15 @@ function App() {
                 <UserCheck size={18} />
                 고객등록 관리
               </button>
-              <button
-                className={`sidebar-item ${currentView === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setCurrentView('dashboard')}
-              >
-                <BarChart3 size={18} />
-                통계 및 실적 대시보드
-              </button>
+              {currentManager?.email === 'admin@novel.com' && (
+                <button
+                  className={`sidebar-item ${currentView === 'dashboard' ? 'active' : ''}`}
+                  onClick={() => setCurrentView('dashboard')}
+                >
+                  <BarChart3 size={18} />
+                  통계 및 실적 대시보드
+                </button>
+              )}
               <button
                 className={`sidebar-item ${currentView === 'staff' ? 'active' : ''}`}
                 onClick={() => setCurrentView('staff')}

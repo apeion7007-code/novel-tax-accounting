@@ -1248,15 +1248,6 @@ function App() {
           childReductionApply: 'Y',
         };
 
-        updatedYears[yr] = recalculateYearData(
-          rawYrData, 
-          prev.dependentsCount, 
-          prev.seniorCount, 
-          prev.disabledCount, 
-          prev.childCount, 
-          selectedFeeRate
-        );
-
         const updatedBasic: any = {};
         if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
         if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
@@ -1272,6 +1263,20 @@ function App() {
             }
           }
         }
+
+        const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
+        const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
+
+        updatedYears[yr] = recalculateYearData(
+          rawYrData, 
+          prev.dependentsCount, 
+          prev.seniorCount, 
+          prev.disabledCount, 
+          prev.childCount, 
+          selectedFeeRate,
+          newRrn,
+          newEmpDate
+        );
 
         return {
           ...prev,
@@ -1411,15 +1416,6 @@ function App() {
             childReductionApply: 'Y',
           };
 
-          updatedYears[yr] = recalculateYearData(
-            rawYrData, 
-            prev.dependentsCount, 
-            prev.seniorCount, 
-            prev.disabledCount, 
-            prev.childCount, 
-            selectedFeeRate
-          );
-
           const updatedBasic: any = {};
           if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
           if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
@@ -1435,6 +1431,20 @@ function App() {
               }
             }
           }
+
+          const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
+          const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
+
+          updatedYears[yr] = recalculateYearData(
+            rawYrData, 
+            prev.dependentsCount, 
+            prev.seniorCount, 
+            prev.disabledCount, 
+            prev.childCount, 
+            selectedFeeRate,
+            newRrn,
+            newEmpDate
+          );
 
           return {
             ...prev,

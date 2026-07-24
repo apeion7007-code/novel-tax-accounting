@@ -159,7 +159,6 @@ function App() {
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password'>('customer');
-  const [invoiceLanguage, setInvoiceLanguage] = useState<string>('한국어');
 
   // Customer List State
   const [customers, setCustomers] = useState<Customer[]>([
@@ -786,6 +785,7 @@ function App() {
   // Dynamic Years for Settlement
   const [targetYears, setTargetYears] = useState<string[]>(['2021', '2022', '2023', '2024', '2025']);
   const [selectedFeeRate, setSelectedFeeRate] = useState<number>(22);
+  const [invoiceLanguage, setInvoiceLanguage] = useState<string>('한국어');
   useEffect(() => {
     if (regForm.nationality === '베트남') setInvoiceLanguage('베트남어');
     else if (regForm.nationality === '인도네시아') setInvoiceLanguage('인도네시아어');

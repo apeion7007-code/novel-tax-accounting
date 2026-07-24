@@ -2546,12 +2546,14 @@ function App() {
 
           <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
           <tr height="150" style="border:none;">
-            <td colspan="10" class="instructions" style="border-top: 1pt solid #cbd5e1; padding-top: 12px; vertical-align: top; text-align: left;" height="150">
+            <td colspan="10" class="instructions" style="border-top: 1pt solid #cbd5e1; padding-top: 12px; vertical-align: top; text-align: left; white-space: normal;" height="150">
               <b>작성방법</b><br/>
               1. '취업자 유형'은 '청년', '60세 이상 사람', '장애인', '경력단절여성'으로 구분하여 적습니다.<br/>
               2. '병역근무기간'과 '병역근무기간 차감 후 연령'은 취업자 유형이 '청년'인 경우 적습니다.<br/>
-              3. '감면기간'란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세 감면신청서」의 ⑧·⑨란의 시작일과 종료일을 적습니다.<br/>
-              4. '주업종코드'란에는 원천징수의무자의 주업종코드를 기재합니다. (「조세특례제한법 시행령」 제27조제3항 각 호에 따른 사업을 주된 사업으로 영위하는 중소기업으로부터 받는 근로소득만 감면 대상입니다.)
+              3. '감면기간'란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세<br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;감면신청서」의 ⑧·⑨란의 시작일과 종료일을 적습니다.<br/>
+              4. '주업종코드'란에는 원천징수의무자의 주업종코드를 기재합니다. (「조세특례제한법 시행령」 제27조제3항<br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;각 호에 따른 사업을 주된 사업으로 영위하는 중소기업으로부터 받는 근로소득만 감면 대상입니다.)
             </td>
           </tr>
         </table>

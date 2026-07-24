@@ -2466,7 +2466,262 @@ function App() {
       console.error('Error generating Excel from template:', err);
       showToast('엑셀 생성 실패: ' + err.message, 'error');
     }
-  };
+  }
+
+  const triggerKoreanInvoiceDownload = async () => {
+    showToast('청구서 엑셀 파일을 작성하고 있습니다...', 'info');
+    try {
+      let totalRefundSum = 0;
+      let totalFeeSum = 0;
+      const activeYearBreakdowns: { year: string; refund: number; fee: number }[] = [];
+
+      targetYears.forEach(yr => {
+        const { refund, fee } = getCombinedRefund(yr);
+        if (refund > 0) {
+          totalRefundSum += refund;
+          totalFeeSum += fee;
+          activeYearBreakdowns.push({ year: yr, refund, fee });
+        }
+      });
+
+      if (activeYearBreakdowns.length === 0) {
+        throw new Error('환급이 예상되는 연도가 없습니다. 정산 데이터를 확인해 주세요.');
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('청구서');
+      worksheet.views = [{ showGridLines: true }];
+
+      // Define default column widths
+      worksheet.getColumn('A').width = 4;
+      worksheet.getColumn('B').width = 16;
+      worksheet.getColumn('C').width = 24;
+      worksheet.getColumn('D').width = 24;
+      worksheet.getColumn('E').width = 4;
+
+      // Styling Helpers
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin' as const, color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin' as const, color: { argb: 'FFCBD5E1' } }
+      };
+
+      // 1. Title
+      worksheet.mergeCells('B2:D2');
+      const titleCell = worksheet.getCell('B2');
+      titleCell.value = '환급금 정산 청구서';
+      titleCell.font = { name: '맑은 고딕', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1E3A8A' } // Dark Navy
+      };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      worksheet.getRow(2).height = 45;
+
+      // 2. Client Info Section
+      worksheet.getCell('B4').value = '1. 고객 정보';
+      worksheet.getCell('B4').font = { name: '맑은 고딕', size: 11, bold: true };
+      
+      const infoLabels = ['고객 성명', '주민등록번호', '소속 회사'];
+      
+      let companyName = '';
+      const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
+      for (const yr of sortedYears) {
+        const yrData = regForm.years[yr];
+        if (yrData?.active && yrData.workPlace) {
+          companyName = yrData.workPlace;
+          break;
+        }
+      }
+      if (!companyName) {
+        companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+      }
+
+      // Mask RRN
+      const rawRrn = regForm.foreignerNumber || '';
+      let maskedRrn = rawRrn;
+      if (rawRrn.replace(/-/g, '').length >= 7) {
+        const clean = rawRrn.replace(/-/g, '');
+        maskedRrn = clean.substring(0, 6) + '-' + clean.charAt(6) + '******';
+      }
+
+      const infoValues = [regForm.name || '', maskedRrn, companyName];
+
+      for (let i = 0; i < 3; i++) {
+        const rNum = 5 + i;
+        const row = worksheet.getRow(rNum);
+        row.height = 24;
+
+        const lblCell = worksheet.getCell(`B${rNum}`);
+        lblCell.value = infoLabels[i];
+        lblCell.font = { name: '맑은 고딕', size: 10, bold: true };
+        lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        lblCell.border = thinBorder;
+        lblCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        worksheet.mergeCells(`C${rNum}:D${rNum}`);
+        const valCell = worksheet.getCell(`C${rNum}`);
+        valCell.value = infoValues[i];
+        valCell.font = { name: '맑은 고딕', size: 10 };
+        valCell.border = thinBorder;
+        valCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        
+        // Add border to merged cells manually
+        worksheet.getCell(`D${rNum}`).border = thinBorder;
+      }
+
+      // 3. Calculation Table
+      const startTableIdx = 9;
+      worksheet.getCell(`B${startTableIdx}`).value = '2. 환급금 및 수수료 내역';
+      worksheet.getCell(`B${startTableIdx}`).font = { name: '맑은 고딕', size: 11, bold: true };
+
+      // Header Row
+      const headerRowIndex = startTableIdx + 1;
+      worksheet.getRow(headerRowIndex).height = 26;
+      
+      const headers = ['정산 연도', '예상 환급액 (국세+지방세)', `대행 수수료 (${selectedFeeRate}%)`];
+      const headerCols = ['B', 'C', 'D'];
+      
+      for (let i = 0; i < 3; i++) {
+        const cell = worksheet.getCell(`${headerCols[i]}${headerRowIndex}`);
+        cell.value = headers[i];
+        cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } }; // Blue
+        cell.border = thinBorder;
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+
+      // Data Rows
+      let currentIdx = headerRowIndex + 1;
+      activeYearBreakdowns.forEach(item => {
+        worksheet.getRow(currentIdx).height = 24;
+        
+        // Year
+        const cellY = worksheet.getCell(`B${currentIdx}`);
+        cellY.value = `${item.year}년 정산`;
+        cellY.font = { name: '맑은 고딕', size: 10 };
+        cellY.border = thinBorder;
+        cellY.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // Refund
+        const cellR = worksheet.getCell(`C${currentIdx}`);
+        cellR.value = item.refund;
+        cellR.numFmt = '#,##0"원"';
+        cellR.font = { name: '맑은 고딕', size: 10 };
+        cellR.border = thinBorder;
+        cellR.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+
+        // Fee
+        const cellF = worksheet.getCell(`D${currentIdx}`);
+        cellF.value = item.fee;
+        cellF.numFmt = '#,##0"원"';
+        cellF.font = { name: '맑은 고딕', size: 10, bold: true };
+        cellF.border = thinBorder;
+        cellF.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+
+        currentIdx++;
+      });
+
+      // Total Row
+      worksheet.getRow(currentIdx).height = 26;
+      
+      const cellTotLbl = worksheet.getCell(`B${currentIdx}`);
+      cellTotLbl.value = '합 계';
+      cellTotLbl.font = { name: '맑은 고딕', size: 10, bold: true };
+      cellTotLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      cellTotLbl.border = thinBorder;
+      cellTotLbl.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      const cellTotR = worksheet.getCell(`C${currentIdx}`);
+      cellTotR.value = totalRefundSum;
+      cellTotR.numFmt = '#,##0"원"';
+      cellTotR.font = { name: '맑은 고딕', size: 10, bold: true };
+      cellTotR.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      cellTotR.border = thinBorder;
+      cellTotR.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+
+      const cellTotF = worksheet.getCell(`D${currentIdx}`);
+      cellTotF.value = totalFeeSum;
+      cellTotF.numFmt = '#,##0"원"';
+      cellTotF.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFEF4444' } }; // Red
+      cellTotF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      cellTotF.border = thinBorder;
+      cellTotF.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+
+      currentIdx += 2;
+
+      // 4. Bank Transfer Info Section
+      worksheet.getCell(`B${currentIdx}`).value = '3. 입금 계좌 및 수납 안내';
+      worksheet.getCell(`B${currentIdx}`).font = { name: '맑은 고딕', size: 11, bold: true };
+
+      currentIdx++;
+      
+      const bankLabels = ['입금 은행', '계좌 번호', '예 금 주'];
+      const bankValues = ['IBK 기업은행', '540-049052-04-010', '한결금융컨설팅'];
+
+      for (let i = 0; i < 3; i++) {
+        const rNum = currentIdx + i;
+        worksheet.getRow(rNum).height = 24;
+
+        const lblCell = worksheet.getCell(`B${rNum}`);
+        lblCell.value = bankLabels[i];
+        lblCell.font = { name: '맑은 고딕', size: 10, bold: true };
+        lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+        lblCell.border = thinBorder;
+        lblCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        worksheet.mergeCells(`C${rNum}:D${rNum}`);
+        const valCell = worksheet.getCell(`C${rNum}`);
+        valCell.value = bankValues[i];
+        valCell.font = { name: '맑은 고딕', size: 10, bold: i === 1 }; // Account number bold
+        valCell.border = thinBorder;
+        valCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+
+        worksheet.getCell(`D${rNum}`).border = thinBorder;
+      }
+
+      currentIdx += 3;
+      
+      // Guide text row
+      worksheet.getRow(currentIdx).height = 40;
+      worksheet.mergeCells(`B${currentIdx}:D${currentIdx}`);
+      const guideCell = worksheet.getCell(`B${currentIdx}`);
+      guideCell.value = '※ 대행 수수료 입금이 확인된 후, 세무서 국세청 경정청구 최종 접수가 진행됩니다.\n※ 입금하실 때는 반드시 고객님 본인 성명으로 입금해 주시기 바랍니다.';
+      guideCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF64748B' }, italic: true };
+      guideCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+      
+      // Page Setup for clean print preview
+      worksheet.pageSetup = {
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 1,
+        orientation: 'portrait',
+        paperSize: 9 // A4
+      };
+
+      // Generate file buffer and trigger download
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const cleanName = regForm.name.trim().replace(/\s+/g, '_');
+      link.download = `청구서_${cleanName}_${selectedFeeRate}%.xlsx`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast('청구서 엑셀 다운로드가 완료되었습니다.', 'success');
+    } catch (err: any) {
+      console.error('Error generating invoice Excel:', err);
+      showToast('청구서 생성 실패: ' + err.message, 'error');
+    }
+  };;
 
   const handleSaveConsultInfo = async () => {
     if (!regForm.clientId) {
@@ -4027,6 +4282,41 @@ function App() {
                           상담처리 기록이 없습니다.
                         </div>
                       )}
+
+                    {/* 청구서 및 수수료 발급 영역 */}
+                    <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '8px' }}>
+                        📋 청구서 발급 관리 (실시간 반영)
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px', lineHeight: '1.4' }}>
+                        현재 설정된 수수료율(<strong>{selectedFeeRate}%</strong>)과 예상 환급금을 기반으로 한글 청구서 엑셀 파일을 다운로드합니다.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={triggerKoreanInvoiceDownload}
+                        style={{
+                          width: '100%',
+                          height: '38px',
+                          backgroundColor: '#10b981',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#059669')}
+                        onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#10b981')}
+                      >
+                        <FileSpreadsheet size={16} />
+                        📄 한국어 청구서 다운로드 (.xlsx)
+                      </button>
+                    </div>
                     </div>
                   </div>
                 </div>

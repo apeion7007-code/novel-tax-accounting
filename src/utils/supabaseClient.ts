@@ -584,3 +584,143 @@ export async function updateClientManagerInSupabase(serial: number, managerName:
     return { success: false, error: e.message };
   }
 }
+
+/**
+ * Fetch a Client record by their unique ID/token for consent submission
+ */
+export async function fetchClientByConsentToken(token: string) {
+  try {
+    const { data, error } = await supabase
+      .from('Client')
+      .select('id, name, regNum, country, phone, consentStatus')
+      .eq('id', token)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (e: any) {
+    console.error('fetchClientByConsentToken error:', e);
+    return null;
+  }
+}
+
+/**
+ * Upload ARC image and signature base64 image to Supabase Storage, and update consent status to '제출완료'
+ */
+export async function updateClientConsent(
+  clientId: string,
+  arcFile: File | null,
+  signatureBase64: string | null
+) {
+  try {
+    const bucketName = 'novel_pdf';
+    let arcImageUrl: string | null = null;
+    let signatureImageUrl: string | null = null;
+
+    // 1. Upload Alien Registration Card (ARC) image
+    if (arcFile) {
+      const arcPath = `arc_cards/${clientId}_${Date.now()}_arc.jpg`;
+      const { error: arcUploadErr } = await supabase.storage
+        .from(bucketName)
+        .upload(arcPath, arcFile, { upsert: true });
+
+      if (arcUploadErr) {
+        throw new Error(`ARC upload failed: ${arcUploadErr.message}`);
+      }
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(arcPath);
+      arcImageUrl = publicUrlData.publicUrl;
+    }
+
+    // 2. Upload Signature image (converted from Base64 Data URL to Blob)
+    if (signatureBase64 && signatureBase64.includes('data:image')) {
+      const sigPath = `signatures/${clientId}_${Date.now()}_sig.png`;
+      
+      // Convert base64 data URL to Blob
+      const parts = signatureBase64.split(',');
+      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const byteString = atob(parts[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const sigBlob = new Blob([ab], { type: mime });
+
+      const { error: sigUploadErr } = await supabase.storage
+        .from(bucketName)
+        .upload(sigPath, sigBlob, { upsert: true });
+
+      if (sigUploadErr) {
+        throw new Error(`Signature upload failed: ${sigUploadErr.message}`);
+      }
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(sigPath);
+      signatureImageUrl = publicUrlData.publicUrl;
+    }
+
+    // 3. Update Client database record
+    const updatePayload: any = {
+      consentStatus: '제출완료',
+      updatedAt: new Date().toISOString()
+    };
+    if (arcImageUrl) updatePayload.arcImageUrl = arcImageUrl;
+    if (signatureImageUrl) updatePayload.signatureImageUrl = signatureImageUrl;
+
+    const { error: dbErr } = await supabase
+      .from('Client')
+      .update(updatePayload)
+      .eq('id', clientId);
+
+    if (dbErr) {
+      throw new Error(`Database update failed: ${dbErr.message}`);
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('updateClientConsent error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Bulk update consent status to '수임완료' by resident/foreigner registration numbers
+ */
+export async function bulkUpdateConsentStatusByRegNums(regNums: string[]) {
+  try {
+    if (regNums.length === 0) return { success: true, count: 0 };
+
+    // Standardize registration numbers: remove dashes to compare robustly
+    const cleanedRegNums = regNums.map(num => num.replace(/[^0-9]/g, ''));
+    
+    // Fetch matching clients first to update them properly
+    const { data: clients, error: fetchErr } = await supabase
+      .from('Client')
+      .select('id, regNum');
+      
+    if (fetchErr) throw fetchErr;
+
+    const matchedIds = (clients || [])
+      .filter(c => {
+        if (!c.regNum) return false;
+        const cleaned = c.regNum.replace(/[^0-9]/g, '');
+        // Match either fully cleaned or matching prefix (e.g. first 6 or 13 digits)
+        return cleanedRegNums.some(num => cleaned.includes(num) || num.includes(cleaned));
+      })
+      .map(c => c.id);
+
+    if (matchedIds.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const { error: updateErr } = await supabase
+      .from('Client')
+      .update({ consentStatus: '수임완료', updatedAt: new Date().toISOString() })
+      .in('id', matchedIds);
+
+    if (updateErr) throw updateErr;
+
+    return { success: true, count: matchedIds.length };
+  } catch (e: any) {
+    console.error('bulkUpdateConsentStatusByRegNums error:', e);
+    return { success: false, error: e.message };
+  }
+}

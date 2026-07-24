@@ -17,9 +17,13 @@ import {
   TrendingUp,
   PieChart,
   Award,
-  DollarSign
+  DollarSign,
+  Download
 } from 'lucide-react';
 import { extractTextFromPdf, parsePdfText } from './utils/pdfParser';
+import { generateHometaxFile } from './utils/hometaxGenerator';
+import { ConsentPage } from './components/ConsentPage';
+import { HometaxExcelSyncModal } from './components/modals/HometaxExcelSyncModal';
 import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { WageSettlementTable } from './components/WageSettlementTable';
 import { FreelancerSettlementTable } from './components/FreelancerSettlementTable';
@@ -45,6 +49,7 @@ import {
 // Define customer interface
 interface Customer {
   id: number;
+  uuid?: string;
   registeredDate: string;
   nationality: string;
   name: string;
@@ -58,6 +63,10 @@ interface Customer {
   additionalPerformance: number;
   managerCountry: string;
   managerName: string;
+  phone?: string;
+  consentStatus?: string;
+  arcImageUrl?: string;
+  signatureImageUrl?: string;
 }
 
 // Define manager interface
@@ -157,8 +166,10 @@ function App() {
   const [signUpPassword, setSignUpPassword] = useState<string>('');
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState<string>('');
 
-  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View
-  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password'>('customer');
+  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View
+  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
+  const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
+  const [consentToken, setConsentToken] = useState<string | null>(null);
 
   // Customer List State
   const [customers, setCustomers] = useState<Customer[]>([
@@ -415,6 +426,141 @@ function App() {
     showToast(`담당 정보가 ${tempModalTeam}팀 ${tempModalManager} 매니저로 변경되었습니다.`, 'success');
   };
 
+  // Hometax Submitter Modal States & Persistence
+  const [isHometaxModalOpen, setIsHometaxModalOpen] = useState<boolean>(false);
+  const [hometaxSubmitter, setHometaxSubmitter] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hometax_submitter');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Failed to load hometax_submitter from localStorage:', e);
+    }
+    return {
+      submitterType: '1', // 1: 세무대리인, 2: 법인, 3: 개인
+      taxOfficeCode: '120', // Default 종로세무서
+      agentNum: '',
+      hometaxId: '',
+      bizNum: '',
+      companyName: '',
+      deptName: '세무부',
+      managerName: '',
+      managerPhone: '',
+      targetYear: '2025'
+    };
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('hometax_submitter', JSON.stringify(hometaxSubmitter));
+    } catch (e) {
+      console.warn('Failed to save hometax_submitter to localStorage:', e);
+    }
+  }, [hometaxSubmitter]);
+
+  const handleDownloadHometaxFile = async () => {
+    if (selectedIds.length === 0) {
+      showToast('제출할 고객을 선택해 주세요.', 'error');
+      return;
+    }
+
+    try {
+      showToast('국세청 제출용 데이터를 불러오는 중입니다...', 'info');
+
+      // 1. Fetch Client records from Supabase matching the selected serial numbers
+      const { data: dbClients, error: clientErr } = await supabase
+        .from('Client')
+        .select('*')
+        .in('serial', selectedIds);
+
+      if (clientErr || !dbClients || dbClients.length === 0) {
+        showToast('고객 상세 정보를 불러오지 못했습니다.', 'error');
+        return;
+      }
+
+      const clientIds = dbClients.map(c => c.id).filter(Boolean);
+
+      // 2. Fetch YearEndData records for these clients
+      const { data: dbYearData, error: yearErr } = await supabase
+        .from('YearEndData')
+        .select('*')
+        .in('clientId', clientIds);
+
+      if (yearErr) {
+        showToast('고객의 연말정산 소득 정보를 불러오지 못했습니다.', 'error');
+        return;
+      }
+
+      // 3. Construct the detailed clients structure
+      const yr = hometaxSubmitter.targetYear;
+      
+      const clientsWithData = dbClients.map(c => {
+        const cYearRecords = dbYearData ? dbYearData.filter(y => y.clientId === c.id) : [];
+        const yearsMap: Record<string, any> = {};
+        
+        cYearRecords.forEach(y => {
+          yearsMap[String(y.year)] = {
+            active: true,
+            workPlace: y.companyName || '',
+            businessNumber: y.companyRegNo || '',
+            salaryTotal: y.netSalary || 0,
+            totalSalary: y.netSalary || 0,
+            taxBase: y.calculatedTax || 0,
+            childReduction: y.smallBusinessDeduction || 0,
+            appliedTaxReduction: y.smallBusinessDeduction || 0,
+            decisionTax: y.determinedTax || 0,
+            originalDeterminedTax: y.determinedTax || 0,
+            decisionTaxApplyAmt: y.changedDeterminedTax || 0,
+            recalcDeterminedTax: y.changedDeterminedTax || 0,
+            localTaxApplyAmt: y.changedLocalTax || 0,
+            recalcLocalTax: y.changedLocalTax || 0,
+            expectedRefundNational: y.determinedTaxRefund || 0,
+            refundExpectNational: y.determinedTaxRefund || 0,
+            expectedRefundLocal: y.localTaxRefund || 0,
+            refundExpectLocal: y.localTaxRefund || 0
+          };
+        });
+
+        return {
+          id: c.serial,
+          consentStatus: c.consentStatus || '대기',
+          name: c.name || '',
+          regNum: c.regNum || '',
+          foreignerNumber: c.regNum || '',
+          nationality: c.country || '',
+          years: yearsMap
+        };
+      }).filter(c => {
+        const yrData = c.years?.[yr];
+        // Only include clients with salary data AND who are '수임완료'
+        const hasSalary = yrData && (yrData.salaryTotal || yrData.totalSalary);
+        const isConsentApproved = c.consentStatus === '수임완료';
+        return hasSalary && isConsentApproved;
+      });
+
+      if (clientsWithData.length === 0) {
+        showToast(`${yr}년도 근로정산 소득 데이터가 있고 수임동의가 완료된 고객이 없습니다.`, 'error');
+        return;
+      }
+
+      const blob = generateHometaxFile(hometaxSubmitter, clientsWithData);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `근로소득지급명세서_${yr}_제출용.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`${clientsWithData.length}명의 전산매체 파일 다운로드가 완료되었습니다.`, 'success');
+      setIsHometaxModalOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      showToast(`전산매체 파일 생성 실패: ${e.message}`, 'error');
+    }
+  };
+
   const [isAddManagerModalOpen, setIsAddManagerModalOpen] = useState<boolean>(false);
   const [newManagerData, setNewManagerData] = useState({
     name: '',
@@ -539,6 +685,18 @@ function App() {
   // Listen to Supabase Auth state changes and check session on mount
   useEffect(() => {
     async function checkUserSession() {
+      // Check if client is accessing via consent URL
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view') || params.get('v');
+      const tokenParam = params.get('token') || params.get('id');
+
+      if (viewParam === 'consent' && tokenParam) {
+        setConsentToken(tokenParam);
+        setCurrentView('consent');
+        setIsSessionChecking(false);
+        return;
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
@@ -641,6 +799,7 @@ function App() {
 
             return {
               id: c.serial || (25000 + idx),
+              uuid: c.id,
               registeredDate,
               nationality: nat,
               name: c.name || '미상',
@@ -654,6 +813,10 @@ function App() {
               additionalPerformance: c.additionalPerformance || 0,
               managerCountry: nat,
               managerName: resolvedMgr,
+              phone: c.phone || '',
+              consentStatus: c.consentStatus || '대기',
+              arcImageUrl: c.arcImageUrl || '',
+              signatureImageUrl: c.signatureImageUrl || ''
             };
           });
 
@@ -680,6 +843,7 @@ function App() {
 
             return {
               id: c.serial || (25000 + idx),
+              uuid: c.id,
               registeredDate,
               nationality: nat,
               name: c.name || '미상',
@@ -693,6 +857,10 @@ function App() {
               additionalPerformance: c.additionalPerformance || 0,
               managerCountry: nat,
               managerName: resolvedMgr,
+              phone: c.phone || '',
+              consentStatus: c.consentStatus || '대기',
+              arcImageUrl: c.arcImageUrl || '',
+              signatureImageUrl: c.signatureImageUrl || ''
             };
           });
 
@@ -779,7 +947,10 @@ function App() {
       '2023': { active: false, isFileUploaded: false, pdfFile: null as File | null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
       '2024': { active: false, isFileUploaded: false, pdfFile: null as File | null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
       '2025': { active: false, isFileUploaded: false, pdfFile: null as File | null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' }
-    } as Record<string, any>
+    } as Record<string, any>,
+    consentStatus: '대기',
+    arcImageUrl: '',
+    signatureImageUrl: ''
   });
 
   // Dynamic Years for Settlement
@@ -990,7 +1161,10 @@ function App() {
         '2023': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
         '2024': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
         '2025': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' }
-      }
+      },
+      consentStatus: '대기',
+      arcImageUrl: '',
+      signatureImageUrl: ''
     });
     setConsultMemos([]);
     setTargetYears(['2021', '2022', '2023', '2024', '2025']);
@@ -2094,6 +2268,9 @@ function App() {
         companyAddress: clientDetails?.companyAddress || '',
         companyPhone: clientDetails?.companyPhone || '',
         companyIndustry: clientDetails?.companyIndustry || '',
+        consentStatus: clientDetails?.consentStatus || '대기',
+        arcImageUrl: clientDetails?.arcImageUrl || '',
+        signatureImageUrl: clientDetails?.signatureImageUrl || '',
         years: yearsObj
       }));
 
@@ -3294,6 +3471,13 @@ function App() {
         </div>
       )}
 
+      {currentView === 'consent' && (
+        <ConsentPage token={consentToken || ''} onBackToLogin={() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setCurrentView('customer');
+        }} />
+      )}
+
       {isSessionChecking && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', flexDirection: 'column', gap: '16px', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
           <div style={{
@@ -3315,7 +3499,7 @@ function App() {
         </div>
       )}
 
-      {!isLoggedIn && !isSessionChecking && (
+      {!isLoggedIn && !isSessionChecking && currentView !== 'consent' && (
         <div className="login-page">
           <div className="login-box">
             <div className="login-logo">
@@ -3418,7 +3602,7 @@ function App() {
         </div>
       )}
 
-      {isLoggedIn && (
+      {isLoggedIn && currentView !== 'consent' && (
         <div className="app-container notranslate" translate="no">
           {/* Sidebar */}
           <aside className="sidebar">
@@ -3512,6 +3696,22 @@ function App() {
                       <FileSpreadsheet size={16} />
                       Excel로 내보내기
                     </button>
+                    <button 
+                      className="btn-action" 
+                      style={{ backgroundColor: '#0f172a', color: '#ffffff', borderColor: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => setIsHometaxModalOpen(true)}
+                    >
+                      <Download size={16} />
+                      홈택스 파일 다운로드
+                    </button>
+                    <button 
+                      className="btn-action" 
+                      style={{ backgroundColor: '#10b981', color: '#ffffff', borderColor: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => setIsHometaxExcelSyncModalOpen(true)}
+                    >
+                      <FileSpreadsheet size={16} />
+                      수임 대행 관리
+                    </button>
                     <div className="record-count">
                       총 <span>{filteredCustomers.length}</span>건
                     </div>
@@ -3541,6 +3741,7 @@ function App() {
                           <th>비자</th>
                           <th>회사명</th>
                           <th>환급처리상태</th>
+                          <th>수임상태 (동의/신분증)</th>
                           <th>감면명세서 제출상태</th>
                           <th>월세여부</th>
                           <th>경정청구일</th>
@@ -3553,7 +3754,7 @@ function App() {
                       <tbody>
                         {filteredCustomers.length === 0 ? (
                           <tr>
-                            <td colSpan={14} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                            <td colSpan={15} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                               조건에 맞는 고객 정보가 존재하지 않습니다.
                             </td>
                           </tr>
@@ -3603,6 +3804,70 @@ function App() {
                                   <span style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
                                     {formatStatusIcon(customer.refundStatus)}
                                   </span>
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '130px' }}>
+                                    {/* Status Badge */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      {(() => {
+                                        const status = customer.consentStatus || '대기';
+                                        const bg = status === '수임완료' ? '#dcfce7' : status === '제출완료' ? '#e0f2fe' : '#f1f5f9';
+                                        const color = status === '수임완료' ? '#15803d' : status === '제출완료' ? '#0369a1' : '#64748b';
+                                        return (
+                                          <span style={{ 
+                                            padding: '2px 8px', 
+                                            fontSize: '11px', 
+                                            fontWeight: 'bold', 
+                                            borderRadius: '9999px',
+                                            backgroundColor: bg,
+                                            color: color
+                                          }}>
+                                            {status}
+                                          </span>
+                                        );
+                                      })()}
+
+                                      {customer.arcImageUrl && (
+                                        <button 
+                                          onClick={() => window.open(customer.arcImageUrl, '_blank')}
+                                          title="외국인등록증 보기"
+                                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+                                        >
+                                          📷
+                                        </button>
+                                      )}
+                                      {customer.signatureImageUrl && (
+                                        <button 
+                                          onClick={() => window.open(customer.signatureImageUrl, '_blank')}
+                                          title="서명 보기"
+                                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', padding: 0 }}
+                                        >
+                                          ✍️
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    <button
+                                      onClick={() => {
+                                        const consentLink = `${window.location.origin}${window.location.pathname}?view=consent&id=${customer.uuid}`;
+                                        navigator.clipboard.writeText(consentLink);
+                                        showToast(`${customer.name} 고객의 수임동의 링크가 복사되었습니다.`, 'success');
+                                      }}
+                                      style={{
+                                        fontSize: '10px',
+                                        padding: '2px 6px',
+                                        backgroundColor: '#f1f5f9',
+                                        color: '#475569',
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        textAlign: 'center',
+                                        fontWeight: 'bold'
+                                      }}
+                                    >
+                                      🔗 링크 복사
+                                    </button>
+                                  </div>
                                 </td>
                                 <td>
                                   {customer.submissionStatus && customer.submissionStatus !== '-' ? (
@@ -4471,6 +4736,112 @@ function App() {
                         </div>
                       )}
 
+                    {/* 수임동의 관리 영역 */}
+                    <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #cbd5e1' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>📁 국세청 수임대리 관리 (비대면 동의 수집)</span>
+                        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
+                          * 신분증 및 서명 첨부 확인
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>수임동의 상태</label>
+                          <select
+                            className="form-control"
+                            style={{ fontSize: '13px', height: '32px', padding: '2px 8px' }}
+                            value={regForm.consentStatus || '대기'}
+                            onChange={async (e) => {
+                              const newStatus = e.target.value;
+                              setRegForm((prev: any) => ({ ...prev, consentStatus: newStatus }));
+                              if (regForm.clientId) {
+                                try {
+                                  const { error } = await supabase
+                                    .from('Client')
+                                    .update({ consentStatus: newStatus, updatedAt: new Date().toISOString() })
+                                    .eq('id', regForm.clientId);
+                                  if (error) throw error;
+                                  showToast('수임동의 상태가 변경되었습니다.', 'success');
+                                  setCustomers((prevCustomers: any[]) => prevCustomers.map(c => 
+                                    c.uuid === regForm.clientId ? { ...c, consentStatus: newStatus } : c
+                                  ));
+                                } catch (err: any) {
+                                  showToast(`상태 업데이트 실패: ${err.message}`, 'error');
+                                }
+                              }
+                            }}
+                          >
+                            <option value="대기">◎ 대기</option>
+                            <option value="제출완료">● 제출완료</option>
+                            <option value="수임완료">★ 수임완료</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>제출 서류 확인</label>
+                          <div style={{ display: 'flex', gap: '8px', height: '32px', alignItems: 'center' }}>
+                            {regForm.arcImageUrl ? (
+                              <button
+                                type="button"
+                                className="btn-action"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '11px', height: '32px', backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                                onClick={() => window.open(regForm.arcImageUrl, '_blank')}
+                              >
+                                📷 신분증 보기
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#94a3b8', flex: 1, textAlign: 'center' }}>신분증 없음</span>
+                            )}
+                            {regForm.signatureImageUrl ? (
+                              <button
+                                type="button"
+                                className="btn-action"
+                                style={{ flex: 1, padding: '4px 8px', fontSize: '11px', height: '32px', backgroundColor: '#dcfce7', color: '#15803d', borderColor: '#bbf7d0', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                                onClick={() => window.open(regForm.signatureImageUrl, '_blank')}
+                              >
+                                ✍️ 서명 보기
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: '#94a3b8', flex: 1, textAlign: 'center' }}>서명 없음</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-action"
+                        style={{
+                          width: '100%',
+                          height: '34px',
+                          fontSize: '12px',
+                          backgroundColor: '#0f172a',
+                          color: '#ffffff',
+                          border: '1px solid #1e293b',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          marginBottom: '8px'
+                        }}
+                        onClick={() => {
+                          if (!regForm.clientId) {
+                            showToast('고객을 먼저 저장해 주세요.', 'error');
+                            return;
+                          }
+                          const consentLink = `${window.location.origin}${window.location.pathname}?view=consent&id=${regForm.clientId}`;
+                          navigator.clipboard.writeText(consentLink);
+                          showToast(`${regForm.name || '고객'}의 수임동의 링크가 복사되었습니다.`, 'success');
+                        }}
+                      >
+                        🔗 수임동의 카톡/메신저 공유 링크 복사
+                      </button>
+                    </div>
+
                     {/* 청구서 및 수수료 발급 영역 */}
                     <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #cbd5e1' }}>
                       <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '8px' }}>
@@ -5290,6 +5661,182 @@ function App() {
                 onClick={triggerExcelDownload}
               >
                 엑셀 다운로드
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isHometaxExcelSyncModalOpen && (
+        <HometaxExcelSyncModal 
+          onClose={() => setIsHometaxExcelSyncModalOpen(false)} 
+          showToast={showToast}
+          onSyncCompleted={() => {
+            window.location.reload();
+          }}
+        />
+      )}
+
+      {isHometaxModalOpen && (
+        <div className="modal-backdrop" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(15, 23, 42, 0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, backdropFilter: 'blur(3px)' }} onClick={() => setIsHometaxModalOpen(false)}>
+          <div className="modal-content" style={{ width: '480px', borderRadius: '12px', padding: '24px', backgroundColor: '#ffffff', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)', border: '1px solid #cbd5e1' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📁</span> 국세청 홈택스 전산매체 파일 생성
+              </h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px' }} onClick={() => setIsHometaxModalOpen(false)}><X size={20} /></button>
+            </div>
+
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b', lineHeight: '1.4' }}>
+              A레코드에 포함될 자료제출자(세무대리인)의 정보를 입력해 주세요. 입력된 정보는 브라우저에 저장됩니다.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>제출자 구분</label>
+                  <select 
+                    className="form-control" 
+                    style={{ width: '100%', height: '36px', fontSize: '13px' }}
+                    value={hometaxSubmitter.submitterType}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, submitterType: e.target.value }))}
+                  >
+                    <option value="1">1: 세무대리인</option>
+                    <option value="2">2: 법인</option>
+                    <option value="3">3: 개인</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>귀속 연도</label>
+                  <select 
+                    className="form-control" 
+                    style={{ width: '100%', height: '36px', fontSize: '13px' }}
+                    value={hometaxSubmitter.targetYear}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, targetYear: e.target.value }))}
+                  >
+                    <option value="2025">2025년</option>
+                    <option value="2024">2024년</option>
+                    <option value="2023">2023년</option>
+                    <option value="2022">2022년</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>관할 세무서 코드</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    placeholder="예: 120 (종로)"
+                    value={hometaxSubmitter.taxOfficeCode}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, taxOfficeCode: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>세무대리인 관리번호</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    placeholder="세무대리인인 경우 필수"
+                    disabled={hometaxSubmitter.submitterType !== '1'}
+                    value={hometaxSubmitter.agentNum}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, agentNum: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>홈택스 ID</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    placeholder="hometax_id"
+                    value={hometaxSubmitter.hometaxId}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, hometaxId: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>사업자등록번호</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    placeholder="10자리 숫자"
+                    value={hometaxSubmitter.bizNum}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, bizNum: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>법인명 (상호)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  placeholder="예: 노벨세무법인"
+                  value={hometaxSubmitter.companyName}
+                  onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, companyName: e.target.value }))}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>담당자 부서</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    value={hometaxSubmitter.deptName}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, deptName: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>담당자 성명</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    style={{ height: '36px', fontSize: '13px' }}
+                    value={hometaxSubmitter.managerName}
+                    onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, managerName: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>담당자 전화번호</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  placeholder="예: 02-123-4567"
+                  value={hometaxSubmitter.managerPhone}
+                  onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, managerPhone: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+              <button
+                type="button"
+                className="btn-cancel"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+                onClick={() => setIsHometaxModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#0f172a' }}
+                onClick={handleDownloadHometaxFile}
+              >
+                파일 생성 및 다운로드
               </button>
             </div>
           </div>

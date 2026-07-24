@@ -2545,8 +2545,8 @@ function App() {
           </tr>
 
           <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
-          <tr style="border:none;">
-            <td colspan="10" class="instructions" style="border-top: 1pt solid #cbd5e1; padding-top: 12px;">
+          <tr style="height:120px; border:none;">
+            <td colspan="10" class="instructions" style="border-top: 1pt solid #cbd5e1; padding-top: 12px; height: 120px; vertical-align: top; text-align: left;">
               <b>작성방법</b><br/>
               1. '취업자 유형'은 '청년', '60세 이상 사람', '장애인', '경력단절여성'으로 구분하여 적습니다.<br/>
               2. '병역근무기간'과 '병역근무기간 차감 후 연령'은 취업자 유형이 '청년'인 경우 적습니다.<br/>

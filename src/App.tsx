@@ -2363,6 +2363,8 @@ function App() {
             border: .5pt solid #000000;
             vertical-align: middle;
             text-align: center;
+            white-space: normal;
+            word-wrap: break-word;
           }
           .title {
             font-size: 18pt;
@@ -2416,11 +2418,14 @@ function App() {
               <x:ExcelWorksheet>
                 <x:Name>소득세 감면 대상 명세서</x:Name>
                 <x:WorksheetOptions>
+                  <x:FitToPage/>
                   <x:Print>
                     <x:ValidPrinterInfo/>
                     <x:PaperSizeIndex>9</x:PaperSizeIndex> <!-- A4 -->
                     <x:HorizontalResolution>600</x:HorizontalResolution>
                     <x:VerticalResolution>600</x:VerticalResolution>
+                    <x:FitWidth>1</x:FitWidth>
+                    <x:FitHeight>1</x:FitHeight>
                   </x:Print>
                   <x:Selected/>
                   <x:ProtectContents>False</x:ProtectContents>
@@ -2435,6 +2440,18 @@ function App() {
       </head>
       <body>
         <table style="border-collapse:collapse; width: 800px;">
+          <colgroup>
+            <col width="80" />
+            <col width="120" />
+            <col width="90" />
+            <col width="70" />
+            <col width="90" />
+            <col width="70" />
+            <col width="90" />
+            <col width="90" />
+            <col width="50" />
+            <col width="50" />
+          </colgroup>
           <tr style="height:25px;">
             <td colspan="10" class="subtitle" style="text-align: left;">■ 조세특례제한법 시행규칙 [별지 제11호의2서식] &lt;개정 2021. 3. 16.&gt;</td>
           </tr>

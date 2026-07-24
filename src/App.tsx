@@ -2516,7 +2516,9 @@ function App() {
           acc: '계좌 번호',
           owner: '예 금 주',
           footnote: '※ 대행 수수료 입금이 확인된 후, 세무서 국세청 경정청구 최종 접수가 진행됩니다.\n※ 입금하실 때는 반드시 고객님 본인 성명으로 입금해 주시기 바랍니다.',
-          filePrefix: '청구서'
+          filePrefix: '청구서',
+          feeNoticePrefix: '★ 고객님께서 납부하실 총 대행수수료는 ',
+          feeNoticeSuffix: '원 입니다.'
         },
         '베트남어': {
           title: 'Hóa đơn thanh toán tiền hoàn thuế',
@@ -2534,7 +2536,9 @@ function App() {
           acc: 'Số tài khoản',
           owner: 'Chủ tài khoản',
           footnote: '※ Phí dịch vụ đại lý sau khi được xác nhận thanh toán, thủ tục nộp hồ sơ hoàn thuế lên cơ quan thuế mới được tiến hành.\n※ Khi chuyển tiền, vui lòng ghi đúng họ và tên của khách hàng.',
-          filePrefix: 'Hoa_Don'
+          filePrefix: 'Hoa_Don',
+          feeNoticePrefix: '★ Tổng phí dịch vụ quý khách cần thanh toán: ',
+          feeNoticeSuffix: '원.'
         },
         '인도네시아어': {
           title: 'Faktur Pembayaran Pengembalian Pajak',
@@ -2552,7 +2556,9 @@ function App() {
           acc: 'Nomor Rekening',
           owner: 'Nama Pemilik Rekening',
           footnote: '※ Setelah pembayaran biaya jasa agen dikonfirmasi, pengajuan pengembalian pajak ke Kantor Pajak akan diproses.\n※ Saat mentransfer, harap pastikan menggunakan nama asli pelanggan.',
-          filePrefix: 'Faktur'
+          filePrefix: 'Faktur',
+          feeNoticePrefix: '★ Total biaya jasa agen yang harus dibayar: ',
+          feeNoticeSuffix: '원.'
         },
         '몽골어': {
           title: 'Татварын буцаан олголтын нэхэмжлэх',
@@ -2570,7 +2576,9 @@ function App() {
           acc: 'Дансны дугаар',
           owner: 'Данс эзэмшигч',
           footnote: '※ Үйлчилгээний хөлсний шилжүүлэг баталгаажсаны дараа, Татварын албанд хийх эцсийн мэдүүлэг боловсруулагдах болно.\n※ Шилжүүлэг хийхдээ үйлчлүүлэгч өөрийн нэрээр шилжүүлнэ үү.',
-          filePrefix: 'Nehemjleh'
+          filePrefix: 'Nehemjleh',
+          feeNoticePrefix: '★ Төлөх нийт үйлчилгээний хөлс: ',
+          feeNoticeSuffix: '원.'
         },
         '미얀마어': {
           title: 'အခွန်ပြန်အမ်းငွေပေးချေမှုပြေစာ',
@@ -2588,7 +2596,9 @@ function App() {
           acc: 'အကောင့်နံပါတ်',
           owner: 'အကောင့်ပိုင်ရှင်',
           footnote: '※ ဝန်ဆောင်ခလွှဲပြောင်းမှုကို အတည်ပြုပြီးနောက် အခွန်ဦးစီးဌာနသို့ နောက်ဆုံးတင်ပြမှုကို ဆောင်ရွက်ပါမည်।\n※ ငွေလွှဲရာတွင် ဝယ်ယူသူကိုယ်တိုင်၏အမည်ဖြင့် လွှဲပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည်။',
-          filePrefix: 'Invoice'
+          filePrefix: 'Invoice',
+          feeNoticePrefix: '★ ပေးချေရမည့် စုစုပေါင်း ကိုယ်စားလှယ်ဝန်ဆောင်ခ: ',
+          feeNoticeSuffix: '원.'
         },
         '캄보디아어': {
           title: 'វិក្កយបត្រទូទាត់ប្រាក់សំណងពន្ធ',
@@ -2606,7 +2616,9 @@ function App() {
           acc: 'លេខគណនី',
           owner: 'ឈ្មោះម្ចាស់គណនី',
           footnote: '※ បន្ទាប់ពីការបង់ប្រាក់កម្រៃសេវាតំណាងត្រូវបានបញ្ជាក់ ការដាក់ពាក្យសុំសំណងពន្ធចុងក្រោយទៅកាន់ការិយាល័យពន្ធដារនឹងត្រូវដំណើរការ।\n※ ពេលផ្ទេរប្រាក់ សូមប្រាកដថាប្រើប្រាស់ឈ្មោះពិតរបស់អតិថិជន។',
-          filePrefix: 'Invoice_KH'
+          filePrefix: 'Invoice_KH',
+          feeNoticePrefix: '★ កម្រៃសេវាតំណាងសរុបដែលត្រូវបង់: ',
+          feeNoticeSuffix: '원.'
         },
         '네팔어': {
           title: 'कर फिर्ता भुक्तानी इनभ्वाइस',
@@ -2624,7 +2636,9 @@ function App() {
           acc: 'खाता नम्बर',
           owner: 'खातावालाको नाम',
           footnote: '※ सेवा शुल्क भुक्तानी पुष्टि भएपछि मात्र कर कार्यालयमा अन्तिम आवेदन प्रक्रिया अघि बढाइनेछ।\n※ रकम जम्मा गर्दा कृपया ग्राहककै नामबाट जम्मा गरिदिनुहोला।',
-          filePrefix: 'Invoice_NP'
+          filePrefix: 'Invoice_NP',
+          feeNoticePrefix: '★ भुक्तानी गर्नुपर्ने जम्मा सेवा शुल्क: ',
+          feeNoticeSuffix: '원.'
         }
       };
 
@@ -2795,6 +2809,35 @@ function App() {
       cellTotF.border = thinBorder;
       cellTotF.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
 
+      // Move to next row for the highlight callout
+      currentIdx++;
+      
+      // Total Fee Highlight Callout Row
+      worksheet.getRow(currentIdx).height = 30;
+      worksheet.mergeCells("B" + currentIdx + ":D" + currentIdx);
+      
+      for (const col of ['B', 'C', 'D']) {
+        const cell = worksheet.getCell(col + currentIdx);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } }; // Light Red Background
+        cell.border = {
+          top: { style: 'thin' as const, color: { argb: 'FFFCA5A5' } },
+          bottom: { style: 'thin' as const, color: { argb: 'FFFCA5A5' } },
+          left: col === 'B' ? { style: 'thin' as const, color: { argb: 'FFFCA5A5' } } : undefined,
+          right: col === 'D' ? { style: 'thin' as const, color: { argb: 'FFFCA5A5' } } : undefined
+        };
+      }
+
+      const cellFeeNotice = worksheet.getCell("B" + currentIdx);
+      cellFeeNotice.value = {
+        richText: [
+          { font: { name: currentFont, size: 10, bold: true, color: { argb: 'FF1E293B' } }, text: t.feeNoticePrefix || '★ 고객님께서 납부하실 총 대행수수료는 ' },
+          { font: { name: currentFont, size: 11, bold: true, color: { argb: 'FFEF4444' } }, text: Number(totalFeeSum).toLocaleString() },
+          { font: { name: currentFont, size: 10, bold: true, color: { argb: 'FF1E293B' } }, text: t.feeNoticeSuffix || '원 입니다.' }
+        ]
+      };
+      cellFeeNotice.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Add a gap row after the callout
       currentIdx += 2;
 
       // 4. Bank Transfer Info Section

@@ -828,3 +828,12 @@ body {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
+
+/* Clickable log rows */
+.clickable-log-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.clickable-log-row:hover {
+  background-color: #f1f5f9 !important;
+}

@@ -3711,7 +3711,15 @@ function App() {
                                   ? new Date(memo.createdAt).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' })
                                   : '-';
                                 return (
-                                  <tr key={memo.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                  <tr 
+                                    key={memo.id} 
+                                    className="clickable-log-row"
+                                    style={{ borderBottom: '1px solid #f1f5f9' }}
+                                    onClick={() => {
+                                      alert(`[상담 메모 상세 보기]\n\n• 작성일시: ${formattedDate}\n• 담당 매니저: ${resolvedManager}\n\n-------------------------------\n\n${memo.content}`);
+                                    }}
+                                    title="클릭하여 상세 상담 내용을 확인하세요"
+                                  >
                                     <td style={{ padding: '10px 12px', color: '#334155', whiteSpace: 'pre-wrap', verticalAlign: 'top', lineHeight: '1.4' }}>
                                       {memo.content}
                                     </td>
@@ -3722,7 +3730,7 @@ function App() {
                                     <td style={{ padding: '10px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
                                       <button 
                                         type="button" 
-                                        onClick={() => handleDeleteConsultMemo(memo.id)}
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteConsultMemo(memo.id); }}
                                         style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', transition: 'background-color 0.2s' }}
                                         title="삭제"
                                         onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#fee2e2')}

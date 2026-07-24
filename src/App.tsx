@@ -707,6 +707,7 @@ function App() {
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
     clientId: '',
+    serial: 0,
     // Basic Details
     name: '',
     foreignerNumber: '',
@@ -911,6 +912,7 @@ function App() {
   const handleResetAll = () => {
     setRegForm({
       clientId: '',
+      serial: 0,
       name: '',
       foreignerNumber: '',
       nationality: '미얀마',
@@ -2028,6 +2030,7 @@ function App() {
       setRegForm(prev => ({
         ...prev,
         clientId: clientDetails?.id || '',
+        serial: clientDetails?.serial || customer.id || 0,
         name: clientDetails?.name || customer.name,
         foreignerNumber: clientDetails?.regNum || customer.birthDate,
         nationality: clientDetails?.country || customer.nationality,
@@ -2155,8 +2158,9 @@ function App() {
     const formattedDate = `${String(today.getFullYear()).slice(-2)}. ${today.getMonth() + 1}. ${today.getDate()}.`;
 
     // Map registration form to simplified list view customer
-    const newCustomerItem: Customer = {
-      id: nextId,
+    const isUpdate = regForm.serial && regForm.serial > 0;
+    const savedCustomerItem: Customer = {
+      id: isUpdate ? regForm.serial : nextId,
       registeredDate: formattedDate,
       nationality: regForm.nationality,
       name: regForm.name.toUpperCase(),
@@ -2172,7 +2176,11 @@ function App() {
       managerName: regForm.managerName || managers.find(m => m.country === regForm.nationality)?.name || managers[0].name
     };
 
-    setCustomers(prev => [newCustomerItem, ...prev]);
+    if (isUpdate) {
+      setCustomers(prev => prev.map(c => c.id === regForm.serial ? savedCustomerItem : c));
+    } else {
+      setCustomers(prev => [savedCustomerItem, ...prev]);
+    }
 
     // Gather uploaded PDF file objects for each year
     const pdfFiles: Record<string, File | null> = {

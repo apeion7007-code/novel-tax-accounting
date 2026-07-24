@@ -13,7 +13,6 @@ import {
   X,
   CheckCircle2,
   FileSpreadsheet,
-  Upload,
   BarChart3,
   TrendingUp,
   PieChart,
@@ -21,6 +20,9 @@ import {
   DollarSign
 } from 'lucide-react';
 import { extractTextFromPdf, parsePdfText } from './utils/pdfParser';
+import { WageSettlementTable } from './components/WageSettlementTable';
+import { FreelancerSettlementTable } from './components/FreelancerSettlementTable';
+import { CombinedSummaryTable } from './components/CombinedSummaryTable';
 import {
   supabase,
   fetchInitialClientsFromSupabase,
@@ -73,7 +75,7 @@ interface Toast {
 }
 
 // Helper to determine youth tax reduction eligibility based on RRN and Employment Date
-const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsObj?: any) => {
+export const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsObj?: any) => {
   const rrn = rrnStr ? rrnStr.replace(/-/g, '').trim() : '';
   let employmentDateStr = empDateStr ? empDateStr.trim() : '';
 
@@ -1037,7 +1039,8 @@ function App() {
     };
   };
 
-  const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disabledCount' | 'childCount', delta: number) => {
+  /*
+const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disabledCount' | 'childCount', delta: number) => {
     setRegForm(prev => {
       const newDepCount = key === 'dependentsCount' ? Math.max(0, prev.dependentsCount + delta) : prev.dependentsCount;
       const newSenCount = key === 'seniorCount' ? Math.max(0, prev.seniorCount + delta) : prev.seniorCount;
@@ -1079,6 +1082,7 @@ function App() {
       };
     });
   };
+*/
 
   const handleFeeRateChange = (rate: number) => {
     setSelectedFeeRate(rate);
@@ -1091,6 +1095,95 @@ function App() {
       });
       return { ...prev, years: updatedYears };
     });
+  };
+
+  const getCombinedRefund = (yr: string) => {
+    const yrData = regForm.years[yr];
+    const freeData = regForm.freelancerYears?.[yr];
+
+    if (!yrData?.active && !freeData?.active) return { refund: 0, fee: 0 };
+    
+    // Case 1: Only wage income active
+    if (yrData?.active && !freeData?.active) {
+      const refund = (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
+      const fee = Number(yrData.expectedFeeAmt) || 0;
+      return { refund, fee };
+    }
+
+    // Case 2: Only freelancer active
+    if (!yrData?.active && freeData?.active) {
+      const refund = (Number(freeData.refundExpectNational) || 0) + (Number(freeData.refundExpectLocal) || 0);
+      const fee = Number(freeData.expectedFeeAmt) || 0;
+      return { refund, fee };
+    }
+
+    // Case 3: Both active -> Combined tax calculation
+    const wageCalcTax = Number(yrData.taxBase) || 0;
+    const freeIncome = Number(freeData.totalIncome) || 0;
+    
+    // Derive wage taxable income from wage calculated tax
+    const deriveTaxableIncome = (calcTax: number): number => {
+      if (calcTax <= 840000) return calcTax / 0.06;
+      if (calcTax <= 6240000) return (calcTax + 1260000) / 0.15;
+      return (calcTax + 5760000) / 0.24;
+    };
+    const wageTaxable = deriveTaxableIncome(wageCalcTax);
+    
+    // Freelancer taxable income (assuming 64.1% simple expense rate for 940909)
+    const freeTaxable = freeIncome * 0.359;
+    
+    const combinedTaxable = wageTaxable + freeTaxable;
+    
+    // Calculate combined calculated tax
+    let combinedCalcTax = 0;
+    if (combinedTaxable <= 14000000) {
+      combinedCalcTax = combinedTaxable * 0.06;
+    } else if (combinedTaxable <= 50000000) {
+      combinedCalcTax = combinedTaxable * 0.15 - 1260000;
+    } else {
+      combinedCalcTax = combinedTaxable * 0.24 - 5760000;
+    }
+    combinedCalcTax = Math.max(0, Math.round(combinedCalcTax));
+
+    // Recalculate youth tax reduction (90% up to 1.5 million KRW)
+    const isReductionApplied = yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
+    const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(combinedCalcTax * 0.9)) : 0;
+
+    // Extra family dependent deductions
+    const depCount = Number(regForm.dependentsCount) || 0;
+    const senCount = Number(regForm.seniorCount) || 0;
+    const disCount = Number(regForm.disabledCount) || 0;
+    const chCount = Number(regForm.childCount) || 0;
+
+    const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
+    const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
+    const extraChildTaxCredit = chCount * 150000;
+
+    const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
+    
+    // Scale child deduction
+    const childDeduction = Number(yrData.childDeduction) || 0;
+    const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
+
+    // Final combined decision tax
+    const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+    const combinedLocalTax = Math.round(combinedDecisionTax * 0.1);
+
+    // Total paid tax
+    const wagePaidTax = Number(yrData.decisionTax) || 0;
+    const freePaidTax = Number(freeData.withholdingTax3) || 0;
+    
+    const wagePaidLocalTax = Number(yrData.localTax) || 0;
+    const freePaidLocalTax = Number(freeData.localTax03) || 0;
+
+    // Combined refund
+    const refundNational = Math.max(0, (wagePaidTax + freePaidTax) - combinedDecisionTax);
+    const refundLocal = Math.max(0, (wagePaidLocalTax + freePaidLocalTax) - combinedLocalTax);
+    
+    const totalRefund = refundNational + refundLocal;
+    const expectedFee = Math.round(totalRefund * (selectedFeeRate / 100));
+
+    return { refund: totalRefund, fee: expectedFee };
   };
 
   const handleAddYear = () => {
@@ -1316,6 +1409,80 @@ function App() {
     }
   };
 
+  const handleFreelancerSingleYearPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, fallbackYr?: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      showToast(`프리랜서 지급명세서 PDF 분석을 시작합니다 (${file.name})...`, 'info');
+      const text = await extractTextFromPdf(file);
+      const parsed = parsePdfText(text, fallbackYr);
+
+      const yr = parsed.year || fallbackYr;
+      if (!yr || !/^\d{4}$/.test(yr)) {
+        showToast(`PDF 파일에서 귀속연도를 감지하지 못했습니다.`, 'error');
+        return;
+      }
+
+      const isBusiness = text.includes('사업소득');
+      const isOther = text.includes('기타소득');
+      if (!isBusiness && !isOther) {
+        showToast(`프리랜서(사업소득/기타소득) 지급명세서 양식이 아닙니다. 근로소득 정산 테이블을 확인해주세요.`, 'info');
+        return;
+      }
+
+      setRegForm((prev: any) => {
+        const updatedYears = { ...prev.freelancerYears };
+        
+        const income = Number(parsed.salaryTotal) || 0;
+        const code = parsed.incomeTypeCode || '3.3%';
+        const isNonRefund = parsed.isNonRefundable || false;
+        
+        const taxRate = code === '3.3%' ? 0.03 : 0.20;
+        const tax3 = Math.round(income * taxRate);
+        const tax03 = Math.round(tax3 * 0.1);
+        
+        const refundNat = isNonRefund ? 0 : (Number(parsed.determinedIncomeTax) || tax3);
+        const refundLoc = isNonRefund ? 0 : (Number(parsed.determinedLocalTax) || tax03);
+        const courtFee = refundNat + refundLoc;
+        const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
+
+        const updatedBasic: any = {};
+        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+        if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+
+        updatedYears[yr] = {
+          active: true,
+          isFileUploaded: true,
+          pdfFile: file,
+          workPlace: parsed.workPlace || updatedYears[yr]?.workPlace || '',
+          businessNumber: parsed.businessNumber || updatedYears[yr]?.businessNumber || '',
+          totalIncome: String(income),
+          withholdingTax3: String(parsed.determinedIncomeTax || tax3),
+          localTax03: String(parsed.determinedLocalTax || tax03),
+          totalWithholding33: String(Number(parsed.determinedIncomeTax || tax3) + Number(parsed.determinedLocalTax || tax03)),
+          refundExpectNational: String(refundNat),
+          refundExpectLocal: String(refundLoc),
+          courtFee: String(courtFee),
+          expectedFeeAmt: String(feeAmt),
+          incomeTypeCode: code,
+          isNonRefundable: isNonRefund
+        };
+
+        return {
+          ...prev,
+          ...updatedBasic,
+          freelancerYears: updatedYears
+        };
+      });
+
+      showToast(`PDF 자동 분석 완료! 프리랜서 [${yr}년도] 칸에 데이터가 자동으로 반영되었습니다.`, 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast(`PDF 분석 중 오류가 발생했습니다: ${err.message || err}`, 'error');
+    }
+  };
+
   const handleReanalyzeYearPdf = async (yr: string) => {
     const yrData = regForm.years[yr];
     if (!yrData) return;
@@ -1417,65 +1584,115 @@ function App() {
           return prev;
         });
 
-        const originalDecisionTax = Number(parsed.determinedIncomeTax) || 0;
-        const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
+        const isBusiness = text.includes('사업소득');
+        const isOther = text.includes('기타소득');
 
-        setRegForm(prev => {
-          const updatedYears = { ...prev.years };
-          const rawYrData = {
-            active: true,
-            isFileUploaded: true,
-            pdfFile: file,
-            workPeriod: parsed.workPeriod || '',
-            workPlace: parsed.workPlace || '',
-            businessNumber: parsed.businessNumber || '',
-            birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : '',
-            salaryTotal: parsed.salaryTotal || '0',
-            taxBase: parsed.decisionTax || parsed.taxBase || '0',
-            childReduction: parsed.childReduction || '0',
-            childDeduction: parsed.childDeduction || '0',
-            decisionTax: parsed.determinedIncomeTax || '0',
-            localTax: parsed.determinedLocalTax || '0',
-            taxRefundTotal: String(originalDecisionTax + originalLocalTax),
-            childReductionApply: 'Y',
-          };
+        if (isBusiness || isOther) {
+          setRegForm((prev: any) => {
+            const updatedYears = { ...prev.freelancerYears };
+            
+            const income = Number(parsed.salaryTotal) || 0;
+            const code = parsed.incomeTypeCode || '3.3%';
+            const isNonRefund = parsed.isNonRefundable || false;
+            
+            const taxRate = code === '3.3%' ? 0.03 : 0.20;
+            const tax3 = Math.round(income * taxRate);
+            const tax03 = Math.round(tax3 * 0.1);
+            
+            const refundNat = isNonRefund ? 0 : (Number(parsed.determinedIncomeTax) || tax3);
+            const refundLoc = isNonRefund ? 0 : (Number(parsed.determinedLocalTax) || tax03);
+            const courtFee = refundNat + refundLoc;
+            const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
-          const updatedBasic: any = {};
-          if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
-          if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+            const updatedBasic: any = {};
+            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+            if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
 
-          if (parsed.workPeriod) {
-            const start = parsed.workPeriod.split('~')[0].trim();
-            if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
-              const currentAddress = prev.residentAddress || updatedBasic.residentAddress;
-              if (!currentAddress) {
-                updatedBasic.residentAddress = start;
-              } else if (start < currentAddress) {
-                updatedBasic.residentAddress = start;
+            updatedYears[yr] = {
+              active: true,
+              isFileUploaded: true,
+              pdfFile: file,
+              workPlace: parsed.workPlace || '',
+              businessNumber: parsed.businessNumber || '',
+              totalIncome: String(income),
+              withholdingTax3: String(parsed.determinedIncomeTax || tax3),
+              localTax03: String(parsed.determinedLocalTax || tax03),
+              totalWithholding33: String(Number(parsed.determinedIncomeTax || tax3) + Number(parsed.determinedLocalTax || tax03)),
+              refundExpectNational: String(refundNat),
+              refundExpectLocal: String(refundLoc),
+              courtFee: String(courtFee),
+              expectedFeeAmt: String(feeAmt),
+              incomeTypeCode: code,
+              isNonRefundable: isNonRefund
+            };
+
+            return {
+              ...prev,
+              ...updatedBasic,
+              freelancerYears: updatedYears
+            };
+          });
+        } else {
+          const originalDecisionTax = Number(parsed.determinedIncomeTax) || 0;
+          const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
+
+          setRegForm((prev: any) => {
+            const updatedYears = { ...prev.years };
+            const rawYrData = {
+              active: true,
+              isFileUploaded: true,
+              pdfFile: file,
+              workPeriod: parsed.workPeriod || '',
+              workPlace: parsed.workPlace || '',
+              businessNumber: parsed.businessNumber || '',
+              birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : '',
+              salaryTotal: parsed.salaryTotal || '0',
+              taxBase: parsed.decisionTax || parsed.taxBase || '0',
+              childReduction: parsed.childReduction || '0',
+              childDeduction: parsed.childDeduction || '0',
+              decisionTax: parsed.determinedIncomeTax || '0',
+              localTax: parsed.determinedLocalTax || '0',
+              taxRefundTotal: String(originalDecisionTax + originalLocalTax),
+              childReductionApply: 'Y',
+            };
+
+            const updatedBasic: any = {};
+            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+            if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+
+            if (parsed.workPeriod) {
+              const start = parsed.workPeriod.split('~')[0].trim();
+              if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+                const currentAddress = prev.residentAddress || updatedBasic.residentAddress;
+                if (!currentAddress) {
+                  updatedBasic.residentAddress = start;
+                } else if (start < currentAddress) {
+                  updatedBasic.residentAddress = start;
+                }
               }
             }
-          }
 
-          const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
-          const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
+            const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
+            const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-          updatedYears[yr] = recalculateYearData(
-            rawYrData, 
-            prev.dependentsCount, 
-            prev.seniorCount, 
-            prev.disabledCount, 
-            prev.childCount, 
-            selectedFeeRate,
-            newRrn,
-            newEmpDate
-          );
+            updatedYears[yr] = recalculateYearData(
+              rawYrData, 
+              prev.dependentsCount, 
+              prev.seniorCount, 
+              prev.disabledCount, 
+              prev.childCount, 
+              selectedFeeRate,
+              newRrn,
+              newEmpDate
+            );
 
-          return {
-            ...prev,
-            ...updatedBasic,
-            years: updatedYears
-          };
-        });
+            return {
+              ...prev,
+              ...updatedBasic,
+              years: updatedYears
+            };
+          });
+        }
       } catch (err: any) {
         console.error(err);
         showToast(`파일 [${file.name}] 분석 중 오류가 발생했습니다.`, 'error');
@@ -1531,7 +1748,8 @@ function App() {
     '◆지방세수수료수납완료',
     '◆수수료 연체'
   ];
-  const visaTypes = [
+  /*
+const visaTypes = [
     'F1',
     'F2',
     'F3',
@@ -1546,7 +1764,9 @@ function App() {
     '한국국적',
     '기타'
   ];
-  const bankList = [
+*/
+  /*
+const bankList = [
     'KB국민은행',
     'SC제일은행',
     '경남은행',
@@ -1570,7 +1790,9 @@ function App() {
     '한국씨티은행',
     '토스뱅크'
   ];
-  const submissionStatuses = [
+*/
+  /*
+const submissionStatuses = [
     '◎제출이력없음',
     '◎이전회사재출',
     '◎재직회사재출',
@@ -1582,6 +1804,7 @@ function App() {
     '감면명세서 요망',
     '기타'
   ];
+*/
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -2981,1542 +3204,39 @@ function App() {
                 </div>
 
                 {/* Form Group 1: Basic Information Input Grid (Light Blue Header Style, Table format for perfect alignment) */}
-                <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1000px', backgroundColor: '#ffffff' }}>
-                    <tbody>
-                      {/* Row 1 Header */}
-                      <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>신청인</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '11%' }}>외국인 등록번호</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>국적</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '13%' }}>전화번호</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>비자 종류</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>
-                          {(regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace) 
-                            ? `${regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace} 취업일` 
-                            : '취업일'}
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>비자만료일</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>월세여부</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '18%' }}>환급금 입금계좌</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '10%' }}>환급처리상태</td>
-                      </tr>
-                      {/* Row 1 Inputs */}
-                      <tr>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.name} onChange={(e) => setRegForm(prev => ({ ...prev, name: e.target.value }))} placeholder="이름 입력" />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.foreignerNumber} onChange={(e) => setRegForm(prev => ({ ...prev, foreignerNumber: e.target.value }))} placeholder="890528-5580013" />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.nationality} onChange={(e) => setRegForm(prev => ({ ...prev, nationality: e.target.value }))}>
-                            {nationalities.map(n => <option key={n} value={n}>{n}</option>)}
-                          </select>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <select
-                              className="form-control"
-                              style={{ fontSize: '13px', height: '32px', padding: '2px', width: '65px', flexShrink: 0 }}
-                              value={regForm.telecom || 'SKT'}
-                              onChange={(e) => setRegForm(prev => ({ ...prev, telecom: e.target.value }))}
-                            >
-                              <option value="SKT">SKT</option>
-                              <option value="KT">KT</option>
-                              <option value="LGU+">LGU+</option>
-                              <option value="알뜰폰">알뜰폰</option>
-                              <option value="기타">기타</option>
-                            </select>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ fontSize: '13px', height: '32px', flexGrow: 1 }}
-                              value={regForm.phone}
-                              onChange={(e) => setRegForm(prev => ({ ...prev, phone: e.target.value }))}
-                              placeholder="010-XXXX-XXXX"
-                            />
-                          </div>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.visaType} onChange={(e) => setRegForm(prev => ({ ...prev, visaType: e.target.value }))}>
-                            {visaTypes.map(v => <option key={v} value={v}>{v}</option>)}
-                          </select>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.residentAddress} onChange={(e) => setRegForm(prev => ({ ...prev, residentAddress: e.target.value }))} />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.visaExpiry} onChange={(e) => setRegForm(prev => ({ ...prev, visaExpiry: e.target.value }))} />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', fontSize: '13px', height: '32px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                              <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '가'} onChange={() => setRegForm(prev => ({ ...prev, isMonthlyRent: '가' }))} /> 가
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                              <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '부'} onChange={() => setRegForm(prev => ({ ...prev, isMonthlyRent: '부' }))} /> 부
-                            </label>
-                          </div>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            <select
-                              className="form-control"
-                              style={{ fontSize: '13px', height: '32px', padding: '2px', width: '95px', flexShrink: 0 }}
-                              value={regForm.refundBankName || 'KB국민은행'}
-                              onChange={(e) => setRegForm(prev => ({ ...prev, refundBankName: e.target.value }))}
-                            >
-                              {bankList.map(b => <option key={b} value={b}>{b}</option>)}
-                            </select>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ fontSize: '13px', height: '32px', flexGrow: 1 }}
-                              value={regForm.refundBank}
-                              onChange={(e) => setRegForm(prev => ({ ...prev, refundBank: e.target.value }))}
-                              placeholder="계좌번호 입력"
-                            />
-                          </div>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.refundStatus} onChange={(e) => setRegForm(prev => ({ ...prev, refundStatus: e.target.value }))}>
-                            {refundStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-
-                      {/* Row 2 Header */}
-                      <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px' }}>주민등록상 주소지</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>감면명세서 제출상태</td>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px' }}>기존 감면명세서 적용기간</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>감면명세서 발송일</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>경정청구일</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>추가환급 여부</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>추가 신청예정일</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>수수료수납선택</td>
-                      </tr>
-                      {/* Row 2 Inputs */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.residentRegisterAddress} onChange={(e) => setRegForm(prev => ({ ...prev, residentRegisterAddress: e.target.value }))} placeholder="주소지 도로명 주소" />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.deductionSubmissionStatus} onChange={(e) => setRegForm(prev => ({ ...prev, deductionSubmissionStatus: e.target.value }))}>
-                            {submissionStatuses.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
-                            <span style={{ fontSize: '12px' }}>~</span>
-                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
-                          </div>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.deductionSentDate} onChange={(e) => setRegForm(prev => ({ ...prev, deductionSentDate: e.target.value }))} />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.claimCompleteDate} onChange={(e) => setRegForm(prev => ({ ...prev, claimCompleteDate: e.target.value }))} />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', fontSize: '13px', height: '32px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                              <input type="radio" name="addRefund" checked={regForm.additionalApplyPerformance === '가'} onChange={() => setRegForm(prev => ({ ...prev, additionalApplyPerformance: '가' }))} /> 가
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                              <input type="radio" name="addRefund" checked={regForm.additionalApplyPerformance !== '가'} onChange={() => setRegForm(prev => ({ ...prev, additionalApplyPerformance: '부' }))} /> 부
-                            </label>
-                          </div>
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.claimRequestDate} onChange={(e) => setRegForm(prev => ({ ...prev, claimRequestDate: e.target.value }))} />
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.feePaymentStatus} onChange={(e) => setRegForm(prev => ({ ...prev, feePaymentStatus: e.target.value }))}>
-                            <option value="후불 22%">후불 22%</option>
-                            <option value="선불 17%">선불 17%</option>
-                            <option value="선불10%, 후불10%">선불10%, 후불10%</option>
-                          </select>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Dependents & Additional Deductions Setting Panel */}
-                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '14px 18px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '16px' }}>👨‍👩‍👧‍👦</span>
-                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
-                        부양가족 공제 및 세액 감면 설정
-                      </h3>
-                      <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal' }}>
-                        부양가족 등록 시 소득공제(인당 150만 원) 및 세액공제가 추가 적용되어 환급금이 자동 증가합니다.
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <span style={{ backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
-                        총 소득공제: +{((regForm.dependentsCount * 150) + (regForm.seniorCount * 100) + (regForm.disabledCount * 200)).toLocaleString()}만 원
-                      </span>
-                      <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
-                        총 세액공제: +{(regForm.childCount * 15).toLocaleString()}만 원
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                    {/* 1. 기본 부양가족 */}
-                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>기본 부양가족</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 150만 원 공제</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('dependentsCount', -1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >-</button>
-                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.dependentsCount}명</span>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('dependentsCount', 1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >+</button>
-                      </div>
-                    </div>
-
-                    {/* 2. 만 70세 이상 경로우대 */}
-                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>경로우대 (70세 이상)</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 +100만 원 추가</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('seniorCount', -1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >-</button>
-                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.seniorCount}명</span>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('seniorCount', 1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >+</button>
-                      </div>
-                    </div>
-
-                    {/* 3. 장애인 부양가족 */}
-                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>장애인 부양가족</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 +200만 원 추가</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('disabledCount', -1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >-</button>
-                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.disabledCount}명</span>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('disabledCount', 1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >+</button>
-                      </div>
-                    </div>
-
-                    {/* 4. 자녀 세액공제 */}
-                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>공제 대상 자녀</div>
-                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 15만 원 세액공제</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('childCount', -1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >-</button>
-                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.childCount}명</span>
-                        <button
-                          type="button"
-                          onClick={() => updateDependentsCount('childCount', 1)}
-                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
-                        >+</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* File Upload Row for Family Proof Documents */}
-                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', gap: '20px', alignItems: 'center' }}>
-                    {/* 1. 가족관계증명서 */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>📁 가족관계증명서:</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.png,.jpeg"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setRegForm(prev => ({ ...prev, familyDocFile: file }));
-                          if (file) showToast(`가족관계증명서 (${file.name}) 파일이 첨부되었습니다.`, 'info');
-                        }}
-                        style={{ fontSize: '12px' }}
-                      />
-                      {regForm.familyDocUrl && (
-                        <a
-                          href={regForm.familyDocUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
-                        >
-                          [저장된 파일 보기]
-                        </a>
-                      )}
-                    </div>
-
-                    {/* 2. 외화 송금영수증 */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>💸 외화 송금영수증:</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.jpg,.png,.jpeg"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setRegForm(prev => ({ ...prev, remittanceDocFile: file }));
-                          if (file) showToast(`송금영수증 (${file.name}) 파일이 첨부되었습니다.`, 'info');
-                        }}
-                        style={{ fontSize: '12px' }}
-                      />
-                      {regForm.remittanceDocUrl && (
-                        <a
-                          href={regForm.remittanceDocUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
-                        >
-                          [저장된 파일 보기]
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                 {/* Yearly Detailed Calculation Grid (Matching screenshot color themes: light blue headers, yellow highlights, zebra grid) */}
-                <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1100px' }}>
-                    <thead>
-                      {/* Year columns header */}
-                      <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', textAlign: 'center' }}>
-                        <th colSpan={2} style={{ width: '220px', border: '1px solid #cbd5e1', padding: '8px', position: 'relative' }}>
-                          연도별 정산 연도
-                          <button
-                            type="button"
-                            onClick={handleAddYear}
-                            style={{
-                              position: 'absolute',
-                              right: '8px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              padding: '2px 6px',
-                              fontSize: '12px',
-                              backgroundColor: '#0284c7',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '2px',
-                              border: 'none',
-                              borderRadius: '4px',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontWeight: 'normal'
-                            }}
-                          >
-                            <Plus size={12} /> 연도 추가
-                          </button>
-                        </th>
-                        {targetYears.map(yr => (
-                          <th key={yr} style={{ border: '1px solid #cbd5e1', padding: '8px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                              <span>{yr}년도</span>
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveYear(yr)}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  color: '#ef4444',
-                                  cursor: 'pointer',
-                                  padding: 0,
-                                  fontSize: '12px',
-                                  display: 'flex',
-                                  alignItems: 'center'
-                                }}
-                                title="연도 삭제"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          </th>
-                        ))}
-                        <th style={{ border: '1px solid #cbd5e1', padding: '8px', width: '120px' }}>합계금액</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* PDF File Selection Row */}
-                      <tr style={{ backgroundColor: '#fef08a' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <span>PDF파일 선택</span>
-                            <label style={{
-                              padding: '3px 8px',
-                              fontSize: '11px',
-                              backgroundColor: '#2563eb',
-                              color: 'white',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontWeight: 'bold',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                            }}>
-                              <FileSpreadsheet size={12} />
-                              📁 PDF 5개 한꺼번에 자동분석
-                              <input 
-                                type="file" 
-                                accept=".pdf" 
-                                multiple
-                                style={{ display: 'none' }} 
-                                onChange={handleBulkPdfUpload} 
-                              />
-                            </label>
-                          </div>
-                        </td>
-                        {targetYears.map(yr => {
-                          const yrData = regForm.years[yr];
-                          const hasPdf = yrData?.isFileUploaded || Boolean(yrData?.fileURL) || Boolean(yrData?.pdfUrl) || Boolean(yrData?.pdfFile);
-                          return (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-                                {hasPdf ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDownloadPdf(yr)}
-                                      style={{
-                                        backgroundColor: '#15803d',
-                                        color: '#ffffff',
-                                        fontWeight: 'bold',
-                                        fontSize: '11px',
-                                        padding: '4px 10px',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                      }}
-                                    >
-                                      다운로드
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleReanalyzeYearPdf(yr)}
-                                      style={{
-                                        backgroundColor: '#0284c7',
-                                        color: '#ffffff',
-                                        fontWeight: 'bold',
-                                        fontSize: '11px',
-                                        padding: '4px 8px',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                      }}
-                                      title="PDF 원본을 다시 분석하여 최신 로직으로 세액 및 환급금을 자동 교정합니다."
-                                    >
-                                      🔄 PDF 재분석
-                                    </button>
-                                  </>
-                                ) : (
-                                  <input 
-                                    type="file" 
-                                    accept=".pdf" 
-                                    multiple
-                                    style={{ fontSize: '12px', width: '150px' }} 
-                                    onChange={(e) => handleSingleYearPdfUpload(e, yr)} 
-                                  />
-                                )}
-                              </div>
-                            </td>
-                          );
-                        })}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#e2e8f0' }}></td>
-                      </tr>
-
-                      {/* Work Details Row Group */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>적용연도</td>
-                        {targetYears.map(yr => <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>{yr}</td>)}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>근무기간</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                              value={regForm.years[yr]?.workPeriod || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], workPeriod: val } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>근무처명</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                              value={regForm.years[yr]?.workPlace || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], workPlace: val } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>사업자등록번호</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                              value={regForm.years[yr]?.businessNumber || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], businessNumber: val } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>생년월일</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="text"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                              value={regForm.years[yr]?.birthDate || ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], birthDate: val } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-
-                      {/* Financial values (Zebra rows, light purple headers on left) */}
-                      {/* 1. 급여 -> 총급여, 계 */}
-                      <tr style={{ backgroundColor: '#faf5ff' }}>
-                        <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#f3e8ff', verticalAlign: 'middle' }}>급여</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>총급여</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.salaryTotal || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], salaryTotal: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.salaryTotal) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                      <tr style={{ backgroundColor: '#faf5ff' }}>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>계</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.salaryTotal || '0' : ''}
-                              placeholder="-"
-                              readOnly
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.salaryTotal) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 2. 과세표준 -> 산출세액 */}
-                      <tr>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>과세표준</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>산출세액</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.taxBase || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], taxBase: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.taxBase) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 3. 세액감면 -> 중소기업 청년 세액감면 */}
-                      <tr style={{ backgroundColor: '#faf5ff' }}>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#f3e8ff' }}>세액감면</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>중소기업 청년 세액감면</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.childReduction || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childReduction: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childReduction) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 4. 세액공제 -> 근로소득 세액공제 */}
-                      <tr>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>세액공제</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>근로소득 세액공제</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.childDeduction || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childDeduction: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childDeduction) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 5. 결정세액 */}
-                      <tr style={{ backgroundColor: '#faf5ff' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>결정세액</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTax || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTax: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTax) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 6. 지방세 */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>지방세</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.localTax || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], localTax: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.localTax) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 7. 세액합계금액 */}
-                      <tr style={{ backgroundColor: '#faf5ff' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>세액합계금액</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.taxRefundTotal || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], taxRefundTotal: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.taxRefundTotal) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 8. 중소기업 청년 세액감면 적용 (Layout matches user's screenshot) */}
-                      {/* Row 1: 중소기업 청년 세액감면 적용 */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>중소기업 청년 세액감면 적용</td>
-                        {targetYears.map(yr => {
-                          const yearData = regForm.years[yr];
-                          const isFileUploaded = Boolean(yearData?.isFileUploaded);
-                          const applyVal = yearData?.childReductionApply;
-
-                          // Check eligibility
-                          const eligibility = checkYouthEligibility(regForm.foreignerNumber, regForm.residentAddress);
-                          const isEligible = eligibility.isEligible;
-
-                          const isApplied = isEligible && Boolean(
-                            applyVal !== 'N' && 
-                            applyVal !== '0' && 
-                            (applyVal === 'Y' || applyVal === '90%' || Number(yearData?.childReductionApplyAmt) > 0)
-                          );
-
-                          return (
-                            <td 
-                              key={yr} 
-                              style={{ 
-                                border: '1px solid #cbd5e1', 
-                                padding: isFileUploaded ? '6px' : '2px', 
-                                textAlign: 'center', 
-                                cursor: isEligible && isFileUploaded ? 'pointer' : 'default', 
-                                userSelect: 'none',
-                                backgroundColor: !isEligible ? '#fef2f2' : ''
-                              }}
-                              onClick={() => {
-                                if (isEligible && isFileUploaded) {
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    years: {
-                                      ...prev.years,
-                                      [yr]: {
-                                        ...prev.years[yr],
-                                        childReductionApply: isApplied ? 'N' : 'Y'
-                                      }
-                                    }
-                                  }));
-                                }
-                              }}
-                            >
-                              {!isEligible ? (
-                                <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 'bold', display: 'inline-block', padding: '2px 4px', borderRadius: '4px', backgroundColor: '#fee2e2' }}>
-                                  ❌ 대상 아님 (만 {eligibility.age}세)
-                                </span>
-                              ) : !isFileUploaded ? (
-                                <input
-                                  type="text"
-                                  className="form-control"
-                                  style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                                  value={(!yearData?.childReductionApply || yearData?.childReductionApply === '0') ? '90%' : yearData?.childReductionApply}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setRegForm(prev => ({
-                                      ...prev,
-                                      years: {
-                                        ...prev.years,
-                                        [yr]: {
-                                          ...prev.years[yr],
-                                          childReductionApply: val
-                                        }
-                                      }
-                                    }));
-                                  }}
-                                  placeholder="90%"
-                                />
-                              ) : isApplied ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <circle cx="11" cy="11" r="10" fill="#22c55e"/>
-                                    <path d="M7 11.2L9.8 14L15 8.2" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                </div>
-                              ) : (
-                                <span style={{ color: '#64748b', fontWeight: 'normal' }}>-</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                        <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
-                      </tr>
-
-                      {/* Row 2: 세액감면 (spans 1 row) & 중소기업 청년 세액감면 */}
-                      <tr>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1', width: '120px' }}>세액감면</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>중소기업 청년 세액감면</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.childReductionApplyAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childReductionApplyAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childReductionApplyAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Row 3: 세액공제 (spans 2 rows vertically) & 근로소득 세액공제(변경) */}
-                      <tr>
-                        <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1', verticalAlign: 'middle' }}>세액공제</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>근로소득 세액공제(변경)</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.childDeductionApplyAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childDeductionApplyAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childDeductionApplyAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Row 4: 결정세액(변경) (No left header column, spans next to Row 3's 세액공제) */}
-                      <tr>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>결정세액(변경)</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTaxApplyAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTaxApplyAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Row 5: 지방세액(변경) (header spans 2 columns horizontally) */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>지방세액(변경)</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.localTaxApplyAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], localTaxApplyAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.localTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Row 6: 세액합계금액(변경) (header spans 2 columns horizontally) */}
-                      <tr>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>세액합계금액(변경)</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTaxRefundAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTaxRefundAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTaxRefundAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Expected Refund Section (Highlight Yellow Background Header Style on Left) */}
-                      <tr style={{ backgroundColor: '#fef9c3' }}>
-                        <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a', verticalAlign: 'middle' }}>환급예상금액</td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef9c3' }}>국세환급금</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.refundExpectNational || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const local = Number(regForm.years[yr]?.refundExpectLocal) || 0;
-                                const newCourtFee = (Number(val) || 0) + local;
-                                const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                                setRegForm(prev => ({
-                                  ...prev,
-                                  years: {
-                                    ...prev.years,
-                                    [yr]: {
-                                      ...prev.years[yr],
-                                      refundExpectNational: val,
-                                      courtFee: String(newCourtFee),
-                                      expectedFeeAmt: String(newFee),
-                                      active: true
-                                    }
-                                  }
-                                }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.refundExpectNational) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                      <tr style={{ backgroundColor: '#fef9c3' }}>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef9c3' }}>지방세 환급금</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.refundExpectLocal || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const national = Number(regForm.years[yr]?.refundExpectNational) || 0;
-                                const newCourtFee = national + (Number(val) || 0);
-                                const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                                setRegForm(prev => ({
-                                  ...prev,
-                                  years: {
-                                    ...prev.years,
-                                    [yr]: {
-                                      ...prev.years[yr],
-                                      refundExpectLocal: val,
-                                      courtFee: String(newCourtFee),
-                                      expectedFeeAmt: String(newFee),
-                                      active: true
-                                    }
-                                  }
-                                }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.refundExpectLocal) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-                      <tr style={{ backgroundColor: '#fef9c3' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>합계금액</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.courtFee || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                const newFee = Math.round((Number(val) || 0) * (selectedFeeRate / 100));
-                                setRegForm(prev => ({
-                                  ...prev,
-                                  years: {
-                                    ...prev.years,
-                                    [yr]: {
-                                      ...prev.years[yr],
-                                      courtFee: val,
-                                      expectedFeeAmt: String(newFee),
-                                      active: true
-                                    }
-                                  }
-                                }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.courtFee) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* Row: 부양가족 공제 환급금 합계 */}
-                      <tr style={{ backgroundColor: '#f0fdf4' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '14px' }}>👨‍👩‍👧‍👦</span>
-                            <span>부양가족 공제 환급금 합계</span>
-                          </div>
-                        </td>
-                        {targetYears.map(yr => {
-                          const yrData = regForm.years[yr];
-                          const depRefund = yrData?.active ? Number(yrData?.dependentRefundTotal) || 0 : 0;
-                          return (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'right', fontWeight: 'bold', color: '#15803d', backgroundColor: '#f0fdf4' }}>
-                              {yrData?.active ? `+${depRefund.toLocaleString()}원` : '-'}
-                            </td>
-                          );
-                        })}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '13px' }}>
-                          +{targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.dependentRefundTotal) || 0 : 0), 0).toLocaleString()}원
-                        </td>
-                      </tr>
-
-                      <tr style={{ backgroundColor: '#fef9c3' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', color: '#854d0e', backgroundColor: '#fef08a' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                            <span>예상수수료금액</span>
-                            <select
-                              value={selectedFeeRate}
-                              onChange={(e) => handleFeeRateChange(Number(e.target.value))}
-                              style={{
-                                padding: '2px 4px',
-                                fontSize: '12px',
-                                borderRadius: '4px',
-                                border: '1px solid #cbd5e1',
-                                backgroundColor: '#fff',
-                                color: '#334155',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                height: '24px'
-                              }}
-                            >
-                              {[30, 28, 26, 24, 22, 20, 19, 18, 17, 16, 15].map(pct => (
-                                <option key={pct} value={pct}>{pct}%</option>
-                              ))}
-                            </select>
-                          </div>
-                        </td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                            <input
-                              type="number"
-                              className="form-control"
-                              style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                              value={regForm.years[yr]?.active ? regForm.years[yr]?.expectedFeeAmt || '0' : ''}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRegForm(prev => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], expectedFeeAmt: val, active: true } } }));
-                              }}
-                              placeholder="-"
-                            />
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-                          {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.expectedFeeAmt) || 0 : 0), 0).toLocaleString()}
-                        </td>
-                      </tr>
-
-                      {/* 세액재정정 경정 청구서 파일 row */}
-                      <tr style={{ backgroundColor: '#fef08a' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef08a', color: '#854d0e' }}>
-                          세액재정정 경정 청구서 파일
-                        </td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                              <input 
-                                type="file" 
-                                style={{ fontSize: '12px', width: '150px' }} 
-                              />
-                            </div>
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1' }}></td>
-                      </tr>
-
-                      {/* PDF file attachment row at the very bottom */}
-                      <tr style={{ backgroundColor: '#f1f5f9' }}>
-                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>세액결정 경정 청구서 파일</td>
-                        {targetYears.map(yr => (
-                          <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
-                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
-                              <input type="file" style={{ fontSize: '12px', width: '150px' }} />
-                            </div>
-                          </td>
-                        ))}
-                        <td style={{ border: '1px solid #cbd5e1' }}></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                                <WageSettlementTable
+                  regForm={regForm}
+                  setRegForm={setRegForm}
+                  targetYears={targetYears}
+                  selectedFeeRate={selectedFeeRate}
+                  handleSingleYearPdfUpload={handleSingleYearPdfUpload}
+                  handleBulkPdfUpload={handleBulkPdfUpload}
+                  handleReanalyzeYearPdf={handleReanalyzeYearPdf}
+                  handleDownloadPdf={handleDownloadPdf}
+                  handleAddYear={handleAddYear}
+                  handleRemoveYear={handleRemoveYear}
+                  handleFeeRateChange={handleFeeRateChange}
+                />
 
                 {/* 3.3% Freelancer Business Income Settlement Table */}
-                <div style={{ marginTop: '24px', marginBottom: '24px', border: '2px solid #0d9488', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-                  {/* Header Banner */}
-                  <div style={{ backgroundColor: '#0f766e', color: '#ffffff', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '18px' }}>📋</span>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#ffffff' }}>
-                          3.3% 사업소득자 (프리랜서 / 지급명세서) 5개년 정산 내역
-                        </h3>
-                        <span style={{ fontSize: '12px', color: '#ccfbf1', fontWeight: 'normal' }}>
-                          원천징수 3.3%(국세 3.0% + 지방소득세 0.3%) 사업소득 지급명세서 데이터를 통한 정산 및 환급 계산
-                        </span>
-                      </div>
-                    </div>
-                    <label style={{
-                      backgroundColor: '#14b8a6',
-                      color: '#ffffff',
-                      padding: '6px 14px',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
-                    }}>
-                      <Upload size={14} /> 📁 3.3% 지급명세서 PDF 일괄 분석
-                      <input
-                        type="file"
-                        multiple
-                        accept=".pdf"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const files = e.target.files;
-                          if (!files || files.length === 0) return;
-                          showToast(`${files.length}개 3.3% 지급명세서 PDF 분석 중...`, 'info');
-                          showToast('3.3% 사업소득 지급명세서 분석 데이터가 반영되었습니다.', 'success');
-                        }}
-                      />
-                    </label>
-                  </div>
+                                <FreelancerSettlementTable
+                  regForm={regForm}
+                  setRegForm={setRegForm}
+                  targetYears={targetYears}
+                  selectedFeeRate={selectedFeeRate}
+                  handleFreelancerSingleYearPdfUpload={handleFreelancerSingleYearPdfUpload}
+                  handleBulkPdfUpload={handleBulkPdfUpload}
+                  handleFeeRateChange={handleFeeRateChange}
+                />
 
-                  {/* 3.3% Table */}
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1100px' }}>
-                      <thead>
-                        <tr style={{ backgroundColor: '#ccfbf1', color: '#115e59', fontWeight: 'bold', textAlign: 'center' }}>
-                          <th colSpan={2} style={{ width: '220px', border: '1px solid #99f6e4', padding: '8px' }}>
-                            연도별 정산 연도
-                          </th>
-                          {targetYears.map(yr => (
-                            <th key={yr} style={{ border: '1px solid #99f6e4', padding: '8px', width: '150px' }}>
-                              {yr}년도 (3.3%)
-                            </th>
-                          ))}
-                          <th style={{ width: '160px', border: '1px solid #99f6e4', padding: '8px', backgroundColor: '#99f6e4', color: '#0f766e' }}>
-                            5개년 합계
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {/* Row 1: PDF File upload per year */}
-                        <tr style={{ backgroundColor: '#f0fdf4' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#115e59' }}>
-                            3.3% 지급명세서 파일
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
-                              <input
-                                type="file"
-                                accept=".pdf"
-                                style={{ fontSize: '11px', width: '140px' }}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    showToast(`[${yr}년도] 3.3% 지급명세서 (${file.name})가 첨부되었습니다.`, 'info');
-                                  }
-                                }}
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f0fdf4' }}></td>
-                        </tr>
-
-                        {/* Row 2: 지급자 상호명 */}
-                        <tr>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>
-                            지급자 (상호명)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                              <input
-                                type="text"
-                                className="form-control"
-                                style={{ height: '28px', fontSize: '12px' }}
-                                value={regForm.freelancerYears?.[yr]?.workPlace || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    freelancerYears: {
-                                      ...prev.freelancerYears,
-                                      [yr]: { ...prev.freelancerYears?.[yr], workPlace: val, active: true }
-                                    }
-                                  }));
-                                }}
-                                placeholder="상호명 기입"
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}></td>
-                        </tr>
-
-                        {/* Row 3: 사업자등록번호 */}
-                        <tr>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>
-                            사업자등록번호
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                              <input
-                                type="text"
-                                className="form-control"
-                                style={{ height: '28px', fontSize: '12px' }}
-                                value={regForm.freelancerYears?.[yr]?.businessNumber || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    freelancerYears: {
-                                      ...prev.freelancerYears,
-                                      [yr]: { ...prev.freelancerYears?.[yr], businessNumber: val, active: true }
-                                    }
-                                  }));
-                                }}
-                                placeholder="000-00-00000"
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f8fafc' }}></td>
-                        </tr>
-
-                        {/* Row 4: 총 수입금액 (연간 지급총액) */}
-                        <tr style={{ backgroundColor: '#f0fdf4' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#065f46' }}>
-                            총 수입금액 (연 수령액)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                              <input
-                                type="number"
-                                className="form-control"
-                                style={{ height: '28px', fontSize: '12px', textAlign: 'right', fontWeight: 'bold' }}
-                                value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.totalIncome || '0' : ''}
-                                onChange={(e) => {
-                                  const income = Number(e.target.value) || 0;
-                                  const tax3 = Math.round(income * 0.03);
-                                  const tax03 = Math.round(tax3 * 0.1);
-                                  const total33 = tax3 + tax03;
-                                  const feeAmt = Math.round(total33 * (selectedFeeRate / 100));
-
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    freelancerYears: {
-                                      ...prev.freelancerYears,
-                                      [yr]: {
-                                        ...prev.freelancerYears?.[yr],
-                                        totalIncome: String(income),
-                                        withholdingTax3: String(tax3),
-                                        localTax03: String(tax03),
-                                        totalWithholding33: String(total33),
-                                        refundExpectNational: String(tax3),
-                                        refundExpectLocal: String(tax03),
-                                        courtFee: String(total33),
-                                        expectedFeeAmt: String(feeAmt),
-                                        active: true
-                                      }
-                                    }
-                                  }));
-                                }}
-                                placeholder="0"
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#d1fae5', color: '#065f46' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.totalIncome) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 5: 기납부 소득세 (3.0%) */}
-                        <tr>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', backgroundColor: '#fafafa' }}>
-                            기납부 소득세 (3.0%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#475569' }}>
-                              {regForm.freelancerYears?.[yr]?.active ? `${Number(regForm.freelancerYears?.[yr]?.withholdingTax3 || 0).toLocaleString()}원` : '-'}
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', padding: '4px', backgroundColor: '#f1f5f9', fontWeight: 'bold' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.withholdingTax3) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 6: 기납부 지방소득세 (0.3%) */}
-                        <tr>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', backgroundColor: '#fafafa' }}>
-                            기납부 지방소득세 (0.3%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#475569' }}>
-                              {regForm.freelancerYears?.[yr]?.active ? `${Number(regForm.freelancerYears?.[yr]?.localTax03 || 0).toLocaleString()}원` : '-'}
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', padding: '4px', backgroundColor: '#f1f5f9', fontWeight: 'bold' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.localTax03) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 7: 기납부 세액 총계 (3.3%) */}
-                        <tr style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#334155' }}>
-                            기납부 세액 합계 (3.3%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#0f766e' }}>
-                              {regForm.freelancerYears?.[yr]?.active ? `${Number(regForm.freelancerYears?.[yr]?.totalWithholding33 || 0).toLocaleString()}원` : '-'}
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', padding: '4px', backgroundColor: '#e2e8f0', color: '#0f766e' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.totalWithholding33) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row: 적용 부양가족 수 / 소득공제 */}
-                        <tr style={{ backgroundColor: '#f0fdf4' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '14px' }}>👨‍👩‍👧‍👦</span>
-                              <span>적용 부양가족 수 / 인적공제</span>
-                            </div>
-                          </td>
-                          {targetYears.map(yr => {
-                            const totalDeps = regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount;
-                            const totalDeductionVal = (regForm.dependentsCount * 150) + (regForm.seniorCount * 100) + (regForm.disabledCount * 200);
-                            return (
-                              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center', fontSize: '11px', color: '#15803d', fontWeight: 'bold', backgroundColor: '#f0fdf4' }}>
-                                {totalDeps > 0 ? `${totalDeps}명 (+${totalDeductionVal}만 원 공제)` : '본인 기본공제'}
-                              </td>
-                            );
-                          })}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', padding: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '12px' }}>
-                            {(regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount) > 0 ? `부양가족 총 ${regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount}명 반영` : '본인 공제 반영'}
-                          </td>
-                        </tr>
-
-                        {/* Row 8: 국세 환급예상금 (3.0%) */}
-                        <tr style={{ backgroundColor: '#fef9c3' }}>
-                          <td style={{ width: '100px', border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef08a', color: '#854d0e' }}>
-                            3.3% 환급예상
-                          </td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
-                            국세 환급금 (3.0%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                              <input
-                                type="number"
-                                className="form-control"
-                                style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                                value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.refundExpectNational || '0' : ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const nat = Number(val) || 0;
-                                  const loc = Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0;
-                                  const court = nat + loc;
-                                  const feeAmt = Math.round(court * (selectedFeeRate / 100));
-
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    freelancerYears: {
-                                      ...prev.freelancerYears,
-                                      [yr]: {
-                                        ...prev.freelancerYears?.[yr],
-                                        refundExpectNational: val,
-                                        courtFee: String(court),
-                                        expectedFeeAmt: String(feeAmt),
-                                        active: true
-                                      }
-                                    }
-                                  }));
-                                }}
-                                placeholder="0"
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a', color: '#854d0e' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 9: 지방세 환급예상금 (0.3%) */}
-                        <tr style={{ backgroundColor: '#fef9c3' }}>
-                          <td style={{ width: '100px', border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef08a', color: '#854d0e' }}>
-                            3.3% 환급예상
-                          </td>
-                          <td style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
-                            지방세 환급금 (0.3%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                              <input
-                                type="number"
-                                className="form-control"
-                                style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                                value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.refundExpectLocal || '0' : ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const loc = Number(val) || 0;
-                                  const nat = Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0;
-                                  const court = nat + loc;
-                                  const feeAmt = Math.round(court * (selectedFeeRate / 100));
-
-                                  setRegForm(prev => ({
-                                    ...prev,
-                                    freelancerYears: {
-                                      ...prev.freelancerYears,
-                                      [yr]: {
-                                        ...prev.freelancerYears?.[yr],
-                                        refundExpectLocal: val,
-                                        courtFee: String(court),
-                                        expectedFeeAmt: String(feeAmt),
-                                        active: true
-                                      }
-                                    }
-                                  }));
-                                }}
-                                placeholder="0"
-                              />
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a', color: '#854d0e' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 10: 3.3% 총 환급 예상금액 */}
-                        <tr style={{ backgroundColor: '#fef9c3' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
-                            3.3% 총 환급 합계금액
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#854d0e' }}>
-                              {regForm.freelancerYears?.[yr]?.active ? `${Number(regForm.freelancerYears?.[yr]?.courtFee || 0).toLocaleString()}원` : '-'}
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fef08a', color: '#854d0e', fontSize: '13px' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.courtFee) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-
-                        {/* Row 11: 3.3% 수수료 금액 */}
-                        <tr style={{ backgroundColor: '#fef9c3' }}>
-                          <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', color: '#854d0e', backgroundColor: '#fef08a', textAlign: 'center' }}>
-                            3.3% 예상수수료금액 ({selectedFeeRate}%)
-                          </td>
-                          {targetYears.map(yr => (
-                            <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#b45309', fontWeight: 'bold' }}>
-                              {regForm.freelancerYears?.[yr]?.active ? `${Number(regForm.freelancerYears?.[yr]?.expectedFeeAmt || 0).toLocaleString()}원` : '-'}
-                            </td>
-                          ))}
-                          <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a', color: '#b45309' }}>
-                            {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.expectedFeeAmt) || 0 : 0), 0).toLocaleString()}원
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                {/* Combined Summary Table */}
+                <CombinedSummaryTable
+                  regForm={regForm}
+                  targetYears={targetYears}
+                  selectedFeeRate={selectedFeeRate}
+                  handleFeeRateChange={handleFeeRateChange}
+                  getCombinedRefund={getCombinedRefund}
+                />
 
                  {/* Bottom Row split: Left Customer consultation details, Right Logs */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginTop: '20px' }}>

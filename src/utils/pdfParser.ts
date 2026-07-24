@@ -20,6 +20,8 @@ export interface ParsedPdfResult {
   childDeduction: string;
   determinedIncomeTax: string;
   determinedLocalTax: string;
+  isNonRefundable?: boolean;
+  incomeTypeCode?: string;
 }
 
 export const extractTextFromPdf = async (file: File): Promise<string> => {
@@ -40,21 +42,9 @@ export const extractTextFromPdf = async (file: File): Promise<string> => {
 export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult => {
   const cleanText = text.replace(/\s+/g, ' ');
 
-  const getNumbersAfterKeyword = (keywordRegex: RegExp, count: number): string[] | null => {
-    const match = cleanText.match(keywordRegex);
-    if (!match) return null;
-    
-    const startIndex = match.index! + match[0].length;
-    const sub = cleanText.substring(startIndex, startIndex + 300);
-    
-    const numbers: string[] = [];
-    const numRegex = /(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15}|0)/g;
-    let numMatch;
-    while ((numMatch = numRegex.exec(sub)) !== null && numbers.length < count) {
-      numbers.push(numMatch[0].replace(/,/g, ''));
-    }
-    return numbers.length > 0 ? numbers : null;
-  };
+  // Identify income type
+  const isBusinessIncome = cleanText.includes('사업소득');
+  const isOtherIncome = cleanText.includes('기타소득');
 
   // 1. 근무기간 및 귀속연도
   let year = '';
@@ -86,13 +76,48 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
 
   // 2. 소득자 정보 (성명, 주민등록번호)
   let name = '';
-  const nameMatch = cleanText.match(/(?:성\s*명|소\s*득\s*자\s*성\s*명)\s*[:：]?\s*([가-힣A-Za-z\s]+?)(?=\s*[^가-힣A-Za-z\s]|$)/i);
-  if (nameMatch) {
-    name = nameMatch[1].trim();
+  
+  // Find all indices of "소득자" or "소 득 자"
+  const earnerIndices: number[] = [];
+  let idx = cleanText.indexOf('소득자');
+  while (idx !== -1) {
+    earnerIndices.push(idx);
+    idx = cleanText.indexOf('소득자', idx + 1);
+  }
+  let idxSp = cleanText.indexOf('소 득 자');
+  while (idxSp !== -1) {
+    earnerIndices.push(idxSp);
+    idxSp = cleanText.indexOf('소 득 자', idxSp + 1);
+  }
+  earnerIndices.sort((a, b) => a - b);
+
+  // Search backwards to find the taxpayer section (not withholder section)
+  for (let i = earnerIndices.length - 1; i >= 0; i--) {
+    const start = earnerIndices[i];
+    const sub = cleanText.substring(start);
+    const nameMatch = sub.match(/(?:성\s*명|소\s*득\s*자\s*성\s*명)\s*[:：]?\s*([가-힣A-Za-z0-9*\s]+?)(?=\s*[^가-힣A-Za-z0-9*\s]|$)/);
+    if (nameMatch) {
+      const matchedName = nameMatch[1].trim();
+      const intermediateText = sub.substring(0, sub.indexOf(nameMatch[0]));
+      // The taxpayer section name should not have "징수" or "징 수" in between "소득자" and the name
+      if (!intermediateText.includes('징수') && !intermediateText.includes('징 수')) {
+        name = matchedName;
+        break;
+      }
+    }
+  }
+
+  // If name not found, fallback to standard matching
+  if (!name) {
+    const nameMatch = cleanText.match(/(?:성\s*명|소\s*득\s*자\s*성\s*명)\s*[:：]?\s*([가-힣A-Za-z0-9*\s]+?)(?=\s*[^가-힣A-Za-z0-9*\s]|$)/i);
+    if (nameMatch) {
+      name = nameMatch[1].trim();
+    }
   }
   
   let foreignerNumber = '';
-  const rrnMatch = cleanText.replace(/\s/g, '').match(/(\d{6}-\d{7})/);
+  // Support asterisks in RRN: 960126-*******
+  const rrnMatch = cleanText.replace(/\s/g, '').match(/(\d{6}-[\d*]{7})/);
   if (rrnMatch) {
     foreignerNumber = rrnMatch[1];
   }
@@ -105,43 +130,120 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
   }
   
   let businessNumber = '';
-  const bizMatch = cleanText.replace(/\s/g, '').match(/(\d{3}-\d{2}-\d{5})/);
-  if (bizMatch) {
-    businessNumber = bizMatch[1];
+  const businessMatches = cleanText.replace(/\s/g, '').match(/(\d{3}-\d{2}-\d{5})/g);
+  if (businessMatches) {
+    businessNumber = businessMatches[0];
   }
 
-  // 5. 급여 및 소득 정보 (총급여, 과세표준, 산출세액, 감면/공제액)
-  const salaryNums = getNumbersAfterKeyword(/(?:⑯|16)\s*계/i, 1)
-                  || getNumbersAfterKeyword(/(?:⑬|13)\s*급\s*여/i, 1)
-                  || getNumbersAfterKeyword(/21\s*총\s*급\s*여/i, 1)
-                  || getNumbersAfterKeyword(/총\s*급\s*여/i, 1);
-  const salaryTotal = salaryNums ? salaryNums[0] : '0';
+  // Default initial values for wage/salary income
+  let salaryTotal = '0';
+  let taxBase = '0';
+  let decisionTax = '0';
+  let childReduction = '0';
+  let childDeduction = '0';
+  let determinedIncomeTax = '0';
+  let determinedLocalTax = '0';
 
-  const taxBaseNums = getNumbersAfterKeyword(/49\s*(?:종\s*합\s*소\s*득\s*)?과\s*세\s*표\s*준/i, 1)
-                    || getNumbersAfterKeyword(/과\s*세\s*표\s*준/i, 1)
-                    || getNumbersAfterKeyword(/(?:㉖|26|23)\s*근\s*로\s*소\s*득\s*금\s*액/i, 1);
-  const taxBase = taxBaseNums ? taxBaseNums[0] : '0';
+  // 4. Extract data row numbers for Business Income / Other Income
+  const rowMatch = cleanText.match(/(202\d)\s+(202\d)\s+(.*)/);
+  if (rowMatch && (isBusinessIncome || isOtherIncome)) {
+    const numbersSub = rowMatch[0];
+    const numRegex = /(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/g;
+    const numbers: string[] = [];
+    let numMatch;
+    // Extract up to 15 numbers
+    while ((numMatch = numRegex.exec(numbersSub)) !== null && numbers.length < 15) {
+      numbers.push(numMatch[0].replace(/,/g, ''));
+    }
 
-  const calcTaxNums = getNumbersAfterKeyword(/50\s*산\s*출\s*세\s*액/i, 1)
-                    || getNumbersAfterKeyword(/산\s*출\s*세\s*액/i, 1)
-                    || getNumbersAfterKeyword(/(?:㉛|31)\s*산\s*출\s*세\s*액/i, 1);
-  const decisionTax = calcTaxNums ? calcTaxNums[0] : '0';
+    if (isOtherIncome && numbers.length >= 9) {
+      // 기타소득 format mapping
+      salaryTotal = numbers[2] || '0';
+      taxBase = numbers[5] || '0'; // 소득금액
+      determinedIncomeTax = numbers[7] || '0'; // 소득세
+      determinedLocalTax = numbers[8] || '0'; // 지방소득세
+      decisionTax = taxBase; // fallback
+    } else if (isBusinessIncome && numbers.length >= 6) {
+      // 사업소득 format mapping
+      salaryTotal = numbers[2] || '0';
+      determinedIncomeTax = numbers[4] || '0'; // 소득세
+      determinedLocalTax = numbers[5] || '0'; // 지방소득세
+      taxBase = salaryTotal; // For business income, use total payment as base or default
+      decisionTax = taxBase;
+    }
+  }
 
-  const childReductionNums = getNumbersAfterKeyword(/53\s*(?:「\s*조\s*세\s*특\s*례\s*제\s*한\s*법\s*」\s*)?제\s*3\s*0\s*조/i, 1)
-                          || getNumbersAfterKeyword(/조\s*세\s*특\s*례\s*제\s*한\s*법\s*제\s*3\s*0\s*조/i, 1)
-                          || getNumbersAfterKeyword(/중\s*소\s*기\s*업\s*(?:취\s*업\s*자)?\s*(?:소\s*득\s*세)?\s*감\s*면/i, 1);
-  const childReduction = childReductionNums ? childReductionNums[0] : '0';
+  // Fallback to old parsing logic for salary and taxes if we didn't extract them via table rows
+  if (salaryTotal === '0' && determinedIncomeTax === '0') {
+    const getNumbersAfterKeyword = (keywordRegex: RegExp, count: number): string[] | null => {
+      const match = cleanText.match(keywordRegex);
+      if (!match) return null;
+      const startIndex = match.index! + match[0].length;
+      const sub = cleanText.substring(startIndex, startIndex + 300);
+      const numbers: string[] = [];
+      const numRegex = /(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15}|0)/g;
+      let numMatch;
+      while ((numMatch = numRegex.exec(sub)) !== null && numbers.length < count) {
+        numbers.push(numMatch[0].replace(/,/g, ''));
+      }
+      return numbers.length > 0 ? numbers : null;
+    };
 
-  const childDeductionNums = getNumbersAfterKeyword(/56\s*근\s*로\s*소\s*득/i, 1)
-                          || getNumbersAfterKeyword(/근\s*로\s*소\s*득\s*세\s*액\s*공\s*제/i, 1);
-  const childDeduction = childDeductionNums ? childDeductionNums[0] : '0';
+    const salaryNums = getNumbersAfterKeyword(/(?:⑯|16)\s*계/i, 1)
+                    || getNumbersAfterKeyword(/(?:⑬|13)\s*급\s*여/i, 1)
+                    || getNumbersAfterKeyword(/21\s*총\s*급\s*여/i, 1)
+                    || getNumbersAfterKeyword(/총\s*급\s*여/i, 1);
+    salaryTotal = salaryNums ? salaryNums[0] : '0';
 
-  const detTaxNums = getNumbersAfterKeyword(/73\s*결\s*정\s*세\s*액/i, 2)
-                  || getNumbersAfterKeyword(/72\s*결\s*정\s*세\s*액/i, 2)
-                  || getNumbersAfterKeyword(/결\s*정\s*세\s*액/i, 2);
+    const taxBaseNums = getNumbersAfterKeyword(/49\s*(?:종\s*합\s*소\s*득\s*)?과\s*세\s*표\s*준/i, 1)
+                      || getNumbersAfterKeyword(/과\s*세\s*표\s*준/i, 1)
+                      || getNumbersAfterKeyword(/(?:㉖|26|23)\s*근\s*로\s*소\s*득\s*금\s*액/i, 1);
+    taxBase = taxBaseNums ? taxBaseNums[0] : '0';
+
+    const calcTaxNums = getNumbersAfterKeyword(/50\s*산\s*출\s*세\s*액/i, 1)
+                      || getNumbersAfterKeyword(/산\s*출\s*세\s*액/i, 1)
+                      || getNumbersAfterKeyword(/(?:㉛|31)\s*산\s*출\s*세\s*액/i, 1);
+    decisionTax = calcTaxNums ? calcTaxNums[0] : '0';
+
+    const childReductionNums = getNumbersAfterKeyword(/53\s*(?:「\s*조\s*세\s*특\s*례\s*제\s*한\s*법\s*」\s*)?제\s*3\s*0\s*조/i, 1)
+                            || getNumbersAfterKeyword(/조\s*세\s*특\s*례\s*제\s*한\s*법\s*제\s*3\s*0\s*조/i, 1)
+                            || getNumbersAfterKeyword(/중\s*소\s*기\s*업\s*(?:취\s*업\s*자)?\s*(?:소\s*득\s*세)?\s*감\s*면/i, 1);
+    childReduction = childReductionNums ? childReductionNums[0] : '0';
+
+    const childDeductionNums = getNumbersAfterKeyword(/56\s*근\s*로\s*소\s*득/i, 1)
+                            || getNumbersAfterKeyword(/근\s*로\s*소\s*득\s*세\s*액\s*공\s*제/i, 1);
+    childDeduction = childDeductionNums ? childDeductionNums[0] : '0';
+
+    const detTaxNums = getNumbersAfterKeyword(/73\s*결\s*정\s*세\s*액/i, 2)
+                    || getNumbersAfterKeyword(/72\s*결\s*정\s*세\s*액/i, 2)
+                    || getNumbersAfterKeyword(/결\s*정\s*세\s*액/i, 2);
+    
+    determinedIncomeTax = detTaxNums ? detTaxNums[0] : '0';
+    determinedLocalTax = detTaxNums ? detTaxNums[1] : String(Math.round(Number(determinedIncomeTax) * 0.1));
+  }
+
+  // Check for code checkbox selection
+  let incomeTypeCode = '3.3%';
+  let isNonRefundable = false;
+
+  const codeRegex = /(?:[√vVxXoO✔☑☒■]|\[[vVxXoO]\])\s*(60|61|62|63|64|65|68|69|71|72|73|74|75|76|77|78|79|80)/;
+  const codeRegexReverse = /(60|61|62|63|64|65|68|69|71|72|73|74|75|76|77|78|79|80)\s*(?:[√vVxXoO✔☑☒■]|\[[vVxXoO]\])/;
   
-  const determinedIncomeTax = detTaxNums ? detTaxNums[0] : '0';
-  const determinedLocalTax = detTaxNums ? detTaxNums[1] : String(Math.round(Number(determinedIncomeTax) * 0.1));
+  const m1 = cleanText.match(codeRegex);
+  const m2 = cleanText.match(codeRegexReverse);
+  
+  if (m1) {
+    incomeTypeCode = m1[1];
+  } else if (m2) {
+    incomeTypeCode = m2[1];
+  } else if (isOtherIncome) {
+    incomeTypeCode = '62';
+  }
+
+  const NON_REFUNDABLE_CODES = ['63', '64', '68', '69', '77'];
+  if (NON_REFUNDABLE_CODES.includes(incomeTypeCode)) {
+    isNonRefundable = true;
+  }
 
   return {
     year,
@@ -156,6 +258,8 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
     childReduction,
     childDeduction,
     determinedIncomeTax,
-    determinedLocalTax
+    determinedLocalTax,
+    isNonRefundable,
+    incomeTypeCode
   };
 };

@@ -173,7 +173,12 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     const years = ['2022', '2023', '2024', '2025'];
     for (const yr of years) {
       const yrData = regForm.years[yr];
-      if (!yrData) continue;
+      const freelancerData = regForm.freelancerYears?.[yr];
+
+      const hasWageData = yrData && (yrData.active || yrData.isFileUploaded);
+      const hasFreelancerData = freelancerData && (freelancerData.active || freelancerData.isFileUploaded);
+
+      if (!hasWageData && !hasFreelancerData) continue;
 
       let fileURL: string | undefined = undefined;
       const pdfFile = pdfFileObjects[yr];
@@ -185,29 +190,39 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         }
       }
 
+      let freelancerFileURL: string | undefined = undefined;
+      const freelancerPdfFile = pdfFileObjects[`freelancer_${yr}`];
+      if (freelancerPdfFile) {
+        const uploadPath = `${clientId}/freelancer_${yr}.pdf`;
+        const uploadedUrl = await uploadPdfToSupabase(freelancerPdfFile, uploadPath);
+        if (uploadedUrl) {
+          freelancerFileURL = uploadedUrl;
+        }
+      }
+
       let workPeriodStart: string | null = null;
       let workPeriodEnd: string | null = null;
-      if (yrData.workPeriod && yrData.workPeriod.includes('~')) {
+      if (yrData && yrData.workPeriod && yrData.workPeriod.includes('~')) {
         const parts = yrData.workPeriod.split('~').map((s: string) => s.trim());
         if (parts[0]) workPeriodStart = parts[0];
         if (parts[1]) workPeriodEnd = parts[1];
       }
 
-      const totalSal = Number(yrData.salaryTotal || yrData.totalSalary) || 0;
-      const calcTax = Number(yrData.taxBase) || 0;
-      const smallDed = Number(yrData.childReduction || yrData.appliedTaxReduction) || 0;
-      const origTax = Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0;
-      const recalcDetTax = Number(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax) || 0;
-      const recalcLocTax = Number(yrData.localTaxApplyAmt || yrData.recalcLocalTax) || 0;
-      const refNat = Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0;
-      const refLoc = Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0;
+      const totalSal = yrData ? (Number(yrData.salaryTotal || yrData.totalSalary) || 0) : 0;
+      const calcTax = yrData ? (Number(yrData.taxBase) || 0) : 0;
+      const smallDed = yrData ? (Number(yrData.childReduction || yrData.appliedTaxReduction) || 0) : 0;
+      const origTax = yrData ? (Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0) : 0;
+      const recalcDetTax = yrData ? (Number(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax) || 0) : 0;
+      const recalcLocTax = yrData ? (Number(yrData.localTaxApplyAmt || yrData.recalcLocalTax) || 0) : 0;
+      const refNat = yrData ? (Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0) : 0;
+      const refLoc = yrData ? (Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0) : 0;
 
       const yearPayload: Record<string, any> = {
         clientId: clientId,
         year: parseInt(yr, 10),
-        companyName: yrData.workPlace || '',
-        companyRegNo: yrData.businessNumber || yrData.companyRegNum || '',
-        companyRegisterNumber: yrData.businessNumber || yrData.companyRegNum || '',
+        companyName: yrData?.workPlace || '',
+        companyRegNo: yrData?.businessNumber || yrData?.companyRegNum || '',
+        companyRegisterNumber: yrData?.businessNumber || yrData?.companyRegNum || '',
         netSalary: totalSal,
         netSalaryFromAllCompany: totalSal,
         netSalaryFromReceipt: totalSal,
@@ -224,13 +239,28 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         changedDetermineTax: recalcDetTax,
         changedLocalTax: recalcLocTax,
         changedTotalTax: recalcDetTax + recalcLocTax,
-        regNum: regForm.foreignerNumber || yrData.birthDate || '',
-        isSmallBusinessDeduction: yrData.isReductionEligible === '여' || smallDed > 0,
-        isSmallBusiness: yrData.isReductionEligible === '여' || smallDed > 0,
+        regNum: regForm.foreignerNumber || yrData?.birthDate || '',
+        isSmallBusinessDeduction: yrData ? (yrData.isReductionEligible === '여' || smallDed > 0) : false,
+        isSmallBusiness: yrData ? (yrData.isReductionEligible === '여' || smallDed > 0) : false,
         ...(workPeriodStart ? { workPeriodStart } : {}),
         ...(workPeriodEnd ? { workPeriodEnd } : {}),
         updatedAt: new Date().toISOString(),
-        ...(fileURL ? { fileURL } : {})
+        ...(fileURL ? { fileURL } : {}),
+
+        // Freelancer (3.3%) fields
+        freelancerActive: freelancerData ? Boolean(freelancerData.active) : false,
+        freelancerCompanyName: freelancerData?.workPlace || '',
+        freelancerCompanyRegNo: freelancerData?.businessNumber || '',
+        freelancerNetSalary: freelancerData ? (Number(freelancerData.totalIncome) || 0) : 0,
+        freelancerDeterminedTax: freelancerData ? (Number(freelancerData.withholdingTax3) || 0) : 0,
+        freelancerLocalTax: freelancerData ? (Number(freelancerData.localTax03) || 0) : 0,
+        freelancerRefundExpectNational: freelancerData ? (Number(freelancerData.refundExpectNational) || 0) : 0,
+        freelancerRefundExpectLocal: freelancerData ? (Number(freelancerData.refundExpectLocal) || 0) : 0,
+        freelancerCourtFee: freelancerData ? (Number(freelancerData.courtFee) || 0) : 0,
+        freelancerExpectedFeeAmt: freelancerData ? (Number(freelancerData.expectedFeeAmt) || 0) : 0,
+        freelancerIncomeTypeCode: freelancerData?.incomeTypeCode || '3.3%',
+        freelancerIsNonRefundable: freelancerData ? Boolean(freelancerData.isNonRefundable) : false,
+        ...(freelancerFileURL ? { freelancerFileURL } : (freelancerData?.fileURL ? { freelancerFileURL: freelancerData.fileURL } : {}))
       };
 
       const { data: existingYr } = await supabase

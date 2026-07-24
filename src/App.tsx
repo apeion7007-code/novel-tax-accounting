@@ -2819,7 +2819,7 @@ function App() {
                   </div>
 
                   <div className="action-controls">
-                    <button className="btn-action btn-add" onClick={() => setCurrentView('registration')}>
+                    <button className="btn-action btn-add" onClick={() => { handleResetAll(); setCurrentView('registration'); }}>
                       <Plus size={16} />
                       신규등록
                     </button>

@@ -2269,26 +2269,51 @@ function App() {
       companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
     }
 
-    // 2. Load cached details from localStorage
-    const saved = localStorage.getItem(`company_${businessNumber}`);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSmeCompanyAddress(parsed.address || '');
-        setSmeCompanyPhone(parsed.phone || '');
-        setSmeCompanyIndustry(parsed.industry || '');
-      } catch (e) {
-        setSmeCompanyAddress('');
-        setSmeCompanyPhone('');
-        setSmeCompanyIndustry('');
-      }
-    } else {
-      setSmeCompanyAddress('');
-      setSmeCompanyPhone('');
-      setSmeCompanyIndustry('');
-    }
+    const cleanBizNum = businessNumber ? businessNumber.replace(/-/g, '').trim() : '';
 
-    setSmeModalOpen(true);
+    // 2. Load details from Supabase Option table (global sync)
+    showToast('회사 정보를 조회 중입니다...', 'info');
+    supabase
+      .from('Option')
+      .select('*')
+      .eq('fieldId', 999)
+      .then(({ data, error }) => {
+        let loadedAddress = '';
+        let loadedPhone = '';
+        let loadedIndustry = '';
+
+        if (data && !error) {
+          const match = data.find(opt => {
+            const parts = (opt.name || '').split('|');
+            return parts[0] === cleanBizNum || parts[0] === businessNumber;
+          });
+
+          if (match) {
+            const parts = match.name.split('|');
+            loadedAddress = parts[1] || '';
+            loadedPhone = parts[2] || '';
+            loadedIndustry = parts[3] || '';
+          }
+        }
+
+        // Fallback to localStorage if not found in database
+        if (!loadedAddress && businessNumber) {
+          const saved = localStorage.getItem(`company_${businessNumber}`);
+          if (saved) {
+            try {
+              const parsed = JSON.parse(saved);
+              loadedAddress = parsed.address || '';
+              loadedPhone = parsed.phone || '';
+              loadedIndustry = parsed.industry || '';
+            } catch (e) {}
+          }
+        }
+
+        setSmeCompanyAddress(loadedAddress);
+        setSmeCompanyPhone(loadedPhone);
+        setSmeCompanyIndustry(loadedIndustry);
+        setSmeModalOpen(true);
+      });
   };
 
   const triggerExcelDownload = () => {
@@ -2308,12 +2333,46 @@ function App() {
       companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
     }
 
+    const cleanBizNum = businessNumber ? businessNumber.replace(/-/g, '').trim() : '';
+    const newRecordValue = `${cleanBizNum}|${smeCompanyAddress}|${smeCompanyPhone}|${smeCompanyIndustry}`;
+
     // 2. Cache details in localStorage
     localStorage.setItem(`company_${businessNumber}`, JSON.stringify({
       address: smeCompanyAddress,
       phone: smeCompanyPhone,
       industry: smeCompanyIndustry
     }));
+
+    // Save/Sync details to Supabase Option table
+    supabase
+      .from('Option')
+      .select('*')
+      .eq('fieldId', 999)
+      .then(({ data, error }) => {
+        if (!error) {
+          const match = data?.find(opt => {
+            const parts = (opt.name || '').split('|');
+            return parts[0] === cleanBizNum || parts[0] === businessNumber;
+          });
+
+          if (match) {
+            supabase
+              .from('Option')
+              .update({ name: newRecordValue })
+              .eq('id', match.id)
+              .then(({ error: updErr }) => {
+                if (updErr) console.warn('Supabase Company Details Update Error:', updErr.message);
+              });
+          } else {
+            supabase
+              .from('Option')
+              .insert([{ name: newRecordValue, fieldId: 999 }])
+              .then(({ error: insErr }) => {
+                if (insErr) console.warn('Supabase Company Details Insert Error:', insErr.message);
+              });
+          }
+        }
+      });
 
     // 3. Calculate Age at Employment (만 나이)
     const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';

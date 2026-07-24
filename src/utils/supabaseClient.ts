@@ -190,6 +190,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       seniorCount: Number(regForm.seniorCount) || 0,
       disabledCount: Number(regForm.disabledCount) || 0,
       childCount: Number(regForm.childCount) || 0,
+      refund_performance: Number(regForm.refundPerformance) || 0,
+      refund_performance_date: safeToISOString(regForm.refundPerformanceDate),
+      fee_performance: Number(regForm.feeReceivedPerformance) || 0,
+      fee_performance_date: safeToISOString(regForm.feeReceivedDate),
       updatedAt: new Date().toISOString(),
 
       // Mapped Supabase Columns

@@ -2067,6 +2067,10 @@ function App() {
         remittanceDocUrl: clientDetails?.remittanceDocUrl || '',
         familyDocFile: null,
         remittanceDocFile: null,
+        refundPerformance: String(clientDetails?.refund_performance || 0),
+        refundPerformanceDate: clientDetails?.refund_performance_date ? clientDetails.refund_performance_date.split('T')[0] : '',
+        feeReceivedPerformance: String(clientDetails?.fee_performance || 0),
+        feeReceivedDate: clientDetails?.fee_performance_date ? clientDetails.fee_performance_date.split('T')[0] : '',
         years: yearsObj
       }));
 
@@ -2253,6 +2257,10 @@ function App() {
           hometaxPw: regForm.hometaxPw || '',
           clientRank: regForm.customerGrade || '',
           recordFileDate: (regForm.greenContractDate && regForm.greenContractDate !== '') ? new Date(regForm.greenContractDate).toISOString() : null,
+          refund_performance: Number(regForm.refundPerformance) || 0,
+          refund_performance_date: (regForm.refundPerformanceDate && regForm.refundPerformanceDate !== '') ? new Date(regForm.refundPerformanceDate).toISOString() : null,
+          fee_performance: Number(regForm.feeReceivedPerformance) || 0,
+          fee_performance_date: (regForm.feeReceivedDate && regForm.feeReceivedDate !== '') ? new Date(regForm.feeReceivedDate).toISOString() : null,
           updatedAt: new Date().toISOString()
         })
         .eq('id', regForm.clientId);

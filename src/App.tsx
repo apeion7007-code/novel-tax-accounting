@@ -2354,14 +2354,64 @@ function App() {
         throw new Error('엑셀 템플릿의 첫 번째 시트를 불러올 수 없습니다.');
       }
 
-      // 5. Fill Company Details
+      // 5. Force column widths to prevent text wrapping/cutting off
+      worksheet.getColumn('A').width = 9.5;
+      worksheet.getColumn('B').width = 16.5;
+      worksheet.getColumn('C').width = 13.0;
+      worksheet.getColumn('D').width = 10.0;
+      worksheet.getColumn('E').width = 12.0;
+      worksheet.getColumn('F').width = 16.0;
+      worksheet.getColumn('G').width = 13.0;
+      worksheet.getColumn('H').width = 12.0;
+      worksheet.getColumn('I').width = 12.0;
+
+      // 6. Force row heights to prevent overlapping and provide spaces
+      worksheet.getRow(4).height = 28;
+      worksheet.getRow(5).height = 28;
+      worksheet.getRow(6).height = 28;
+      worksheet.getRow(9).height = 25;
+      worksheet.getRow(10).height = 25;
+
+      for (let r = 11; r <= 18; r++) {
+        worksheet.getRow(r).height = 22;
+      }
+
+      worksheet.getRow(20).height = 40;
+      worksheet.getRow(22).height = 30;
+      worksheet.getRow(23).height = 35;
+      worksheet.getRow(24).height = 35;
+
+      worksheet.getRow(27).height = 22;
+      worksheet.getRow(28).height = 28;
+      worksheet.getRow(29).height = 28;
+      worksheet.getRow(30).height = 38;
+      worksheet.getRow(31).height = 38;
+
+      // 7. Configure Page Setup for 1-Page Scaling with narrow margins
+      worksheet.pageSetup = {
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 1,
+        orientation: 'portrait',
+        paperSize: 9, // A4
+        margins: {
+          left: 0.4,
+          right: 0.4,
+          top: 0.4,
+          bottom: 0.4,
+          header: 0.2,
+          footer: 0.2
+        }
+      };
+
+      // 8. Fill Company Details
       worksheet.getCell('C4').value = "상 호 : " + companyName;
       worksheet.getCell('G4').value = "사업자등록번호 : " + businessNumber;
       worksheet.getCell('C5').value = "사업장소재지 : " + (regForm.companyAddress || '');
       worksheet.getCell('G5').value = "주업종코드 : " + (regForm.companyIndustry || '');
       worksheet.getCell('C6').value = "(전화번호 : " + (regForm.companyPhone || '') + ")";
 
-      // 6. Fill Employee details (Row 11 / Row 12)
+      // 9. Fill Employee details (Row 11 / Row 12)
       worksheet.getCell('A11').value = regForm.name ? regForm.name.toUpperCase() : '';
       worksheet.getCell('B11').value = regForm.foreignerNumber || '';
       worksheet.getCell('C11').value = regForm.residentAddress || '';
@@ -2374,7 +2424,7 @@ function App() {
       worksheet.getCell('H12').value = reductionStart || '';
       worksheet.getCell('I12').value = reductionEnd || '';
 
-      // 7. Fill Bottom metadata (Date & Signature)
+      // 10. Fill Bottom metadata (Date & Signature)
       const today = new Date();
       const currentYearStr = String(today.getFullYear());
       const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
@@ -2392,7 +2442,7 @@ function App() {
         ]
       };
 
-      // 8. Generate and download workbook xlsx buffer
+      // 11. Generate and download workbook xlsx buffer
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);

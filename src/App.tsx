@@ -2292,34 +2292,12 @@ function App() {
     const currentMgr = dbManagers.find(m => m.name === regForm.managerName);
     const managerId = currentMgr?.id || 'a6f8d012-d555-414a-b78f-9110864dae3a'; // default/fallback to 관리자
 
-    // Construct rich consultation log content combining active form fields
-    let formattedContent = '';
-    if (regForm.snsName) formattedContent += `• 페이스북명: ${regForm.snsName}\n`;
-    if (regForm.snsAddress) formattedContent += `• 페이스북주소: ${regForm.snsAddress}\n`;
-    if (regForm.hometaxId) formattedContent += `• 홈택스 아이디: ${regForm.hometaxId}\n`;
-    if (regForm.hometaxPw) formattedContent += `• 홈택스 비밀번호: ${regForm.hometaxPw}\n`;
-    if (regForm.customerGrade) formattedContent += `• 고객 관리등급: ${regForm.customerGrade}\n`;
-    if (regForm.greenContractDate) formattedContent += `• 녹취계약 일자: ${regForm.greenContractDate}\n`;
-    
-    const refundPerf = Number(regForm.refundPerformance) || 0;
-    if (refundPerf > 0) formattedContent += `• 세금환급 실적: ${refundPerf.toLocaleString()}원\n`;
-    if (regForm.refundPerformanceDate) formattedContent += `• 환급일자: ${regForm.refundPerformanceDate}\n`;
-    
-    const feePerf = Number(regForm.feeReceivedPerformance) || 0;
-    if (feePerf > 0) formattedContent += `• 수수료 수납 실적: ${feePerf.toLocaleString()}원\n`;
-    if (regForm.feeReceivedDate) formattedContent += `• 수납일자: ${regForm.feeReceivedDate}\n`;
-
-    if (formattedContent) {
-      formattedContent += `-----------------------------------------\n`;
-    }
-    formattedContent += regForm.consultMemo.trim();
-
     try {
       const { data, error } = await supabase
         .from('ConsultMemo')
         .insert([{
           clientId: regForm.clientId,
-          content: formattedContent,
+          content: regForm.consultMemo.trim(),
           managerId: managerId,
           createdAt: new Date().toISOString()
         }])
@@ -3738,7 +3716,14 @@ function App() {
                               {consultMemos.map((memo) => {
                                 const resolvedManager = dbManagers.find(m => m.id === memo.managerId)?.name || memo.managerId || '관리자';
                                 const formattedDate = memo.createdAt
-                                  ? new Date(memo.createdAt).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric' })
+                                  ? new Date(memo.createdAt).toLocaleString('ko-KR', { 
+                                      year: '2-digit', 
+                                      month: 'numeric', 
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: false
+                                    })
                                   : '-';
                                 return (
                                   <tr 

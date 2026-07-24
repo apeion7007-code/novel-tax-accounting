@@ -2441,19 +2441,19 @@ function App() {
       <body>
         <table style="border-collapse:collapse; width: 800px;">
           <colgroup>
-            <col width="80" />
-            <col width="120" />
+            <col width="75" />
+            <col width="115" />
             <col width="90" />
             <col width="70" />
+            <col width="85" />
+            <col width="110" />
             <col width="90" />
-            <col width="70" />
-            <col width="90" />
-            <col width="90" />
-            <col width="50" />
-            <col width="50" />
+            <col width="85" />
+            <col width="40" />
+            <col width="40" />
           </colgroup>
           <tr style="height:25px;">
-            <td colspan="10" class="subtitle" style="text-align: left;">■ 조세특례제한법 시행규칙 [별지 제11호의2서식] &lt;개정 2021. 3. 16.&gt;</td>
+            <td colspan="10" class="subtitle" style="text-align: left;">■ 조세특례제한법 시행규칙 [별지 제11호의2서식] &lt;개정 2025. 6. 30.&gt;</td>
           </tr>
           <tr style="height:45px;">
             <td colspan="10" class="title">중소기업 취업자 소득세 감면 대상 명세서</td>
@@ -2469,7 +2469,7 @@ function App() {
             <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${businessNumber}</td>
           </tr>
           <tr style="height:35px;">
-            <td colspan="2" class="label">주 소</td>
+            <td colspan="2" class="label">사업장소재지</td>
             <td colspan="3" class="value" style="padding-left: 10px;">${regForm.companyAddress || ''}</td>
             <td colspan="2" class="label">주업종코드</td>
             <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyIndustry || ''}</td>
@@ -2485,14 +2485,14 @@ function App() {
             <td colspan="10" class="section-header" style="border-top: 1.5pt solid #000000; border-bottom: 1.5pt solid #000000;">2. 감면 적용 대상자 명단</td>
           </tr>
           <tr class="grid-header">
-            <td rowspan="2" style="width: 100px;">성 명</td>
-            <td rowspan="2" style="width: 130px;">주민등록번호<br/>(외국인등록번호)</td>
-            <td rowspan="2" style="width: 100px;">취업일</td>
-            <td rowspan="2" style="width: 80px;">취업자<br/>유형</td>
-            <td rowspan="2" style="width: 80px;">중소기업<br/>취업 시 연령</td>
-            <td rowspan="2" style="width: 80px;">병역근무<br/>기간</td>
-            <td rowspan="2" style="width: 80px;">병역근무기간<br/>차감 후 연령</td>
-            <td colspan="3" style="width: 180px; border-bottom: .5pt solid #000000;">감면기간</td>
+            <td rowspan="2" style="width: 75px; font-weight: bold; background-color: #f1f5f9;">성 명</td>
+            <td rowspan="2" style="width: 115px; font-weight: bold; background-color: #f1f5f9;">주민<br/>등록번호</td>
+            <td rowspan="2" style="width: 90px; font-weight: bold; background-color: #f1f5f9;">취업일</td>
+            <td rowspan="2" style="width: 70px; font-weight: bold; background-color: #f1f5f9;">취업자<br/>유형</td>
+            <td rowspan="2" style="width: 85px; font-weight: bold; background-color: #f1f5f9;">중소기업<br/>취업 시<br/>연령</td>
+            <td rowspan="2" style="width: 110px; font-weight: bold; background-color: #f1f5f9;">병역근무기간<br/>(6년을 한도로 함)</td>
+            <td rowspan="2" style="width: 90px; font-weight: bold; background-color: #f1f5f9;">병역근무기간 차<br/>감 후 연령</td>
+            <td colspan="3" style="width: 165px; font-weight: bold; background-color: #f1f5f9; border-bottom: .5pt solid #000000;">감면기간</td>
           </tr>
           <tr class="grid-header">
             <td colspan="1" style="width: 90px; font-weight: bold; background-color: #e2e8f0;">시작일</td>
@@ -2544,7 +2544,11 @@ function App() {
             </td>
           </tr>
 
-          <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
+          <tr style="height:20px; border:none;">
+            <td colspan="10" style="border:none; text-align: right; font-size: 8pt; color: #555555; height: 20px; vertical-align: bottom;">
+              210mm× 297mm[백상지 80g/㎡ 또는 중질지 80g/㎡]
+            </td>
+          </tr>
           <tr style="border:none; height:25px;">
             <td colspan="10" style="border:none; border-top: 1pt solid #cbd5e1; text-align: left; font-size: 9pt; font-weight: bold; color: #334155; padding-top: 8px; height: 25px; vertical-align: middle;">
               <b>작성방법</b>
@@ -2552,24 +2556,24 @@ function App() {
           </tr>
           <tr style="border:none; height:20px;">
             <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 20px; vertical-align: middle;">
-              1. '취업자 유형'은 '청년', '60세 이상 사람', '장애인', '경력단절여성'으로 구분하여 적습니다.
+              1. "취업자 유형"은 '청년', '60세 이상 사람', '장애인', '경력단절 근로자'로 구분하여 적습니다.
             </td>
           </tr>
           <tr style="border:none; height:20px;">
             <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 20px; vertical-align: middle;">
-              2. '병역근무기간'과 '병역근무기간 차감 후 연령'은 취업자 유형이 '청년'인 경우 적습니다.
+              2. "병역근무기간"과 "병역근무기간 차감 후 연령"은 취업자 유형이 '청년'인 경우 적습니다.
             </td>
           </tr>
-          <tr style="border:none; height:35px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 35px; vertical-align: middle; white-space: normal;">
-              3. '감면기간'란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세<br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;감면신청서」의 ⑧·⑨란의 시작일과 종료일을 적습니다.
+          <tr style="border:none; height:55px;">
+            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 55px; vertical-align: middle; white-space: normal;">
+              3. "감면기간"란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세<br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;감면신청서」의 ⑧ㆍ⑨란의 시작일과 종료일을 적습니다.
             </td>
           </tr>
-          <tr style="border:none; height:35px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 35px; vertical-align: middle; white-space: normal;">
-              4. '주업종코드'란에는 원천징수의무자의 주업종코드를 기재합니다. (「조세특례제한법 시행령」 제27조제3항<br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;각 호에 따른 사업을 주된 사업으로 영위하는 중소기업으로부터 받는 근로소득만 감면 대상입니다.)
+          <tr style="border:none; height:55px;">
+            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 55px; vertical-align: middle; white-space: normal;">
+              4. "주업종코드" 란에는 원천징수의무자의 주업종코드를 기재합니다.(「조세특례제한법 시행령」 제27조제3항 각 호에 따른<br/>
+              &nbsp;&nbsp;&nbsp;&nbsp;사업을 주된 사업으로 영위하는 중소기업으로부터 받은 근로소득만 감면대상입니다.)
             </td>
           </tr>
         </table>

@@ -704,6 +704,12 @@ function App() {
     loadSupabaseData();
   }, [isLoggedIn]);
 
+  // SmeModal States for company details
+  const [smeModalOpen, setSmeModalOpen] = useState(false);
+  const [smeCompanyAddress, setSmeCompanyAddress] = useState('');
+  const [smeCompanyPhone, setSmeCompanyPhone] = useState('');
+  const [smeCompanyIndustry, setSmeCompanyIndustry] = useState('');
+
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
     clientId: '',
@@ -2263,7 +2269,53 @@ function App() {
       companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
     }
 
-    // 2. Calculate Age at Employment (만 나이)
+    // 2. Load cached details from localStorage
+    const saved = localStorage.getItem(`company_${businessNumber}`);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setSmeCompanyAddress(parsed.address || '');
+        setSmeCompanyPhone(parsed.phone || '');
+        setSmeCompanyIndustry(parsed.industry || '');
+      } catch (e) {
+        setSmeCompanyAddress('');
+        setSmeCompanyPhone('');
+        setSmeCompanyIndustry('');
+      }
+    } else {
+      setSmeCompanyAddress('');
+      setSmeCompanyPhone('');
+      setSmeCompanyIndustry('');
+    }
+
+    setSmeModalOpen(true);
+  };
+
+  const triggerExcelDownload = () => {
+    // 1. Resolve Company Details (Last/Recent Active Employer)
+    let companyName = '';
+    let businessNumber = '';
+    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
+    for (const yr of sortedYears) {
+      const yrData = regForm.years[yr];
+      if (yrData?.active && yrData.workPlace) {
+        companyName = yrData.workPlace;
+        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
+        break;
+      }
+    }
+    if (!companyName) {
+      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+    }
+
+    // 2. Cache details in localStorage
+    localStorage.setItem(`company_${businessNumber}`, JSON.stringify({
+      address: smeCompanyAddress,
+      phone: smeCompanyPhone,
+      industry: smeCompanyIndustry
+    }));
+
+    // 3. Calculate Age at Employment (만 나이)
     const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
     let birthYear = 0;
     let birthMonth = 0;
@@ -2301,7 +2353,7 @@ function App() {
       }
     }
 
-    // 3. Resolve Reduction Start & End Date
+    // 4. Resolve Reduction Start & End Date
     let reductionStart = regForm.taxReductionApplyDateStart || '';
     let reductionEnd = regForm.taxReductionApplyDateEnd || '';
     if (!reductionStart && regForm.residentAddress) {
@@ -2323,7 +2375,7 @@ function App() {
       }
     }
 
-    // 4. Construct Excel Styled HTML Template
+    // 5. Construct Excel Styled HTML Template
     const today = new Date();
     const currentYearStr = String(today.getFullYear());
     const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
@@ -2438,13 +2490,13 @@ function App() {
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">주 소</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">-</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">${smeCompanyAddress || '-'}</td>
             <td colspan="2" class="label">주업종코드</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">-</td>
+            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${smeCompanyIndustry || '-'}</td>
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">전화번호</td>
-            <td colspan="8" class="value" style="padding-left: 10px;">-</td>
+            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${smeCompanyPhone || '-'}</td>
           </tr>
 
           <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
@@ -2540,6 +2592,7 @@ function App() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
+    setSmeModalOpen(false);
     showToast('감면 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
   };
 
@@ -4772,6 +4825,94 @@ function App() {
             )}
 
           </main>
+        </div>
+      )}
+
+      {/* SmeModal for entering/editing employer details dynamically */}
+      {smeModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '450px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid #cbd5e1'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>
+              📄 감면명세서 추가 정보 입력
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b', lineHeight: '1.4' }}>
+              원천징수의무자(회사)의 세부 정보를 입력하세요. 이 정보는 브라우저에 자동 저장되어 다음 출력 시 자동으로 불러옵니다.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>회사 주소</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={smeCompanyAddress}
+                  onChange={(e) => setSmeCompanyAddress(e.target.value)}
+                  placeholder="예: 충청북도 음성군 금왕읍 대금로..."
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>회사 전화번호</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={smeCompanyPhone}
+                  onChange={(e) => setSmeCompanyPhone(e.target.value)}
+                  placeholder="예: 010-3285-0337"
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>주업종코드</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={smeCompanyIndustry}
+                  onChange={(e) => setSmeCompanyIndustry(e.target.value)}
+                  placeholder="예: 172902"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button
+                type="button"
+                className="btn-cancel"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+                onClick={() => setSmeModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#10b981' }}
+                onClick={triggerExcelDownload}
+              >
+                엑셀 다운로드
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

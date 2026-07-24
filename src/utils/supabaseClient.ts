@@ -5,6 +5,23 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Helper to convert date strings safely without throwing RangeErrors on invalid dates
+const safeToISOString = (dateStr: any): string | null => {
+  if (!dateStr || String(dateStr).trim() === '' || String(dateStr).includes('연도-월-일') || String(dateStr).includes('연도')) {
+    return null;
+  }
+  try {
+    const parsed = new Date(dateStr);
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+    return parsed.toISOString();
+  } catch (e) {
+    return null;
+  }
+};
+
+
 /**
  * Fast initial fetch (First 500 records for instant 0.1s UI render)
  */
@@ -137,7 +154,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       facebookName: regForm.snsName || '',
       facebookURL: regForm.snsAddress || '',
       clientRank: regForm.customerGrade || '',
-      recordFileDate: (regForm.greenContractDate && regForm.greenContractDate !== '') ? new Date(regForm.greenContractDate).toISOString() : null,
+      recordFileDate: safeToISOString(regForm.greenContractDate),
       isAdditionalPayback: regForm.additionalApplyPerformance === '가',
       dependentsCount: Number(regForm.dependentsCount) || 0,
       seniorCount: Number(regForm.seniorCount) || 0,
@@ -146,16 +163,16 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       updatedAt: new Date().toISOString(),
 
       // Mapped Supabase Columns
-      visaExpireDate: regForm.visaExpiry ? new Date(regForm.visaExpiry).toISOString() : null,
+      visaExpireDate: safeToISOString(regForm.visaExpiry),
       paybackProgress: regForm.refundStatus || '◎경정상담중',
       taxReductionProgress: regForm.deductionSubmissionStatus || '◎제출이력없음',
-      taxReductionApplyDateStart: regForm.taxReductionApplyDateStart ? new Date(regForm.taxReductionApplyDateStart).toISOString() : null,
-      taxReductionApplyDateEnd: regForm.taxReductionApplyDateEnd ? new Date(regForm.taxReductionApplyDateEnd).toISOString() : null,
-      taxReductionSentDate: regForm.deductionSentDate ? new Date(regForm.deductionSentDate).toISOString() : null,
-      rectificationRequestDate: regForm.claimCompleteDate ? new Date(regForm.claimCompleteDate).toISOString() : null,
-      additionalApplyDate: regForm.claimRequestDate ? new Date(regForm.claimRequestDate).toISOString() : null,
+      taxReductionApplyDateStart: safeToISOString(regForm.taxReductionApplyDateStart),
+      taxReductionApplyDateEnd: safeToISOString(regForm.taxReductionApplyDateEnd),
+      taxReductionSentDate: safeToISOString(regForm.deductionSentDate),
+      rectificationRequestDate: safeToISOString(regForm.claimCompleteDate),
+      additionalApplyDate: safeToISOString(regForm.claimRequestDate),
       feeMethod: regForm.feePaymentStatus || '후불 22%',
-      hireDate: regForm.residentAddress ? new Date(regForm.residentAddress).toISOString() : null
+      hireDate: safeToISOString(regForm.residentAddress)
     };
 
     if (pdfFileObjects['familyDoc']) {

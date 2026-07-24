@@ -212,7 +212,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     }
 
     if (clientId) {
-      await supabase.from('Client').update(clientPayload).eq('id', clientId);
+      const { error: updateErr } = await supabase.from('Client').update(clientPayload).eq('id', clientId);
+      if (updateErr) {
+        throw new Error(`Client Update Error: ${updateErr.message}`);
+      }
     } else {
       const { data: newClient, error: insertErr } = await supabase
         .from('Client')
@@ -221,7 +224,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         .single();
 
       if (insertErr) {
-        console.warn('Insert Client notice:', insertErr.message);
+        throw new Error(`Client Insert Error: ${insertErr.message}`);
       } else if (newClient) {
         clientId = newClient.id;
       }
@@ -325,9 +328,15 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         .maybeSingle();
 
       if (existingYr) {
-        await supabase.from('YearEndData').update(yearPayload).eq('id', existingYr.id);
+        const { error: yrUpdateErr } = await supabase.from('YearEndData').update(yearPayload).eq('id', existingYr.id);
+        if (yrUpdateErr) {
+          throw new Error(`YearEndData Update Error (${yr}): ${yrUpdateErr.message}`);
+        }
       } else {
-        await supabase.from('YearEndData').insert([{ ...yearPayload, createdAt: new Date().toISOString() }]);
+        const { error: yrInsertErr } = await supabase.from('YearEndData').insert([{ ...yearPayload, createdAt: new Date().toISOString() }]);
+        if (yrInsertErr) {
+          throw new Error(`YearEndData Insert Error (${yr}): ${yrInsertErr.message}`);
+        }
       }
     }
 

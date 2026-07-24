@@ -2199,10 +2199,12 @@ function App() {
       if (res && res.success) {
         showToast('고객 정보, 정산 결과 및 PDF 파일이 Supabase DB에 완벽히 동기화되었습니다!', 'success');
       } else {
-        showToast('로컬 저장은 완료되었으나, Supabase 동기화 중 권한/네트워크 주의사항이 있습니다.', 'info');
+        const errMsg = (res.error as any)?.message || (typeof res.error === 'string' ? res.error : JSON.stringify(res.error || '알 수 없는 DB 오류'));
+        showToast(`Supabase 저장 실패: ${errMsg}`, 'error');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn('Supabase save error:', err);
+      showToast(`Supabase 저장 예외: ${err.message || err}`, 'error');
     }
 
     setCurrentView('customer'); // Return to list view

@@ -2157,31 +2157,6 @@ function App() {
     const today = new Date();
     const formattedDate = `${String(today.getFullYear()).slice(-2)}. ${today.getMonth() + 1}. ${today.getDate()}.`;
 
-    // Map registration form to simplified list view customer
-    const isUpdate = regForm.serial && regForm.serial > 0;
-    const savedCustomerItem: Customer = {
-      id: isUpdate ? regForm.serial : nextId,
-      registeredDate: formattedDate,
-      nationality: regForm.nationality,
-      name: regForm.name.toUpperCase(),
-      birthDate: regForm.foreignerNumber,
-      visa: regForm.visaType,
-      companyName: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '-',
-      refundStatus: regForm.refundStatus,
-      submissionStatus: regForm.deductionSubmissionStatus,
-      monthlyRent: regForm.isMonthlyRent === '가' ? '예' : '아니오',
-      claimDate: regForm.claimCompleteDate || '-',
-      additionalPerformance: Number(regForm.additionalApplyPerformance) || 0,
-      managerCountry: regForm.nationality,
-      managerName: regForm.managerName || managers.find(m => m.country === regForm.nationality)?.name || managers[0].name
-    };
-
-    if (isUpdate) {
-      setCustomers(prev => prev.map(c => c.id === regForm.serial ? savedCustomerItem : c));
-    } else {
-      setCustomers(prev => [savedCustomerItem, ...prev]);
-    }
-
     // Gather uploaded PDF file objects for each year
     const pdfFiles: Record<string, File | null> = {
       '2022': regForm.years['2022']?.pdfFile || null,
@@ -2197,6 +2172,33 @@ function App() {
     try {
       const res = await saveRegistrationToSupabase(regForm, pdfFiles);
       if (res && res.success) {
+        // Map registration form to simplified list view customer using actual serial from DB
+        const isUpdate = regForm.serial && regForm.serial > 0;
+        const actualSerial = res.serial || regForm.serial || nextId;
+        
+        const savedCustomerItem: Customer = {
+          id: actualSerial,
+          registeredDate: formattedDate,
+          nationality: regForm.nationality,
+          name: regForm.name.toUpperCase(),
+          birthDate: regForm.foreignerNumber,
+          visa: regForm.visaType,
+          companyName: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '-',
+          refundStatus: regForm.refundStatus,
+          submissionStatus: regForm.deductionSubmissionStatus,
+          monthlyRent: regForm.isMonthlyRent === '가' ? '예' : '아니오',
+          claimDate: regForm.claimCompleteDate || '-',
+          additionalPerformance: Number(regForm.additionalApplyPerformance) || 0,
+          managerCountry: regForm.nationality,
+          managerName: regForm.managerName || managers.find(m => m.country === regForm.nationality)?.name || managers[0].name
+        };
+
+        if (isUpdate) {
+          setCustomers(prev => prev.map(c => c.id === regForm.serial ? savedCustomerItem : c));
+        } else {
+          setCustomers(prev => [savedCustomerItem, ...prev]);
+        }
+
         showToast('고객 정보, 정산 결과 및 PDF 파일이 Supabase DB에 완벽히 동기화되었습니다!', 'success');
       } else {
         const errObj = (res.error || {}) as any;

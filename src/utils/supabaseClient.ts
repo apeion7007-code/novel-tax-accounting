@@ -140,6 +140,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     }
 
     let clientId: string | null = null;
+    let newClientSerial: number | null = null;
     if (!clientId && regForm.foreignerNumber) {
       const { data: existing } = await supabase
         .from('Client')
@@ -227,6 +228,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         throw new Error(`Client Insert Error: ${insertErr.message}`);
       } else if (newClient) {
         clientId = newClient.id;
+        newClientSerial = newClient.serial;
       }
     }
 
@@ -340,7 +342,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       }
     }
 
-    return { success: true, clientId };
+    return { success: true, clientId, serial: newClientSerial || regForm.serial || null };
   } catch (err) {
     console.error('saveRegistrationToSupabase Exception:', err);
     return { success: false, error: err };

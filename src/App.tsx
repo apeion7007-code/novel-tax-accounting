@@ -2199,11 +2199,36 @@ function App() {
       if (res && res.success) {
         showToast('고객 정보, 정산 결과 및 PDF 파일이 Supabase DB에 완벽히 동기화되었습니다!', 'success');
       } else {
-        const errMsg = (res.error as any)?.message || (typeof res.error === 'string' ? res.error : JSON.stringify(res.error || '알 수 없는 DB 오류'));
+        const errObj = (res.error || {}) as any;
+        const errMsg = errObj.message || (typeof res.error === 'string' ? res.error : '알 수 없는 DB 오류');
+        const errCode = errObj.code || 'N/A';
+        const errDetails = errObj.details || '없음';
+        const errHint = errObj.hint || '없음';
+
+        alert(
+          "[Supabase 저장 실패 상세 안내]\n\n" +
+          "• 에러 메시지: " + errMsg + "\n" +
+          "• 에러 코드 (SQLSTATE): " + errCode + "\n" +
+          "• 상세 내용: " + errDetails + "\n" +
+          "• 힌트: " + errHint + "\n\n" +
+          "[전송한 입력값 정보]\n" +
+          "- 신청인 이름: " + regForm.name + "\n" +
+          "- 외국인 등록번호: " + regForm.foreignerNumber + "\n" +
+          "- 담당자 이름: " + regForm.managerName + "\n" +
+          "- 고객 UUID (clientId): " + (regForm.clientId || "신규 등록 (없음)") + "\n" +
+          "- 고객 일련번호 (serial): " + (regForm.serial || "신규 등록 (없음)") + "\n\n" +
+          "이 팝업 내용을 캡처하거나 텍스트를 복사하여 개발자에게 전달해 주세요."
+        );
         showToast(`Supabase 저장 실패: ${errMsg}`, 'error');
       }
     } catch (err: any) {
       console.warn('Supabase save error:', err);
+      alert(
+        "[Supabase 저장 예외 발생]\n\n" +
+        "• 예외 메시지: " + (err.message || err) + "\n" +
+        "• Stack Trace: " + (err.stack || "없음") + "\n\n" +
+        "이 팝업 내용을 캡처하거나 텍스트를 복사하여 개발자에게 전달해 주세요."
+      );
       showToast(`Supabase 저장 예외: ${err.message || err}`, 'error');
     }
 

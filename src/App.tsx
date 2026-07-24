@@ -60,6 +60,7 @@ interface Customer {
   submissionStatus: string;
   monthlyRent: string;
   claimDate: string;
+  additionalApplyDate?: string;
   additionalPerformance: number;
   managerCountry: string;
   managerName: string;
@@ -810,7 +811,8 @@ function App() {
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
-              additionalPerformance: c.additionalPerformance || 0,
+              additionalApplyDate: parseDate(c.additionalApplyDate),
+              additionalPerformance: c.fee_performance || 0,
               managerCountry: nat,
               managerName: resolvedMgr,
               phone: c.phone || '',
@@ -854,7 +856,8 @@ function App() {
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
-              additionalPerformance: c.additionalPerformance || 0,
+              additionalApplyDate: parseDate(c.additionalApplyDate),
+              additionalPerformance: c.fee_performance || 0,
               managerCountry: nat,
               managerName: resolvedMgr,
               phone: c.phone || '',
@@ -3741,11 +3744,11 @@ function App() {
                           <th>비자</th>
                           <th>회사명</th>
                           <th>환급처리상태</th>
-                          <th>수임상태 (동의/신분증)</th>
                           <th>감면명세서 제출상태</th>
                           <th>월세여부</th>
-                          <th>경정청구일</th>
-                          <th>추가 신청인 실적</th>
+                          <th style={{ minWidth: '110px' }}>경정청구일</th>
+                          <th style={{ minWidth: '110px' }}>추가 신청일</th>
+                          <th style={{ minWidth: '90px' }}>실적</th>
                           <th style={{ minWidth: '190px', textAlign: 'center', position: 'sticky', right: 0, backgroundColor: '#0e1834', zIndex: 10, boxShadow: '-3px 0 6px rgba(0, 0, 0, 0.15)' }}>
                             담당자 변경 / 저장
                           </th>
@@ -3805,70 +3808,7 @@ function App() {
                                     {formatStatusIcon(customer.refundStatus)}
                                   </span>
                                 </td>
-                                <td>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '130px' }}>
-                                    {/* Status Badge */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                      {(() => {
-                                        const status = customer.consentStatus || '대기';
-                                        const bg = status === '수임완료' ? '#dcfce7' : status === '제출완료' ? '#e0f2fe' : '#f1f5f9';
-                                        const color = status === '수임완료' ? '#15803d' : status === '제출완료' ? '#0369a1' : '#64748b';
-                                        return (
-                                          <span style={{ 
-                                            padding: '2px 8px', 
-                                            fontSize: '11px', 
-                                            fontWeight: 'bold', 
-                                            borderRadius: '9999px',
-                                            backgroundColor: bg,
-                                            color: color
-                                          }}>
-                                            {status}
-                                          </span>
-                                        );
-                                      })()}
 
-                                      {customer.arcImageUrl && (
-                                        <button 
-                                          onClick={() => window.open(customer.arcImageUrl, '_blank')}
-                                          title="외국인등록증 보기"
-                                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', padding: 0 }}
-                                        >
-                                          📷
-                                        </button>
-                                      )}
-                                      {customer.signatureImageUrl && (
-                                        <button 
-                                          onClick={() => window.open(customer.signatureImageUrl, '_blank')}
-                                          title="서명 보기"
-                                          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '13px', padding: 0 }}
-                                        >
-                                          ✍️
-                                        </button>
-                                      )}
-                                    </div>
-
-                                    <button
-                                      onClick={() => {
-                                        const consentLink = `${window.location.origin}${window.location.pathname}?view=consent&id=${customer.uuid}`;
-                                        navigator.clipboard.writeText(consentLink);
-                                        showToast(`${customer.name} 고객의 수임동의 링크가 복사되었습니다.`, 'success');
-                                      }}
-                                      style={{
-                                        fontSize: '10px',
-                                        padding: '2px 6px',
-                                        backgroundColor: '#f1f5f9',
-                                        color: '#475569',
-                                        border: '1px solid #cbd5e1',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        textAlign: 'center',
-                                        fontWeight: 'bold'
-                                      }}
-                                    >
-                                      🔗 링크 복사
-                                    </button>
-                                  </div>
-                                </td>
                                 <td>
                                   {customer.submissionStatus && customer.submissionStatus !== '-' ? (
                                     <span style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
@@ -3880,7 +3820,8 @@ function App() {
                                 </td>
                                 <td>{customer.monthlyRent}</td>
                                 <td>{customer.claimDate}</td>
-                                <td>{customer.additionalPerformance}</td>
+                                <td>{customer.additionalApplyDate || '-'}</td>
+                                <td>{customer.additionalPerformance ? customer.additionalPerformance.toLocaleString('ko-KR') : '0'}</td>
                                 <td style={{ textAlign: 'center', position: 'sticky', right: 0, backgroundColor: '#ffffff', zIndex: 5, boxShadow: '-3px 0 6px rgba(0, 0, 0, 0.08)' }}>
                                   <div className="inline-edit" style={{ display: 'flex', gap: '3px', alignItems: 'center', justifyContent: 'center' }}>
                                     <select

@@ -304,9 +304,11 @@ body {
 /* Data Table Structure */
 .table-wrapper {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   padding: 0 24px 24px 24px;
   background-color: var(--bg-main);
+  display: flex;
+  flex-direction: column;
 }
 
 .table-container {
@@ -314,8 +316,10 @@ body {
   border-radius: 8px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   border: 1px solid var(--border-color);
-  overflow-x: auto;
+  overflow: auto;
   position: relative;
+  flex: 1;
+  min-height: 200px;
 }
 
 .data-table {

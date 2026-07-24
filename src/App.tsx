@@ -2453,13 +2453,13 @@ function App() {
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">주 소</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">${regForm.companyAddress || '-'}</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">${regForm.companyAddress || ''}</td>
             <td colspan="2" class="label">주업종코드</td>
-            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyIndustry || '-'}</td>
+            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyIndustry || ''}</td>
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">전화번호</td>
-            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyPhone || '-'}</td>
+            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyPhone || ''}</td>
           </tr>
 
           <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
@@ -2495,13 +2495,13 @@ function App() {
           </tr>
 
           <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
           </tr>
           <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
           </tr>
           <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
           </tr>
 
           <tr style="height:25px; border:none;"><td colspan="10" style="border:none; height:25px;"></td></tr>

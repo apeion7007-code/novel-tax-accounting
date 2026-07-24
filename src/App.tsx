@@ -159,6 +159,7 @@ function App() {
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password'>('customer');
+  const [invoiceLanguage, setInvoiceLanguage] = useState<string>('한국어');
 
   // Customer List State
   const [customers, setCustomers] = useState<Customer[]>([
@@ -785,6 +786,15 @@ function App() {
   // Dynamic Years for Settlement
   const [targetYears, setTargetYears] = useState<string[]>(['2021', '2022', '2023', '2024', '2025']);
   const [selectedFeeRate, setSelectedFeeRate] = useState<number>(22);
+  useEffect(() => {
+    if (regForm.nationality === '베트남') setInvoiceLanguage('베트남어');
+    else if (regForm.nationality === '인도네시아') setInvoiceLanguage('인도네시아어');
+    else if (regForm.nationality === '몽골') setInvoiceLanguage('몽골어');
+    else if (regForm.nationality === '미얀마') setInvoiceLanguage('미얀마어');
+    else if (regForm.nationality === '캄보디아') setInvoiceLanguage('캄보디아어');
+    else if (regForm.nationality === '네팔') setInvoiceLanguage('네팔어');
+    else setInvoiceLanguage('한국어');
+  }, [regForm.nationality]);
 
   // Real-time Youth Tax Reduction Calculation
   const youthTaxReductionInfo = useMemo(() => {
@@ -2469,7 +2479,7 @@ function App() {
   }
 
   const triggerKoreanInvoiceDownload = async () => {
-    showToast('청구서 엑셀 파일을 작성하고 있습니다...', 'info');
+    showToast(`${invoiceLanguage} 청구서 엑셀 파일을 작성하고 있습니다...`, 'info');
     try {
       let totalRefundSum = 0;
       let totalFeeSum = 0;
@@ -2488,8 +2498,141 @@ function App() {
         throw new Error('환급이 예상되는 연도가 없습니다. 정산 데이터를 확인해 주세요.');
       }
 
+      // Multi-language translation dictionaries
+      const translations: Record<string, Record<string, string>> = {
+        '한국어': {
+          title: '환급금 정산 청구서',
+          sec1: '1. 고객 정보',
+          name: '고객 성명',
+          rrn: '주민등록번호',
+          company: '소속 회사',
+          sec2: '2. 환급금 및 수수료 내역',
+          year: '정산 연도',
+          expect: '예상 환급액 (국세+지방세)',
+          fee: '대행 수수료',
+          total: '합 계',
+          sec3: '3. 입금 계좌 및 수납 안내',
+          bank: '입금 은행',
+          acc: '계좌 번호',
+          owner: '예 금 주',
+          footnote: '※ 대행 수수료 입금이 확인된 후, 세무서 국세청 경정청구 최종 접수가 진행됩니다.\n※ 입금하실 때는 반드시 고객님 본인 성명으로 입금해 주시기 바랍니다.',
+          filePrefix: '청구서'
+        },
+        '베트남어': {
+          title: 'Hóa đơn thanh toán tiền hoàn thuế',
+          sec1: '1. Thông tin khách hàng',
+          name: 'Họ và tên khách hàng',
+          rrn: 'Số đăng ký người nước ngoài (RRN)',
+          company: 'Công ty sở thuộc',
+          sec2: '2. Chi tiết tiền hoàn thuế và phí dịch vụ',
+          year: 'Năm quyết toán',
+          expect: 'Số tiền hoàn thuế dự kiến (Thuế quốc gia + Thuế địa phương)',
+          fee: 'Phí dịch vụ đại lý',
+          total: 'Tổng cộng',
+          sec3: '3. Thông tin tài khoản ngân hàng và hướng dẫn thanh toán',
+          bank: 'Ngân hàng chuyển tiền',
+          acc: 'Số tài khoản',
+          owner: 'Chủ tài khoản',
+          footnote: '※ Phí dịch vụ đại lý sau khi được xác nhận thanh toán, thủ tục nộp hồ sơ hoàn thuế lên cơ quan thuế mới được tiến hành.\n※ Khi chuyển tiền, vui lòng ghi đúng họ và tên của khách hàng.',
+          filePrefix: 'Hoa_Don'
+        },
+        '인도네시아어': {
+          title: 'Faktur Pembayaran Pengembalian Pajak',
+          sec1: '1. Informasi Pelanggan',
+          name: 'Nama Pelanggan',
+          rrn: 'Nomor Registrasi Penduduk (RRN)',
+          company: 'Nama Perusahaan',
+          sec2: '2. Rincian Pengembalian Pajak & Biaya Jasa',
+          year: 'Tahun Penyelesaian',
+          expect: 'Estimasi Pengembalian Pajak (Pajak Nasional + Daerah)',
+          fee: 'Biaya Jasa Agen',
+          total: 'Total',
+          sec3: '3. Informasi Rekening Bank & Panduan Pembayaran',
+          bank: 'Nama Bank',
+          acc: 'Nomor Rekening',
+          owner: 'Nama Pemilik Rekening',
+          footnote: '※ Setelah pembayaran biaya jasa agen dikonfirmasi, pengajuan pengembalian pajak ke Kantor Pajak akan diproses.\n※ Saat mentransfer, harap pastikan menggunakan nama asli pelanggan.',
+          filePrefix: 'Faktur'
+        },
+        '몽골어': {
+          title: 'Татварын буцаан олголтын нэхэмжлэх',
+          sec1: '1. Үйлчлүүлэгчийн мэдээлэл',
+          name: 'Үйлчлүүлэгчийн нэр',
+          rrn: 'Иргэний бүртгэлийн дугаар (RRN)',
+          company: 'Харьяалагдах компани',
+          sec2: '2. Буцаан олголт ба үйлчилгээний хөлсний дэлгэрэំពүй',
+          year: 'Тооцооны жил',
+          expect: 'Хүлээгдэж буй буцаан олголт (Улсын татвар + Орон нутгийн татвар)',
+          fee: 'Үйлчилгээний хөлс',
+          total: 'Нийлбэр',
+          sec3: '3. Дансны мэдээлэл ба төлбөрийн заавар',
+          bank: 'Хүлээн авагч банк',
+          acc: 'Дансны дугаар',
+          owner: 'Данс эзэмшигч',
+          footnote: '※ Үйлчилгээний хөлсний шилжүүлэг баталгаажсаны дараа, Татварын албанд хийх эцсийн мэдүүлэг боловсруулагдах болно.\n※ Шилжүүлэг хийхдээ үйлчлүүлэгч өөрийн нэрээр шилжүүлнэ үү.',
+          filePrefix: 'Nehemjleh'
+        },
+        '미얀마어': {
+          title: 'အခွန်ပြန်အမ်းငွေပေးချေမှုပြေစာ',
+          sec1: '1. ဝယ်ယူသူအချက်အလက်',
+          name: 'ဝယ်ယူသူအမည်',
+          rrn: 'နိုင်ငံသားမှတ်ပုံတင်နံပါတ် (RRN)',
+          company: 'ကုမ္ပဏီအမည်',
+          sec2: '2. အခွန်ပြန်အမ်းငွေနှင့် ဝန်ဆောင်ခအသေးစိတ်',
+          year: 'တွက်ချက်သည့်နှစ်',
+          expect: 'ခန့်မှန်းခြေအခွန်ပြန်အမ်းငွေ (နိုင်ငံတော်အခွန် + ဒေသန္တရအခွန်)',
+          fee: 'ကိုယ်စားလှယ်ဝန်ဆောင်ခ',
+          total: 'စုစုပေါင်း',
+          sec3: '3. ဘဏ်အကောင့်အချက်အလက်နှင့် ငွေပေးချေမှုလမ်းညွှန်',
+          bank: 'ဘဏ်အမည်',
+          acc: 'အကောင့်နံပါတ်',
+          owner: 'အကောင့်ပိုင်ရှင်',
+          footnote: '※ ဝန်ဆောင်ခလွှဲပြောင်းမှုကို အတည်ပြုပြီးနောက် အခွန်ဦးစီးဌာနသို့ နောက်ဆုံးတင်ပြမှုကို ဆောင်ရွက်ပါမည်।\n※ ငွေလွှဲရာတွင် ဝယ်ယူသူကိုယ်တိုင်၏အမည်ဖြင့် လွှဲပေးပါရန် မေတ္တာရပ်ခံအပ်ပါသည်။',
+          filePrefix: 'Invoice'
+        },
+        '캄보디아어': {
+          title: 'វិក្កយបត្រទូទាត់ប្រាក់សំណងពន្ធ',
+          sec1: '1. ព័ត៌មានអតិថិជន',
+          name: 'ឈ្មោះអតិថិជន',
+          rrn: 'លេខអត្តសញ្ញាណប័ណ្ណ (RRN)',
+          company: 'ឈ្មោះក្រុមហ៊ុន',
+          sec2: '2. ព័ត៌មានលម្អិតនៃប្រាក់សំណងពន្ធ និងកម្រៃសេវា',
+          year: 'ឆ្នាំទូទាត់',
+          expect: 'ប្រាក់សំណងពន្ធប៉ាន់ស្មាន (ពន្ធជាតិ + ពន្ធក្នុងតំបន់)',
+          fee: 'កម្រៃសេវាតំណាង',
+          total: 'សរុប',
+          sec3: '3. ព័ត៌មានគណនីធនាគារ និងការណែនាំអំពីការបង់ប្រាក់',
+          bank: 'ឈ្មោះធនាគារ',
+          acc: 'លេខគណនី',
+          owner: 'ឈ្មោះម្ចាស់គណនី',
+          footnote: '※ បន្ទាប់ពីការបង់ប្រាក់កម្រៃសេវាតំណាងត្រូវបានបញ្ជាក់ ការដាក់ពាក្យសុំសំណងពន្ធចុងក្រោយទៅកាន់ការិយាល័យពន្ធដារនឹងត្រូវដំណើរការ।\n※ ពេលផ្ទេរប្រាក់ សូមប្រាកដថាប្រើប្រាស់ឈ្មោះពិតរបស់អតិថិជន។',
+          filePrefix: 'Invoice_KH'
+        },
+        '네팔어': {
+          title: 'कर फिर्ता भुक्तानी इनभ्वाइस',
+          sec1: '1. ग्राहक विवरण',
+          name: 'ग्राहकको नाम',
+          rrn: 'नागरिकता दर्ता नम्बर (RRN)',
+          company: 'सम्बद्ध कम्पनी',
+          sec2: '2. कर फिर्ता र सेवा शुल्क विवरण',
+          year: 'आवधिक वर्ष',
+          expect: 'अनुमानित कर फिर्ता (राष्ट्रिय कर + स्थानीय कर)',
+          fee: 'एजेन्सी सेवा शुल्क',
+          total: 'जम्मा',
+          sec3: '3. bank खाता विवरण र भुक्तानी निर्देशन',
+          bank: 'बैंकको नाम',
+          acc: 'खाता नम्बर',
+          owner: 'खातावालाको नाम',
+          footnote: '※ सेवा शुल्क भुक्तानी पुष्टि भएपछि मात्र कर कार्यालयमा अन्तिम आवेदन प्रक्रिया अघि बढाइनेछ।\n※ रकम जम्मा गर्दा कृपया ग्राहककै नामबाट जम्मा गरिदिनुहोला।',
+          filePrefix: 'Invoice_NP'
+        }
+      };
+
+      const t = translations[invoiceLanguage] || translations['한국어'];
+      const currentFont = invoiceLanguage === '한국어' ? '맑은 고딕' : 'Segoe UI';
+
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('청구서');
+      const worksheet = workbook.addWorksheet('Invoice');
       worksheet.views = [{ showGridLines: true }];
 
       // Define default column widths
@@ -2510,8 +2653,8 @@ function App() {
       // 1. Title
       worksheet.mergeCells('B2:D2');
       const titleCell = worksheet.getCell('B2');
-      titleCell.value = '환급금 정산 청구서';
-      titleCell.font = { name: '맑은 고딕', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.value = t.title;
+      titleCell.font = { name: currentFont, size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
       titleCell.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -2521,10 +2664,10 @@ function App() {
       worksheet.getRow(2).height = 45;
 
       // 2. Client Info Section
-      worksheet.getCell('B4').value = '1. 고객 정보';
-      worksheet.getCell('B4').font = { name: '맑은 고딕', size: 11, bold: true };
+      worksheet.getCell('B4').value = t.sec1;
+      worksheet.getCell('B4').font = { name: currentFont, size: 11, bold: true };
       
-      const infoLabels = ['고객 성명', '주민등록번호', '소속 회사'];
+      const infoLabels = [t.name, t.rrn, t.company];
       
       let companyName = '';
       const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
@@ -2554,40 +2697,40 @@ function App() {
         const row = worksheet.getRow(rNum);
         row.height = 24;
 
-        const lblCell = worksheet.getCell(`B${rNum}`);
+        const lblCell = worksheet.getCell("B" + rNum);
         lblCell.value = infoLabels[i];
-        lblCell.font = { name: '맑은 고딕', size: 10, bold: true };
+        lblCell.font = { name: currentFont, size: 10, bold: true };
         lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
         lblCell.border = thinBorder;
         lblCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        worksheet.mergeCells(`C${rNum}:D${rNum}`);
-        const valCell = worksheet.getCell(`C${rNum}`);
+        worksheet.mergeCells("C" + rNum + ":D" + rNum);
+        const valCell = worksheet.getCell("C" + rNum);
         valCell.value = infoValues[i];
-        valCell.font = { name: '맑은 고딕', size: 10 };
+        valCell.font = { name: currentFont, size: 10 };
         valCell.border = thinBorder;
         valCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
         
         // Add border to merged cells manually
-        worksheet.getCell(`D${rNum}`).border = thinBorder;
+        worksheet.getCell("D" + rNum).border = thinBorder;
       }
 
       // 3. Calculation Table
       const startTableIdx = 9;
-      worksheet.getCell(`B${startTableIdx}`).value = '2. 환급금 및 수수료 내역';
-      worksheet.getCell(`B${startTableIdx}`).font = { name: '맑은 고딕', size: 11, bold: true };
+      worksheet.getCell("B" + startTableIdx).value = t.sec2;
+      worksheet.getCell("B" + startTableIdx).font = { name: currentFont, size: 11, bold: true };
 
       // Header Row
       const headerRowIndex = startTableIdx + 1;
       worksheet.getRow(headerRowIndex).height = 26;
       
-      const headers = ['정산 연도', '예상 환급액 (국세+지방세)', `대행 수수료 (${selectedFeeRate}%)`];
+      const headers = [t.year, t.expect, t.fee + " (" + selectedFeeRate + "%)"];
       const headerCols = ['B', 'C', 'D'];
       
       for (let i = 0; i < 3; i++) {
-        const cell = worksheet.getCell(`${headerCols[i]}${headerRowIndex}`);
+        const cell = worksheet.getCell(headerCols[i] + headerRowIndex);
         cell.value = headers[i];
-        cell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.font = { name: currentFont, size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B82F6' } }; // Blue
         cell.border = thinBorder;
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -2598,26 +2741,26 @@ function App() {
       activeYearBreakdowns.forEach(item => {
         worksheet.getRow(currentIdx).height = 24;
         
-        // Year
-        const cellY = worksheet.getCell(`B${currentIdx}`);
-        cellY.value = `${item.year}년 정산`;
-        cellY.font = { name: '맑은 고딕', size: 10 };
+        // Year Label
+        const cellY = worksheet.getCell("B" + currentIdx);
+        cellY.value = invoiceLanguage === '한국어' ? item.year + "년 정산" : item.year + " settlement";
+        cellY.font = { name: currentFont, size: 10 };
         cellY.border = thinBorder;
         cellY.alignment = { vertical: 'middle', horizontal: 'center' };
 
         // Refund
-        const cellR = worksheet.getCell(`C${currentIdx}`);
+        const cellR = worksheet.getCell("C" + currentIdx);
         cellR.value = item.refund;
         cellR.numFmt = '#,##0"원"';
-        cellR.font = { name: '맑은 고딕', size: 10 };
+        cellR.font = { name: currentFont, size: 10 };
         cellR.border = thinBorder;
         cellR.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
 
         // Fee
-        const cellF = worksheet.getCell(`D${currentIdx}`);
+        const cellF = worksheet.getCell("D" + currentIdx);
         cellF.value = item.fee;
         cellF.numFmt = '#,##0"원"';
-        cellF.font = { name: '맑은 고딕', size: 10, bold: true };
+        cellF.font = { name: currentFont, size: 10, bold: true };
         cellF.border = thinBorder;
         cellF.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
 
@@ -2627,25 +2770,25 @@ function App() {
       // Total Row
       worksheet.getRow(currentIdx).height = 26;
       
-      const cellTotLbl = worksheet.getCell(`B${currentIdx}`);
-      cellTotLbl.value = '합 계';
-      cellTotLbl.font = { name: '맑은 고딕', size: 10, bold: true };
+      const cellTotLbl = worksheet.getCell("B" + currentIdx);
+      cellTotLbl.value = t.total;
+      cellTotLbl.font = { name: currentFont, size: 10, bold: true };
       cellTotLbl.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
       cellTotLbl.border = thinBorder;
       cellTotLbl.alignment = { vertical: 'middle', horizontal: 'center' };
 
-      const cellTotR = worksheet.getCell(`C${currentIdx}`);
+      const cellTotR = worksheet.getCell("C" + currentIdx);
       cellTotR.value = totalRefundSum;
       cellTotR.numFmt = '#,##0"원"';
-      cellTotR.font = { name: '맑은 고딕', size: 10, bold: true };
+      cellTotR.font = { name: currentFont, size: 10, bold: true };
       cellTotR.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
       cellTotR.border = thinBorder;
       cellTotR.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
 
-      const cellTotF = worksheet.getCell(`D${currentIdx}`);
+      const cellTotF = worksheet.getCell("D" + currentIdx);
       cellTotF.value = totalFeeSum;
       cellTotF.numFmt = '#,##0"원"';
-      cellTotF.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FFEF4444' } }; // Red
+      cellTotF.font = { name: currentFont, size: 10, bold: true, color: { argb: 'FFEF4444' } }; // Red
       cellTotF.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
       cellTotF.border = thinBorder;
       cellTotF.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
@@ -2653,43 +2796,43 @@ function App() {
       currentIdx += 2;
 
       // 4. Bank Transfer Info Section
-      worksheet.getCell(`B${currentIdx}`).value = '3. 입금 계좌 및 수납 안내';
-      worksheet.getCell(`B${currentIdx}`).font = { name: '맑은 고딕', size: 11, bold: true };
+      worksheet.getCell("B" + currentIdx).value = t.sec3;
+      worksheet.getCell("B" + currentIdx).font = { name: currentFont, size: 11, bold: true };
 
       currentIdx++;
       
-      const bankLabels = ['입금 은행', '계좌 번호', '예 금 주'];
+      const bankLabels = [t.bank, t.acc, t.owner];
       const bankValues = ['IBK 기업은행', '540-049052-04-010', '한결금융컨설팅'];
 
       for (let i = 0; i < 3; i++) {
         const rNum = currentIdx + i;
         worksheet.getRow(rNum).height = 24;
 
-        const lblCell = worksheet.getCell(`B${rNum}`);
+        const lblCell = worksheet.getCell("B" + rNum);
         lblCell.value = bankLabels[i];
-        lblCell.font = { name: '맑은 고딕', size: 10, bold: true };
+        lblCell.font = { name: currentFont, size: 10, bold: true };
         lblCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
         lblCell.border = thinBorder;
         lblCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        worksheet.mergeCells(`C${rNum}:D${rNum}`);
-        const valCell = worksheet.getCell(`C${rNum}`);
+        worksheet.mergeCells("C" + rNum + ":D" + rNum);
+        const valCell = worksheet.getCell("C" + rNum);
         valCell.value = bankValues[i];
-        valCell.font = { name: '맑은 고딕', size: 10, bold: i === 1 }; // Account number bold
+        valCell.font = { name: currentFont, size: 10, bold: i === 1 }; // Account number bold
         valCell.border = thinBorder;
         valCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
 
-        worksheet.getCell(`D${rNum}`).border = thinBorder;
+        worksheet.getCell("D" + rNum).border = thinBorder;
       }
 
       currentIdx += 3;
       
       // Guide text row
-      worksheet.getRow(currentIdx).height = 40;
-      worksheet.mergeCells(`B${currentIdx}:D${currentIdx}`);
-      const guideCell = worksheet.getCell(`B${currentIdx}`);
-      guideCell.value = '※ 대행 수수료 입금이 확인된 후, 세무서 국세청 경정청구 최종 접수가 진행됩니다.\n※ 입금하실 때는 반드시 고객님 본인 성명으로 입금해 주시기 바랍니다.';
-      guideCell.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF64748B' }, italic: true };
+      worksheet.getRow(currentIdx).height = 45;
+      worksheet.mergeCells("B" + currentIdx + ":D" + currentIdx);
+      const guideCell = worksheet.getCell("B" + currentIdx);
+      guideCell.value = t.footnote;
+      guideCell.font = { name: currentFont, size: 9, color: { argb: 'FF64748B' }, italic: true };
       guideCell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
       
       // Page Setup for clean print preview
@@ -2709,19 +2852,19 @@ function App() {
       link.href = url;
       
       const cleanName = regForm.name.trim().replace(/\s+/g, '_');
-      link.download = `청구서_${cleanName}_${selectedFeeRate}%.xlsx`;
+      link.download = t.filePrefix + "_" + cleanName + "_" + selectedFeeRate + "%.xlsx";
       
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      showToast('청구서 엑셀 다운로드가 완료되었습니다.', 'success');
+      showToast(`${invoiceLanguage} 청구서 다운로드가 완료되었습니다.`, 'success');
     } catch (err: any) {
       console.error('Error generating invoice Excel:', err);
       showToast('청구서 생성 실패: ' + err.message, 'error');
     }
-  };;
+  };;;
 
   const handleSaveConsultInfo = async () => {
     if (!regForm.clientId) {
@@ -4288,8 +4431,35 @@ function App() {
                       <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '8px' }}>
                         📋 청구서 발급 관리 (실시간 반영)
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '12px', lineHeight: '1.4' }}>
-                        현재 설정된 수수료율(<strong>{selectedFeeRate}%</strong>)과 예상 환급금을 기반으로 한글 청구서 엑셀 파일을 다운로드합니다.
+                      
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>발급 언어 선택</label>
+                          <select
+                            className="form-control"
+                            style={{ fontSize: '13px', height: '32px', padding: '2px 8px' }}
+                            value={invoiceLanguage}
+                            onChange={(e) => setInvoiceLanguage(e.target.value)}
+                          >
+                            <option value="한국어">🇰🇷 한국어 (Korean)</option>
+                            <option value="베트남어">🇻🇳 베트남어 (Vietnamese)</option>
+                            <option value="인도네시아어">🇮🇩 인도네시아어 (Indonesian)</option>
+                            <option value="몽골어">🇲🇳 몽골어 (Mongolian)</option>
+                            <option value="미얀마어">🇲🇲 미얀마어 (Burmese)</option>
+                            <option value="캄보디아어">🇰🇭 캄보디아어 (Khmer)</option>
+                            <option value="네팔어">🇳🇵 네팔어 (Nepali)</option>
+                          </select>
+                        </div>
+                        <div style={{ width: '85px' }}>
+                          <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>수수료율</label>
+                          <div style={{ height: '32px', lineHeight: '32px', textAlign: 'center', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '13px', backgroundColor: '#f8fafc', fontWeight: 'bold', color: '#334155' }}>
+                            {selectedFeeRate}%
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '12px', lineHeight: '1.4' }}>
+                        현재 설정된 수수료율(<strong>{selectedFeeRate}%</strong>)과 예상 환급금을 기반으로 <strong>{invoiceLanguage}</strong> 청구서 엑셀 파일을 다운로드합니다.
                       </div>
                       <button
                         type="button"
@@ -4314,7 +4484,7 @@ function App() {
                         onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#10b981')}
                       >
                         <FileSpreadsheet size={16} />
-                        📄 한국어 청구서 다운로드 (.xlsx)
+                        {invoiceLanguage} 청구서 다운로드 (.xlsx)
                       </button>
                     </div>
                     </div>

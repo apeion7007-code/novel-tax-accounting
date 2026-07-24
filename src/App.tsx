@@ -706,12 +706,12 @@ function App() {
 
   // SmeModal States for company details
   const [smeModalOpen, setSmeModalOpen] = useState(false);
-  const [smeCompanyAddress, setSmeCompanyAddress] = useState('');
-  const [smeCompanyPhone, setSmeCompanyPhone] = useState('');
-  const [smeCompanyIndustry, setSmeCompanyIndustry] = useState('');
 
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
+    companyAddress: '',
+    companyPhone: '',
+    companyIndustry: '',
     clientId: '',
     serial: 0,
     // Basic Details
@@ -922,6 +922,9 @@ function App() {
       name: '',
       foreignerNumber: '',
       nationality: '미얀마',
+      companyAddress: '',
+      companyPhone: '',
+      companyIndustry: '',
       managerName: 'Boram',
       telecom: 'SKT',
       phone: '',
@@ -2077,6 +2080,9 @@ function App() {
         refundPerformanceDate: clientDetails?.refund_performance_date ? clientDetails.refund_performance_date.split('T')[0] : '',
         feeReceivedPerformance: String(clientDetails?.fee_performance || 0),
         feeReceivedDate: clientDetails?.fee_performance_date ? clientDetails.fee_performance_date.split('T')[0] : '',
+        companyAddress: clientDetails?.companyAddress || '',
+        companyPhone: clientDetails?.companyPhone || '',
+        companyIndustry: clientDetails?.companyIndustry || '',
         years: yearsObj
       }));
 
@@ -2252,129 +2258,11 @@ function App() {
       showToast('고객을 먼저 로드하거나 등록해 주세요.', 'error');
       return;
     }
-
-    // 1. Resolve Company Details (Last/Recent Active Employer)
-    let companyName = '';
-    let businessNumber = '';
-    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
-    for (const yr of sortedYears) {
-      const yrData = regForm.years[yr];
-      if (yrData?.active && yrData.workPlace) {
-        companyName = yrData.workPlace;
-        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
-        break;
-      }
-    }
-    if (!companyName) {
-      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
-    }
-
-    const cleanBizNum = businessNumber ? businessNumber.replace(/-/g, '').trim() : '';
-
-    // 2. Load details from Supabase Option table (global sync)
-    showToast('회사 정보를 조회 중입니다...', 'info');
-    supabase
-      .from('Option')
-      .select('*')
-      .eq('fieldId', 999)
-      .then(({ data, error }) => {
-        let loadedAddress = '';
-        let loadedPhone = '';
-        let loadedIndustry = '';
-
-        if (data && !error) {
-          const match = data.find(opt => {
-            const parts = (opt.name || '').split('|');
-            return parts[0] === cleanBizNum || parts[0] === businessNumber;
-          });
-
-          if (match) {
-            const parts = match.name.split('|');
-            loadedAddress = parts[1] || '';
-            loadedPhone = parts[2] || '';
-            loadedIndustry = parts[3] || '';
-          }
-        }
-
-        // Fallback to localStorage if not found in database
-        if (!loadedAddress && businessNumber) {
-          const saved = localStorage.getItem(`company_${businessNumber}`);
-          if (saved) {
-            try {
-              const parsed = JSON.parse(saved);
-              loadedAddress = parsed.address || '';
-              loadedPhone = parsed.phone || '';
-              loadedIndustry = parsed.industry || '';
-            } catch (e) {}
-          }
-        }
-
-        setSmeCompanyAddress(loadedAddress);
-        setSmeCompanyPhone(loadedPhone);
-        setSmeCompanyIndustry(loadedIndustry);
-        setSmeModalOpen(true);
-      });
+    setSmeModalOpen(true);
   };
 
   const triggerExcelDownload = () => {
-    // 1. Resolve Company Details (Last/Recent Active Employer)
-    let companyName = '';
-    let businessNumber = '';
-    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
-    for (const yr of sortedYears) {
-      const yrData = regForm.years[yr];
-      if (yrData?.active && yrData.workPlace) {
-        companyName = yrData.workPlace;
-        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
-        break;
-      }
-    }
-    if (!companyName) {
-      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
-    }
-
-    const cleanBizNum = businessNumber ? businessNumber.replace(/-/g, '').trim() : '';
-    const newRecordValue = `${cleanBizNum}|${smeCompanyAddress}|${smeCompanyPhone}|${smeCompanyIndustry}`;
-
-    // 2. Cache details in localStorage
-    localStorage.setItem(`company_${businessNumber}`, JSON.stringify({
-      address: smeCompanyAddress,
-      phone: smeCompanyPhone,
-      industry: smeCompanyIndustry
-    }));
-
-    // Save/Sync details to Supabase Option table
-    supabase
-      .from('Option')
-      .select('*')
-      .eq('fieldId', 999)
-      .then(({ data, error }) => {
-        if (!error) {
-          const match = data?.find(opt => {
-            const parts = (opt.name || '').split('|');
-            return parts[0] === cleanBizNum || parts[0] === businessNumber;
-          });
-
-          if (match) {
-            supabase
-              .from('Option')
-              .update({ name: newRecordValue })
-              .eq('id', match.id)
-              .then(({ error: updErr }) => {
-                if (updErr) console.warn('Supabase Company Details Update Error:', updErr.message);
-              });
-          } else {
-            supabase
-              .from('Option')
-              .insert([{ name: newRecordValue, fieldId: 999 }])
-              .then(({ error: insErr }) => {
-                if (insErr) console.warn('Supabase Company Details Insert Error:', insErr.message);
-              });
-          }
-        }
-      });
-
-    // 3. Calculate Age at Employment (만 나이)
+    // 1. Calculate Age at Employment (만 나이)
     const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
     let birthYear = 0;
     let birthMonth = 0;
@@ -2412,7 +2300,7 @@ function App() {
       }
     }
 
-    // 4. Resolve Reduction Start & End Date
+    // 2. Resolve Reduction Start & End Date
     let reductionStart = regForm.taxReductionApplyDateStart || '';
     let reductionEnd = regForm.taxReductionApplyDateEnd || '';
     if (!reductionStart && regForm.residentAddress) {
@@ -2434,7 +2322,23 @@ function App() {
       }
     }
 
-    // 5. Construct Excel Styled HTML Template
+    // 3. Resolve Company Details (Last/Recent Active Employer)
+    let companyName = '';
+    let businessNumber = '';
+    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
+    for (const yr of sortedYears) {
+      const yrData = regForm.years[yr];
+      if (yrData?.active && yrData.workPlace) {
+        companyName = yrData.workPlace;
+        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
+        break;
+      }
+    }
+    if (!companyName) {
+      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+    }
+
+    // 4. Construct Excel Styled HTML Template
     const today = new Date();
     const currentYearStr = String(today.getFullYear());
     const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
@@ -2549,13 +2453,13 @@ function App() {
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">주 소</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">${smeCompanyAddress || '-'}</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">${regForm.companyAddress || '-'}</td>
             <td colspan="2" class="label">주업종코드</td>
-            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${smeCompanyIndustry || '-'}</td>
+            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyIndustry || '-'}</td>
           </tr>
           <tr style="height:35px;">
             <td colspan="2" class="label">전화번호</td>
-            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${smeCompanyPhone || '-'}</td>
+            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyPhone || '-'}</td>
           </tr>
 
           <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
@@ -2653,6 +2557,9 @@ function App() {
     
     setSmeModalOpen(false);
     showToast('감면 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
+    
+    // Automatically trigger save consult info to sync to Supabase Client table
+    handleSaveConsultInfo();
   };
 
   const handleSaveConsultInfo = async () => {
@@ -2675,6 +2582,9 @@ function App() {
           refund_performance_date: (regForm.refundPerformanceDate && regForm.refundPerformanceDate !== '') ? new Date(regForm.refundPerformanceDate).toISOString() : null,
           fee_performance: Number(regForm.feeReceivedPerformance) || 0,
           fee_performance_date: (regForm.feeReceivedDate && regForm.feeReceivedDate !== '') ? new Date(regForm.feeReceivedDate).toISOString() : null,
+          companyAddress: regForm.companyAddress || '',
+          companyPhone: regForm.companyPhone || '',
+          companyIndustry: regForm.companyIndustry || '',
           updatedAt: new Date().toISOString()
         })
         .eq('id', regForm.clientId);
@@ -4924,8 +4834,8 @@ function App() {
                   type="text"
                   className="form-control"
                   style={{ height: '36px', fontSize: '13px' }}
-                  value={smeCompanyAddress}
-                  onChange={(e) => setSmeCompanyAddress(e.target.value)}
+                  value={regForm.companyAddress}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyAddress: e.target.value }))}
                   placeholder="예: 충청북도 음성군 금왕읍 대금로..."
                 />
               </div>
@@ -4935,8 +4845,8 @@ function App() {
                   type="text"
                   className="form-control"
                   style={{ height: '36px', fontSize: '13px' }}
-                  value={smeCompanyPhone}
-                  onChange={(e) => setSmeCompanyPhone(e.target.value)}
+                  value={regForm.companyPhone}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyPhone: e.target.value }))}
                   placeholder="예: 010-3285-0337"
                 />
               </div>
@@ -4946,8 +4856,8 @@ function App() {
                   type="text"
                   className="form-control"
                   style={{ height: '36px', fontSize: '13px' }}
-                  value={smeCompanyIndustry}
-                  onChange={(e) => setSmeCompanyIndustry(e.target.value)}
+                  value={regForm.companyIndustry}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyIndustry: e.target.value }))}
                   placeholder="예: 172902"
                 />
               </div>

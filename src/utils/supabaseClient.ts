@@ -97,7 +97,7 @@ export async function uploadPdfToSupabase(file: File, path: string): Promise<str
 export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: Record<string, File | null>) {
   try {
     let clientId: string | null = null;
-    if (regForm.foreignerNumber) {
+    if (!clientId && regForm.foreignerNumber) {
       const { data: existing } = await supabase
         .from('Client')
         .select('id')
@@ -109,6 +109,16 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       }
     }
 
+    if (!clientId) {
+      clientId = typeof self !== 'undefined' && self.crypto && self.crypto.randomUUID 
+        ? self.crypto.randomUUID() 
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+    }
+
     const clientPayload: Record<string, any> = {
       name: regForm.name ? regForm.name.toUpperCase() : '',
       regNum: regForm.foreignerNumber || '',
@@ -117,10 +127,8 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       visa: regForm.visaType || 'E9',
       company: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '',
       isMonthlyTenant: regForm.isMonthlyRent === '가',
-      isMonthlyRent: regForm.isMonthlyRent === '가',
       phone: regForm.phone || '',
       phoneComp: regForm.telecom || 'SKT',
-      phoneCompany: regForm.telecom || 'SKT',
       bank: regForm.refundBankName || '',
       bankAccount: regForm.refundBank || '',
       address: regForm.residentRegisterAddress || '',
@@ -131,7 +139,6 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       clientRank: regForm.customerGrade || '',
       recordFileDate: (regForm.greenContractDate && regForm.greenContractDate !== '') ? new Date(regForm.greenContractDate).toISOString() : null,
       isAdditionalPayback: regForm.additionalApplyPerformance === '가',
-      isAdditionalApply: regForm.additionalApplyPerformance === '가',
       dependentsCount: Number(regForm.dependentsCount) || 0,
       seniorCount: Number(regForm.seniorCount) || 0,
       disabledCount: Number(regForm.disabledCount) || 0,
@@ -166,7 +173,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     } else {
       const { data: newClient, error: insertErr } = await supabase
         .from('Client')
-        .insert([{ ...clientPayload, createdAt: new Date().toISOString() }])
+        .insert([{ ...clientPayload, id: clientId, createdAt: new Date().toISOString() }])
         .select()
         .single();
 
@@ -234,29 +241,21 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         year: parseInt(yr, 10),
         companyName: yrData?.workPlace || '',
         companyRegNo: yrData?.businessNumber || yrData?.companyRegNum || '',
-        companyRegisterNumber: yrData?.businessNumber || yrData?.companyRegNum || '',
         netSalary: totalSal,
         netSalaryFromAllCompany: totalSal,
-        netSalaryFromReceipt: totalSal,
         determinedTax: origTax,
-        determineTax: origTax,
         smallBusinessDeduction: smallDed,
-        smallBusinessYouthTaxCredit: smallDed,
         calculatedTax: calcTax,
-        calculatedTaxCredit: calcTax,
         determinedTaxRefund: refNat,
         totalTaxRefund: refNat,
         localTaxRefund: refLoc,
         changedDeterminedTax: recalcDetTax,
-        changedDetermineTax: recalcDetTax,
         changedLocalTax: recalcLocTax,
         changedTotalTax: recalcDetTax + recalcLocTax,
         regNum: regForm.foreignerNumber || yrData?.birthDate || '',
         isSmallBusinessDeduction: yrData ? (yrData.isReductionEligible === '여' || smallDed > 0) : false,
-        isSmallBusiness: yrData ? (yrData.isReductionEligible === '여' || smallDed > 0) : false,
         ...(workPeriodStart ? { workPeriodStart } : {}),
         ...(workPeriodEnd ? { workPeriodEnd } : {}),
-        updatedAt: new Date().toISOString(),
         ...(fileURL ? { fileURL } : {}),
 
         // Freelancer (3.3%) fields

@@ -2241,6 +2241,308 @@ function App() {
     setCurrentView('customer'); // Return to list view
   };
 
+  const handleDownloadSmeSpecification = () => {
+    if (!regForm.name) {
+      showToast('고객을 먼저 로드하거나 등록해 주세요.', 'error');
+      return;
+    }
+
+    // 1. Resolve Company Details (Last/Recent Active Employer)
+    let companyName = '';
+    let businessNumber = '';
+    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
+    for (const yr of sortedYears) {
+      const yrData = regForm.years[yr];
+      if (yrData?.active && yrData.workPlace) {
+        companyName = yrData.workPlace;
+        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
+        break;
+      }
+    }
+    if (!companyName) {
+      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+    }
+
+    // 2. Calculate Age at Employment (만 나이)
+    const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
+    let birthYear = 0;
+    let birthMonth = 0;
+    let birthDay = 0;
+    if (rrn.length >= 7) {
+      const yy = Number(rrn.substring(0, 2));
+      const mm = Number(rrn.substring(2, 4));
+      const dd = Number(rrn.substring(4, 6));
+      const genderChar = rrn.charAt(6);
+      
+      if (['1', '2', '5', '6'].includes(genderChar)) {
+        birthYear = 1900 + yy;
+      } else if (['3', '4', '7', '8'].includes(genderChar)) {
+        birthYear = 2000 + yy;
+      } else {
+        birthYear = (yy > 30) ? 1900 + yy : 2000 + yy;
+      }
+      birthMonth = mm;
+      birthDay = dd;
+    }
+
+    let ageAtEmployment = '';
+    if (birthYear > 0 && regForm.residentAddress) {
+      const empParts = regForm.residentAddress.split('-');
+      if (empParts.length === 3) {
+        const empYear = Number(empParts[0]);
+        const empMonth = Number(empParts[1]);
+        const empDay = Number(empParts[2]);
+        
+        let age = empYear - birthYear;
+        if (empMonth < birthMonth || (empMonth === birthMonth && empDay < birthDay)) {
+          age--;
+        }
+        ageAtEmployment = String(age);
+      }
+    }
+
+    // 3. Resolve Reduction Start & End Date
+    let reductionStart = regForm.taxReductionApplyDateStart || '';
+    let reductionEnd = regForm.taxReductionApplyDateEnd || '';
+    if (!reductionStart && regForm.residentAddress) {
+      const empParts = regForm.residentAddress.split('-');
+      if (empParts.length === 3) {
+        const empDateObj = new Date(Number(empParts[0]), Number(empParts[1]) - 1, Number(empParts[2]));
+        const nextMonth = new Date(empDateObj.getFullYear(), empDateObj.getMonth() + 1, 1);
+        
+        const y = nextMonth.getFullYear();
+        const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
+        const d = '01';
+        reductionStart = `${y}-${m}-${d}`;
+        
+        const endMonth = new Date(y + 5, nextMonth.getMonth(), 0);
+        const ey = endMonth.getFullYear();
+        const em = String(endMonth.getMonth() + 1).padStart(2, '0');
+        const ed = String(endMonth.getDate()).padStart(2, '0');
+        reductionEnd = `${ey}-${em}-${ed}`;
+      }
+    }
+
+    // 4. Construct Excel Styled HTML Template
+    const today = new Date();
+    const currentYearStr = String(today.getFullYear());
+    const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
+    const currentDayStr = String(today.getDate()).padStart(2, '0');
+
+    const htmlContent = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <style>
+          <!--
+          br { mso-data-placement:same-cell; }
+          .style0 {
+            vertical-align: middle;
+            font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+            font-size: 10pt;
+            color: #000000;
+          }
+          td {
+            mso-style-parent: style0;
+            padding: 5px;
+            border: .5pt solid #000000;
+            vertical-align: middle;
+            text-align: center;
+          }
+          .title {
+            font-size: 18pt;
+            font-weight: bold;
+            border: none;
+            text-align: center;
+            height: 40px;
+          }
+          .subtitle {
+            font-size: 9pt;
+            border: none;
+            text-align: left;
+            color: #555555;
+            height: 20px;
+          }
+          .section-header {
+            font-size: 11pt;
+            font-weight: bold;
+            text-align: left;
+            background-color: #f1f5f9;
+            height: 30px;
+          }
+          .label {
+            font-weight: bold;
+            background-color: #f8fafc;
+            width: 150px;
+          }
+          .value {
+            text-align: left;
+            background-color: #ffffff;
+          }
+          .grid-header {
+            font-weight: bold;
+            background-color: #e2e8f0;
+            height: 35px;
+          }
+          .instructions {
+            text-align: left;
+            font-size: 9pt;
+            border: none;
+            color: #334155;
+            line-height: 1.5;
+            padding-top: 15px;
+          }
+          -->
+        </style>
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>소득세 감면 대상 명세서</x:Name>
+                <x:WorksheetOptions>
+                  <x:Print>
+                    <x:ValidPrinterInfo/>
+                    <x:PaperSizeIndex>9</x:PaperSizeIndex> <!-- A4 -->
+                    <x:HorizontalResolution>600</x:HorizontalResolution>
+                    <x:VerticalResolution>600</x:VerticalResolution>
+                  </x:Print>
+                  <x:Selected/>
+                  <x:ProtectContents>False</x:ProtectContents>
+                  <x:ProtectObjects>False</x:ProtectObjects>
+                  <x:ProtectScenarios>False</x:ProtectScenarios>
+                </x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+      </head>
+      <body>
+        <table style="border-collapse:collapse; width: 800px;">
+          <tr style="height:25px;">
+            <td colspan="10" class="subtitle" style="text-align: left;">■ 조세특례제한법 시행규칙 [별지 제11호의2서식] &lt;개정 2021. 3. 16.&gt;</td>
+          </tr>
+          <tr style="height:45px;">
+            <td colspan="10" class="title">중소기업 취업자 소득세 감면 대상 명세서</td>
+          </tr>
+          
+          <tr style="height:30px;">
+            <td colspan="10" class="section-header" style="border-top: 1.5pt solid #000000; border-bottom: 1.5pt solid #000000;">1. 원천징수의무자 (회사)</td>
+          </tr>
+          <tr style="height:35px;">
+            <td colspan="2" class="label">상 호</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">${companyName}</td>
+            <td colspan="2" class="label">사업자등록번호</td>
+            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${businessNumber}</td>
+          </tr>
+          <tr style="height:35px;">
+            <td colspan="2" class="label">주 소</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">-</td>
+            <td colspan="2" class="label">주업종코드</td>
+            <td colspan="3" class="value" style="padding-left: 10px;">-</td>
+          </tr>
+          <tr style="height:35px;">
+            <td colspan="2" class="label">전화번호</td>
+            <td colspan="8" class="value" style="padding-left: 10px;">-</td>
+          </tr>
+
+          <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
+
+          <tr style="height:30px;">
+            <td colspan="10" class="section-header" style="border-top: 1.5pt solid #000000; border-bottom: 1.5pt solid #000000;">2. 감면 적용 대상자 명단</td>
+          </tr>
+          <tr class="grid-header">
+            <td rowspan="2" style="width: 100px;">성 명</td>
+            <td rowspan="2" style="width: 130px;">주민등록번호<br/>(외국인등록번호)</td>
+            <td rowspan="2" style="width: 100px;">취업일</td>
+            <td rowspan="2" style="width: 80px;">취업자<br/>유형</td>
+            <td rowspan="2" style="width: 80px;">중소기업<br/>취업 시 연령</td>
+            <td rowspan="2" style="width: 80px;">병역근무<br/>기간</td>
+            <td rowspan="2" style="width: 80px;">병역근무기간<br/>차감 후 연령</td>
+            <td colspan="3" style="width: 180px; border-bottom: .5pt solid #000000;">감면기간</td>
+          </tr>
+          <tr class="grid-header">
+            <td colspan="1" style="width: 90px; font-weight: bold; background-color: #e2e8f0;">시작일</td>
+            <td colspan="2" style="width: 90px; font-weight: bold; background-color: #e2e8f0;">종료일</td>
+          </tr>
+          
+          <tr style="height:40px;">
+            <td>${regForm.name ? regForm.name.toUpperCase() : ''}</td>
+            <td style="mso-number-format:'@';">${regForm.foreignerNumber || ''}</td>
+            <td>${regForm.residentAddress || ''}</td>
+            <td>청년</td>
+            <td>${ageAtEmployment}</td>
+            <td>-</td>
+            <td>-</td>
+            <td>${reductionStart}</td>
+            <td colspan="2">${reductionEnd}</td>
+          </tr>
+
+          <tr style="height:35px;">
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+          </tr>
+          <tr style="height:35px;">
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+          </tr>
+          <tr style="height:35px;">
+            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td>시작일</td><td colspan="2">종료일</td>
+          </tr>
+
+          <tr style="height:25px; border:none;"><td colspan="10" style="border:none; height:25px;"></td></tr>
+
+          <tr style="height:35px; border:none;">
+            <td colspan="10" style="border:none; font-size: 11pt; text-align: center; height: 35px;">
+              「조세특례제한법」 제30조제3항 및 같은 법 시행령 제27조제6항에 따라 중소기업 취업자 소득세 감면 대상 명세서를 제출합니다.
+            </td>
+          </tr>
+          <tr style="height:35px; border:none;">
+            <td colspan="10" style="border:none; font-size: 11pt; font-weight: bold; text-align: center; height: 35px; padding-top: 10px;">
+              ${currentYearStr}년 &nbsp;&nbsp;&nbsp;&nbsp; ${currentMonthStr}월 &nbsp;&nbsp;&nbsp;&nbsp; ${currentDayStr}일
+            </td>
+          </tr>
+          <tr style="height:50px; border:none;">
+            <td colspan="10" style="border:none; font-size: 11pt; text-align: right; height: 50px; padding-right: 50px; padding-top: 15px;">
+              원천징수의무자 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>${companyName}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (서명 또는 인)
+            </td>
+          </tr>
+          <tr style="height:40px; border:none;">
+            <td colspan="10" style="border:none; font-size: 13pt; font-weight: bold; text-align: left; height: 40px; padding-left: 20px;">
+              세무서장 귀하
+            </td>
+          </tr>
+
+          <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
+          <tr style="border:none;">
+            <td colspan="10" class="instructions" style="border-top: 1pt solid #cbd5e1; padding-top: 12px;">
+              <b>작성방법</b><br/>
+              1. '취업자 유형'은 '청년', '60세 이상 사람', '장애인', '경력단절여성'으로 구분하여 적습니다.<br/>
+              2. '병역근무기간'과 '병역근무기간 차감 후 연령'은 취업자 유형이 '청년'인 경우 적습니다.<br/>
+              3. '감면기간'란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세 감면신청서」의 ⑧·⑨란의 시작일과 종료일을 적습니다.<br/>
+              4. '주업종코드'란에는 원천징수의무자의 주업종코드를 기재합니다. (「조세특례제한법 시행령」 제27조제3항 각 호에 따른 사업을 주된 사업으로 영위하는 중소기업으로부터 받는 근로소득만 감면 대상입니다.)
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    const cleanName = regForm.name.trim().replace(/\s+/g, '_');
+    link.download = `중소기업_감면명세서_${cleanName}.xls`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    showToast('감면 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
+  };
+
   const handleSaveConsultInfo = async () => {
     if (!regForm.clientId) {
       showToast('상담 정보를 저장할 고객이 선택되지 않았습니다.', 'error');
@@ -3622,6 +3924,38 @@ function App() {
                   handleFeeRateChange={handleFeeRateChange}
                   getCombinedRefund={getCombinedRefund}
                 />
+
+                {/* SME Tax Reduction Specification Excel Download Button */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', marginBottom: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handleDownloadSmeSpecification}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      color: '#ffffff',
+                      backgroundColor: '#10b981',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(16, 185, 129, 0.25)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#059669'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(5, 150, 105, 0.35)'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#10b981'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.25)'; }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    📄 중소기업 감면명세서 다운로드 (Excel)
+                  </button>
+                </div>
 
                  {/* Bottom Row split: Left Customer consultation details, Right Logs */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginTop: '20px' }}>

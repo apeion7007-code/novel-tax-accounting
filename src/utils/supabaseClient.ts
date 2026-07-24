@@ -123,20 +123,32 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       phoneCompany: regForm.telecom || 'SKT',
       bank: regForm.refundBankName || '',
       bankAccount: regForm.refundBank || '',
-      address: regForm.residentAddress || regForm.residentRegisterAddress || '',
+      address: regForm.residentRegisterAddress || '',
       hometaxId: regForm.hometaxId || '',
       hometaxPw: regForm.hometaxPw || '',
       facebookName: regForm.snsName || '',
       facebookURL: regForm.snsAddress || '',
       clientRank: regForm.customerGrade || '',
       recordFileDate: (regForm.greenContractDate && regForm.greenContractDate !== '') ? new Date(regForm.greenContractDate).toISOString() : null,
-      isAdditionalPayback: Boolean(regForm.additionalApplyPerformance && regForm.additionalApplyPerformance !== '0'),
-      isAdditionalApply: Boolean(regForm.additionalApplyPerformance && regForm.additionalApplyPerformance !== '0'),
+      isAdditionalPayback: regForm.additionalApplyPerformance === '가',
+      isAdditionalApply: regForm.additionalApplyPerformance === '가',
       dependentsCount: Number(regForm.dependentsCount) || 0,
       seniorCount: Number(regForm.seniorCount) || 0,
       disabledCount: Number(regForm.disabledCount) || 0,
       childCount: Number(regForm.childCount) || 0,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+
+      // Mapped Supabase Columns
+      visaExpireDate: regForm.visaExpiry ? new Date(regForm.visaExpiry).toISOString() : null,
+      paybackProgress: regForm.refundStatus || '◎경정상담중',
+      taxReductionProgress: regForm.deductionSubmissionStatus || '◎제출이력없음',
+      taxReductionApplyDateStart: regForm.taxReductionApplyDateStart ? new Date(regForm.taxReductionApplyDateStart).toISOString() : null,
+      taxReductionApplyDateEnd: regForm.taxReductionApplyDateEnd ? new Date(regForm.taxReductionApplyDateEnd).toISOString() : null,
+      taxReductionSentDate: regForm.deductionSentDate ? new Date(regForm.deductionSentDate).toISOString() : null,
+      rectificationRequestDate: regForm.claimCompleteDate ? new Date(regForm.claimCompleteDate).toISOString() : null,
+      additionalApplyDate: regForm.claimRequestDate ? new Date(regForm.claimRequestDate).toISOString() : null,
+      feeMethod: regForm.feePaymentStatus || '후불 22%',
+      hireDate: regForm.residentAddress ? new Date(regForm.residentAddress).toISOString() : null
     };
 
     if (pdfFileObjects['familyDoc']) {

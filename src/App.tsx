@@ -729,6 +729,8 @@ function App() {
     claimCompleteDate: '',
     additionalApplyPerformance: '',
     feePaymentStatus: '후불 22%',
+    taxReductionApplyDateStart: '',
+    taxReductionApplyDateEnd: '',
 
     // Yearly calculations: 2021 ~ 2025
     years: {
@@ -930,6 +932,8 @@ function App() {
       claimCompleteDate: '',
       additionalApplyPerformance: '',
       feePaymentStatus: '후불 22%',
+      taxReductionApplyDateStart: '',
+      taxReductionApplyDateEnd: '',
 
       years: {
         '2021': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
@@ -2037,12 +2041,15 @@ function App() {
         refundBank: clientDetails?.bankAccount || '',
         refundStatus: clientDetails?.paybackProgress || customer.refundStatus || '◎경정상담중',
         residentRegisterAddress: clientDetails?.address || '',
-        residentAddress: clientDetails?.address || '',
-        deductionSubmissionStatus: '◎재직회사제출',
+        residentAddress: clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
+        deductionSubmissionStatus: clientDetails?.taxReductionProgress || '◎제출이력없음',
         deductionSentDate: clientDetails?.taxReductionSentDate ? clientDetails.taxReductionSentDate.split('T')[0] : '',
         additionalApplyPerformance: clientDetails?.isAdditionalPayback || clientDetails?.isAdditionalApply ? '가' : '부',
-        claimRequestDate: clientDetails?.rectificationRequestDate ? clientDetails.rectificationRequestDate.split('T')[0] : '',
+        claimCompleteDate: clientDetails?.rectificationRequestDate ? clientDetails.rectificationRequestDate.split('T')[0] : '',
+        claimRequestDate: clientDetails?.additionalApplyDate ? clientDetails.additionalApplyDate.split('T')[0] : '',
         feePaymentStatus: clientDetails?.feeMethod || '후불 22%',
+        taxReductionApplyDateStart: clientDetails?.taxReductionApplyDateStart ? clientDetails.taxReductionApplyDateStart.split('T')[0] : '',
+        taxReductionApplyDateEnd: clientDetails?.taxReductionApplyDateEnd ? clientDetails.taxReductionApplyDateEnd.split('T')[0] : '',
         hometaxId: clientDetails?.hometaxId || '',
         hometaxPw: clientDetails?.hometaxPw || '',
         snsName: clientDetails?.facebookName || '',
@@ -3325,9 +3332,21 @@ function App() {
                         </td>
                         <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
+                            <input
+                              type="date"
+                              className="form-control"
+                              style={{ fontSize: '12px', height: '32px', padding: '2px' }}
+                              value={regForm.taxReductionApplyDateStart || ''}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, taxReductionApplyDateStart: e.target.value }))}
+                            />
                             <span style={{ fontSize: '12px' }}>~</span>
-                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
+                            <input
+                              type="date"
+                              className="form-control"
+                              style={{ fontSize: '12px', height: '32px', padding: '2px' }}
+                              value={regForm.taxReductionApplyDateEnd || ''}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, taxReductionApplyDateEnd: e.target.value }))}
+                            />
                           </div>
                         </td>
                         <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>

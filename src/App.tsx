@@ -171,6 +171,7 @@ function App() {
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
+  const [isHometaxDropdownOpen, setIsHometaxDropdownOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
 
   // Customer List State
@@ -3713,30 +3714,112 @@ function App() {
                       <FileSpreadsheet size={16} />
                       Excel로 내보내기
                     </button>
-                    <button 
-                      className="btn-action" 
-                      style={{ backgroundColor: '#0284c7', color: '#ffffff', borderColor: '#0369a1', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={handleDownloadHometaxFile}
-                    >
-                      <Download size={16} />
-                      수임동의 파일 다운로드
-                    </button>
-                    <button 
-                      className="btn-action" 
-                      style={{ backgroundColor: '#0f172a', color: '#ffffff', borderColor: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => setIsHometaxModalOpen(true)}
-                    >
-                      <Settings size={16} />
-                      국세청 홈택스 전산매체 파일 생성
-                    </button>
-                    <button 
-                      className="btn-action" 
-                      style={{ backgroundColor: '#10b981', color: '#ffffff', borderColor: '#059669', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      onClick={() => setIsHometaxExcelSyncModalOpen(true)}
-                    >
-                      <FileSpreadsheet size={16} />
-                      수임 대행 관리
-                    </button>
+                    <div className="hometax-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                      <button 
+                        className="btn-action" 
+                        style={{ backgroundColor: '#0f172a', color: '#ffffff', borderColor: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        onClick={() => setIsHometaxDropdownOpen(prev => !prev)}
+                      >
+                        <FileSpreadsheet size={16} />
+                        세무사 수임동의 ▾
+                      </button>
+                      {isHometaxDropdownOpen && (
+                        <>
+                          <div 
+                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} 
+                            onClick={() => setIsHometaxDropdownOpen(false)} 
+                          />
+                          <div style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: 'calc(100% + 4px)',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '6px',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                            padding: '6px 0',
+                            minWidth: '220px',
+                            zIndex: 100,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px'
+                          }}>
+                            <button
+                              onClick={() => {
+                                setIsHometaxDropdownOpen(false);
+                                handleDownloadHometaxFile();
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 16px',
+                                border: 'none',
+                                background: 'none',
+                                color: '#1e293b',
+                                fontSize: '13px',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s',
+                                fontWeight: '500'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Download size={14} style={{ color: '#0284c7' }} /> 수임동의 파일 다운로드
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsHometaxDropdownOpen(false);
+                                setIsHometaxModalOpen(true);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 16px',
+                                border: 'none',
+                                background: 'none',
+                                color: '#1e293b',
+                                fontSize: '13px',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s',
+                                fontWeight: '500'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <Settings size={14} style={{ color: '#475569' }} /> 세무대리인 정보 설정
+                            </button>
+                            <button
+                              onClick={() => {
+                                setIsHometaxDropdownOpen(false);
+                                setIsHometaxExcelSyncModalOpen(true);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px 16px',
+                                border: 'none',
+                                background: 'none',
+                                color: '#1e293b',
+                                fontSize: '13px',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s',
+                                fontWeight: '500'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              <FileSpreadsheet size={14} style={{ color: '#10b981' }} /> 수임완료 명단 동기화
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div className="record-count">
                       총 <span>{filteredCustomers.length}</span>건
                     </div>

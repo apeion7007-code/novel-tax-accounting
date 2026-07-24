@@ -190,6 +190,8 @@ body {
   align-items: center;
   flex-shrink: 0;
   z-index: 5;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .filter-controls {

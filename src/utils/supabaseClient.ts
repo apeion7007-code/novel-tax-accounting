@@ -334,13 +334,17 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
 
       const { data: existingYr } = await supabase
         .from('YearEndData')
-        .select('id')
+        .select('clientId, year')
         .eq('clientId', clientId)
         .eq('year', parseInt(yr, 10))
         .maybeSingle();
 
       if (existingYr) {
-        const { error: yrUpdateErr } = await supabase.from('YearEndData').update(yearPayload).eq('id', existingYr.id);
+        const { error: yrUpdateErr } = await supabase
+          .from('YearEndData')
+          .update(yearPayload)
+          .eq('clientId', clientId)
+          .eq('year', parseInt(yr, 10));
         if (yrUpdateErr) {
           throw new Error(`YearEndData Update Error (${yr}): ${yrUpdateErr.message}`);
         }

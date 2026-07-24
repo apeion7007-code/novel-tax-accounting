@@ -18,7 +18,8 @@ import {
   PieChart,
   Award,
   DollarSign,
-  Download
+  Download,
+  Settings
 } from 'lucide-react';
 import { extractTextFromPdf, parsePdfText } from './utils/pdfParser';
 import { generateHometaxFile } from './utils/hometaxGenerator';
@@ -352,6 +353,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedNationality, setSelectedNationality] = useState<string>('');
   const [selectedRefundStatus, setSelectedRefundStatus] = useState<string>('');
+  const [selectedConsentStatus, setSelectedConsentStatus] = useState<string>('');
   const [selectedManager, setSelectedManager] = useState<string>('');
   const [filterBeforeDate, setFilterBeforeDate] = useState<string>('');
   const [filterCompanyName, setFilterCompanyName] = useState<string>('');
@@ -463,6 +465,12 @@ function App() {
   const handleDownloadHometaxFile = async () => {
     if (selectedIds.length === 0) {
       showToast('제출할 고객을 선택해 주세요.', 'error');
+      return;
+    }
+
+    if (!hometaxSubmitter.agentNum || !hometaxSubmitter.bizNum || !hometaxSubmitter.companyName) {
+      showToast('세무대리인 정보 설정이 필요합니다. 먼저 [국세청 홈택스 전산매체 파일 생성]을 통해 설정해 주세요.', 'error');
+      setIsHometaxModalOpen(true);
       return;
     }
 
@@ -3375,6 +3383,7 @@ function App() {
     setFilterBirthDate('');
     setFilterRegDate('');
     setFilterMonthlyRent('');
+    setSelectedConsentStatus('');
     showToast('필터가 초기화되었습니다.', 'info');
   };
 
@@ -3450,6 +3459,10 @@ function App() {
       ? c.monthlyRent === filterMonthlyRent
       : true;
 
+    const matchesConsentStatus = selectedConsentStatus
+      ? c.consentStatus === selectedConsentStatus
+      : true;
+
     return matchesSearch &&
       matchesNationality &&
       matchesRefundStatus &&
@@ -3459,7 +3472,8 @@ function App() {
       matchesCompanyName &&
       matchesVisaType &&
       matchesBirthDate &&
-      matchesMonthlyRent;
+      matchesMonthlyRent &&
+      matchesConsentStatus;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
@@ -3701,11 +3715,19 @@ function App() {
                     </button>
                     <button 
                       className="btn-action" 
+                      style={{ backgroundColor: '#0284c7', color: '#ffffff', borderColor: '#0369a1', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={handleDownloadHometaxFile}
+                    >
+                      <Download size={16} />
+                      수임동의 파일 다운로드
+                    </button>
+                    <button 
+                      className="btn-action" 
                       style={{ backgroundColor: '#0f172a', color: '#ffffff', borderColor: '#1e293b', display: 'flex', alignItems: 'center', gap: '6px' }}
                       onClick={() => setIsHometaxModalOpen(true)}
                     >
-                      <Download size={16} />
-                      홈택스 파일 다운로드
+                      <Settings size={16} />
+                      국세청 홈택스 전산매체 파일 생성
                     </button>
                     <button 
                       className="btn-action" 
@@ -3928,12 +3950,21 @@ function App() {
                           <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>특정일 이전 등록</label>
                           <input type="date" className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterBeforeDate} onChange={(e) => setFilterBeforeDate(e.target.value)} />
                         </div>
-                        <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
                           <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>월세거주 여부</label>
                           <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterMonthlyRent} onChange={(e) => setFilterMonthlyRent(e.target.value)}>
                             <option value="">전체</option>
                             <option value="예">예</option>
                             <option value="아니오">아니오</option>
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>수임동의 상태</label>
+                          <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={selectedConsentStatus} onChange={(e) => setSelectedConsentStatus(e.target.value)}>
+                            <option value="">전체 수임상태</option>
+                            <option value="대기">대기</option>
+                            <option value="제출완료">제출완료</option>
+                            <option value="수임완료">수임완료</option>
                           </select>
                         </div>
                       </div>

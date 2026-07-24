@@ -20,6 +20,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { extractTextFromPdf, parsePdfText } from './utils/pdfParser';
+import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { WageSettlementTable } from './components/WageSettlementTable';
 import { FreelancerSettlementTable } from './components/FreelancerSettlementTable';
 import { CombinedSummaryTable } from './components/CombinedSummaryTable';
@@ -2261,344 +2262,160 @@ function App() {
     setSmeModalOpen(true);
   };
 
-  const triggerExcelDownload = () => {
-    // 1. Calculate Age at Employment (만 나이)
-    const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
-    let birthYear = 0;
-    let birthMonth = 0;
-    let birthDay = 0;
-    if (rrn.length >= 7) {
-      const yy = Number(rrn.substring(0, 2));
-      const mm = Number(rrn.substring(2, 4));
-      const dd = Number(rrn.substring(4, 6));
-      const genderChar = rrn.charAt(6);
-      
-      if (['1', '2', '5', '6'].includes(genderChar)) {
-        birthYear = 1900 + yy;
-      } else if (['3', '4', '7', '8'].includes(genderChar)) {
-        birthYear = 2000 + yy;
-      } else {
-        birthYear = (yy > 30) ? 1900 + yy : 2000 + yy;
-      }
-      birthMonth = mm;
-      birthDay = dd;
-    }
-
-    let ageAtEmployment = '';
-    if (birthYear > 0 && regForm.residentAddress) {
-      const empParts = regForm.residentAddress.split('-');
-      if (empParts.length === 3) {
-        const empYear = Number(empParts[0]);
-        const empMonth = Number(empParts[1]);
-        const empDay = Number(empParts[2]);
+  const triggerExcelDownload = async () => {
+    showToast('엑셀 파일을 작성하고 있습니다. 잠시만 기다려 주세요...', 'info');
+    try {
+      // 1. Calculate Age at Employment (만 나이)
+      const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
+      let birthYear = 0;
+      let birthMonth = 0;
+      let birthDay = 0;
+      if (rrn.length >= 7) {
+        const yy = Number(rrn.substring(0, 2));
+        const mm = Number(rrn.substring(2, 4));
+        const dd = Number(rrn.substring(4, 6));
+        const genderChar = rrn.charAt(6);
         
-        let age = empYear - birthYear;
-        if (empMonth < birthMonth || (empMonth === birthMonth && empDay < birthDay)) {
-          age--;
+        if (['1', '2', '5', '6'].includes(genderChar)) {
+          birthYear = 1900 + yy;
+        } else if (['3', '4', '7', '8'].includes(genderChar)) {
+          birthYear = 2000 + yy;
+        } else {
+          birthYear = (yy > 30) ? 1900 + yy : 2000 + yy;
         }
-        ageAtEmployment = String(age);
+        birthMonth = mm;
+        birthDay = dd;
       }
-    }
 
-    // 2. Resolve Reduction Start & End Date
-    let reductionStart = regForm.taxReductionApplyDateStart || '';
-    let reductionEnd = regForm.taxReductionApplyDateEnd || '';
-    if (!reductionStart && regForm.residentAddress) {
-      const empParts = regForm.residentAddress.split('-');
-      if (empParts.length === 3) {
-        const empDateObj = new Date(Number(empParts[0]), Number(empParts[1]) - 1, Number(empParts[2]));
-        const nextMonth = new Date(empDateObj.getFullYear(), empDateObj.getMonth() + 1, 1);
-        
-        const y = nextMonth.getFullYear();
-        const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
-        const d = '01';
-        reductionStart = `${y}-${m}-${d}`;
-        
-        const endMonth = new Date(y + 5, nextMonth.getMonth(), 0);
-        const ey = endMonth.getFullYear();
-        const em = String(endMonth.getMonth() + 1).padStart(2, '0');
-        const ed = String(endMonth.getDate()).padStart(2, '0');
-        reductionEnd = `${ey}-${em}-${ed}`;
-      }
-    }
-
-    // 3. Resolve Company Details (Last/Recent Active Employer)
-    let companyName = '';
-    let businessNumber = '';
-    const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
-    for (const yr of sortedYears) {
-      const yrData = regForm.years[yr];
-      if (yrData?.active && yrData.workPlace) {
-        companyName = yrData.workPlace;
-        businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
-        break;
-      }
-    }
-    if (!companyName) {
-      companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
-    }
-
-    // 4. Construct Excel Styled HTML Template
-    const today = new Date();
-    const currentYearStr = String(today.getFullYear());
-    const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
-    const currentDayStr = String(today.getDate()).padStart(2, '0');
-
-    const htmlContent = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <style>
-          <!--
-          br { mso-data-placement:same-cell; }
-          .style0 {
-            vertical-align: middle;
-            font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
-            font-size: 10pt;
-            color: #000000;
-          }
-          td {
-            mso-style-parent: style0;
-            padding: 5px;
-            border: .5pt solid #000000;
-            vertical-align: middle;
-            text-align: center;
-            white-space: normal;
-            word-wrap: break-word;
-          }
-          .title {
-            font-size: 18pt;
-            font-weight: bold;
-            border: none;
-            text-align: center;
-            height: 40px;
-          }
-          .subtitle {
-            font-size: 9pt;
-            border: none;
-            text-align: left;
-            color: #555555;
-            height: 20px;
-          }
-          .section-header {
-            font-size: 11pt;
-            font-weight: bold;
-            text-align: left;
-            background-color: #f1f5f9;
-            height: 30px;
-          }
-          .label {
-            font-weight: bold;
-            background-color: #f8fafc;
-            width: 150px;
-          }
-          .value {
-            text-align: left;
-            background-color: #ffffff;
-          }
-          .grid-header {
-            font-weight: bold;
-            background-color: #e2e8f0;
-            height: 35px;
-          }
-          .instructions {
-            text-align: left;
-            font-size: 9pt;
-            border: none;
-            color: #334155;
-            line-height: 1.5;
-            padding-top: 15px;
-          }
-          -->
-        </style>
-        <!--[if gte mso 9]>
-        <xml>
-          <x:ExcelWorkbook>
-            <x:ExcelWorksheets>
-              <x:ExcelWorksheet>
-                <x:Name>소득세 감면 대상 명세서</x:Name>
-                <x:WorksheetOptions>
-                  <x:FitToPage/>
-                  <x:Print>
-                    <x:ValidPrinterInfo/>
-                    <x:PaperSizeIndex>9</x:PaperSizeIndex> <!-- A4 -->
-                    <x:HorizontalResolution>600</x:HorizontalResolution>
-                    <x:VerticalResolution>600</x:VerticalResolution>
-                    <x:FitWidth>1</x:FitWidth>
-                    <x:FitHeight>1</x:FitHeight>
-                  </x:Print>
-                  <x:Selected/>
-                  <x:ProtectContents>False</x:ProtectContents>
-                  <x:ProtectObjects>False</x:ProtectObjects>
-                  <x:ProtectScenarios>False</x:ProtectScenarios>
-                </x:WorksheetOptions>
-              </x:ExcelWorksheet>
-            </x:ExcelWorksheets>
-          </x:ExcelWorkbook>
-        </xml>
-        <![endif]-->
-      </head>
-      <body>
-        <table style="border-collapse:collapse; width: 800px;">
-          <colgroup>
-            <col width="75" />
-            <col width="115" />
-            <col width="90" />
-            <col width="70" />
-            <col width="85" />
-            <col width="110" />
-            <col width="90" />
-            <col width="85" />
-            <col width="40" />
-            <col width="40" />
-          </colgroup>
-          <tr style="height:25px;">
-            <td colspan="10" class="subtitle" style="text-align: left;">■ 조세특례제한법 시행규칙 [별지 제11호의2서식] &lt;개정 2025. 6. 30.&gt;</td>
-          </tr>
-          <tr style="height:45px;">
-            <td colspan="10" class="title">중소기업 취업자 소득세 감면 대상 명세서</td>
-          </tr>
+      let ageAtEmployment = '';
+      if (birthYear > 0 && regForm.residentAddress) {
+        const empParts = regForm.residentAddress.split('-');
+        if (empParts.length === 3) {
+          const empYear = Number(empParts[0]);
+          const empMonth = Number(empParts[1]);
+          const empDay = Number(empParts[2]);
           
-          <tr style="height:30px;">
-            <td colspan="10" class="section-header" style="border-top: 1.5pt solid #000000; border-bottom: 1.5pt solid #000000;">1. 원천징수의무자 (회사)</td>
-          </tr>
-          <tr style="height:35px;">
-            <td colspan="2" class="label">상 호</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">${companyName}</td>
-            <td colspan="2" class="label">사업자등록번호</td>
-            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${businessNumber}</td>
-          </tr>
-          <tr style="height:35px;">
-            <td colspan="2" class="label">사업장소재지</td>
-            <td colspan="3" class="value" style="padding-left: 10px;">${regForm.companyAddress || ''}</td>
-            <td colspan="2" class="label">주업종코드</td>
-            <td colspan="3" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyIndustry || ''}</td>
-          </tr>
-          <tr style="height:35px;">
-            <td colspan="2" class="label">전화번호</td>
-            <td colspan="8" class="value" style="padding-left: 10px; mso-number-format:'@';">${regForm.companyPhone || ''}</td>
-          </tr>
+          let age = empYear - birthYear;
+          if (empMonth < birthMonth || (empMonth === birthMonth && empDay < birthDay)) {
+            age--;
+          }
+          ageAtEmployment = String(age);
+        }
+      }
 
-          <tr style="height:20px; border:none;"><td colspan="10" style="border:none; height:20px;"></td></tr>
-
-          <tr style="height:30px;">
-            <td colspan="10" class="section-header" style="border-top: 1.5pt solid #000000; border-bottom: 1.5pt solid #000000;">2. 감면 적용 대상자 명단</td>
-          </tr>
-          <tr class="grid-header">
-            <td rowspan="2" style="width: 75px; font-weight: bold; background-color: #f1f5f9;">성 명</td>
-            <td rowspan="2" style="width: 115px; font-weight: bold; background-color: #f1f5f9;">주민<br/>등록번호</td>
-            <td rowspan="2" style="width: 90px; font-weight: bold; background-color: #f1f5f9;">취업일</td>
-            <td rowspan="2" style="width: 70px; font-weight: bold; background-color: #f1f5f9;">취업자<br/>유형</td>
-            <td rowspan="2" style="width: 85px; font-weight: bold; background-color: #f1f5f9;">중소기업<br/>취업 시<br/>연령</td>
-            <td rowspan="2" style="width: 110px; font-weight: bold; background-color: #f1f5f9;">병역근무기간<br/>(6년을 한도로 함)</td>
-            <td rowspan="2" style="width: 90px; font-weight: bold; background-color: #f1f5f9;">병역근무기간 차<br/>감 후 연령</td>
-            <td colspan="3" style="width: 165px; font-weight: bold; background-color: #f1f5f9; border-bottom: .5pt solid #000000;">감면기간</td>
-          </tr>
-          <tr class="grid-header">
-            <td colspan="1" style="width: 90px; font-weight: bold; background-color: #e2e8f0;">시작일</td>
-            <td colspan="2" style="width: 90px; font-weight: bold; background-color: #e2e8f0;">종료일</td>
-          </tr>
+      // 2. Resolve Reduction Start & End Date
+      let reductionStart = regForm.taxReductionApplyDateStart || '';
+      let reductionEnd = regForm.taxReductionApplyDateEnd || '';
+      if (!reductionStart && regForm.residentAddress) {
+        const empParts = regForm.residentAddress.split('-');
+        if (empParts.length === 3) {
+          const empDateObj = new Date(Number(empParts[0]), Number(empParts[1]) - 1, Number(empParts[2]));
+          const nextMonth = new Date(empDateObj.getFullYear(), empDateObj.getMonth() + 1, 1);
           
-          <tr style="height:40px;">
-            <td>${regForm.name ? regForm.name.toUpperCase() : ''}</td>
-            <td style="mso-number-format:'@';">${regForm.foreignerNumber || ''}</td>
-            <td>${regForm.residentAddress || ''}</td>
-            <td>청년</td>
-            <td>${ageAtEmployment}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>${reductionStart}</td>
-            <td colspan="2">${reductionEnd}</td>
-          </tr>
+          const y = nextMonth.getFullYear();
+          const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
+          const d = '01';
+          reductionStart = `${y}-${m}-${d}`;
+          
+          const endMonth = new Date(y + 5, nextMonth.getMonth(), 0);
+          const ey = endMonth.getFullYear();
+          const em = String(endMonth.getMonth() + 1).padStart(2, '0');
+          const ed = String(endMonth.getDate()).padStart(2, '0');
+          reductionEnd = `${ey}-${em}-${ed}`;
+        }
+      }
 
-          <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
-          </tr>
-          <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
-          </tr>
-          <tr style="height:35px;">
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td colspan="2"></td>
-          </tr>
+      // 3. Resolve Company Details (Last/Recent Active Employer)
+      let companyName = '';
+      let businessNumber = '';
+      const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
+      for (const yr of sortedYears) {
+        const yrData = regForm.years[yr];
+        if (yrData?.active && yrData.workPlace) {
+          companyName = yrData.workPlace;
+          businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
+          break;
+        }
+      }
+      if (!companyName) {
+        companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+      }
 
-          <tr style="height:25px; border:none;"><td colspan="10" style="border:none; height:25px;"></td></tr>
+      // 4. Load Excel Template
+      const response = await fetch('/중소기업 취업자 소득세 감면 대상 명세서.xlsx');
+      if (!response.ok) {
+        throw new Error('엑셀 템플릿 파일을 찾을 수 없습니다. public 폴더를 확인해 주세요.');
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) {
+        throw new Error('엑셀 템플릿의 첫 번째 시트를 불러올 수 없습니다.');
+      }
 
-          <tr style="height:35px; border:none;">
-            <td colspan="10" style="border:none; font-size: 11pt; text-align: center; height: 35px;">
-              「조세특례제한법」 제30조제3항 및 같은 법 시행령 제27조제6항에 따라 중소기업 취업자 소득세 감면 대상 명세서를 제출합니다.
-            </td>
-          </tr>
-          <tr style="height:35px; border:none;">
-            <td colspan="10" style="border:none; font-size: 11pt; font-weight: bold; text-align: center; height: 35px; padding-top: 10px;">
-              ${currentYearStr}년 &nbsp;&nbsp;&nbsp;&nbsp; ${currentMonthStr}월 &nbsp;&nbsp;&nbsp;&nbsp; ${currentDayStr}일
-            </td>
-          </tr>
-          <tr style="height:50px; border:none;">
-            <td colspan="10" style="border:none; font-size: 11pt; text-align: right; height: 50px; padding-right: 50px; padding-top: 15px;">
-              원천징수의무자 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>${companyName}</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; (서명 또는 인)
-            </td>
-          </tr>
-          <tr style="height:40px; border:none;">
-            <td colspan="10" style="border:none; font-size: 13pt; font-weight: bold; text-align: left; height: 40px; padding-left: 20px;">
-              세무서장 귀하
-            </td>
-          </tr>
+      // 5. Fill Company Details
+      worksheet.getCell('C4').value = "상 호 : " + companyName;
+      worksheet.getCell('G4').value = "사업자등록번호 : " + businessNumber;
+      worksheet.getCell('C5').value = "사업장소재지 : " + (regForm.companyAddress || '');
+      worksheet.getCell('G5').value = "주업종코드 : " + (regForm.companyIndustry || '');
+      worksheet.getCell('C6').value = "(전화번호 : " + (regForm.companyPhone || '') + ")";
 
-          <tr style="height:20px; border:none;">
-            <td colspan="10" style="border:none; text-align: right; font-size: 8pt; color: #555555; height: 20px; vertical-align: bottom;">
-              210mm× 297mm[백상지 80g/㎡ 또는 중질지 80g/㎡]
-            </td>
-          </tr>
-          <tr style="border:none; height:25px;">
-            <td colspan="10" style="border:none; border-top: 1pt solid #cbd5e1; text-align: left; font-size: 9pt; font-weight: bold; color: #334155; padding-top: 8px; height: 25px; vertical-align: middle;">
-              <b>작성방법</b>
-            </td>
-          </tr>
-          <tr style="border:none; height:20px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 20px; vertical-align: middle;">
-              1. "취업자 유형"은 '청년', '60세 이상 사람', '장애인', '경력단절 근로자'로 구분하여 적습니다.
-            </td>
-          </tr>
-          <tr style="border:none; height:20px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 20px; vertical-align: middle;">
-              2. "병역근무기간"과 "병역근무기간 차감 후 연령"은 취업자 유형이 '청년'인 경우 적습니다.
-            </td>
-          </tr>
-          <tr style="border:none; height:55px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 55px; vertical-align: middle; white-space: normal;">
-              3. "감면기간"란에는 「조세특례제한법 시행규칙」 별지 제11호서식 「중소기업 취업자 소득세<br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;감면신청서」의 ⑧ㆍ⑨란의 시작일과 종료일을 적습니다.
-            </td>
-          </tr>
-          <tr style="border:none; height:55px;">
-            <td colspan="10" style="border:none; text-align: left; font-size: 9pt; color: #334155; height: 55px; vertical-align: middle; white-space: normal;">
-              4. "주업종코드" 란에는 원천징수의무자의 주업종코드를 기재합니다.(「조세특례제한법 시행령」 제27조제3항 각 호에 따른<br/>
-              &nbsp;&nbsp;&nbsp;&nbsp;사업을 주된 사업으로 영위하는 중소기업으로부터 받은 근로소득만 감면대상입니다.)
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `;
+      // 6. Fill Employee details (Row 11 / Row 12)
+      worksheet.getCell('A11').value = regForm.name ? regForm.name.toUpperCase() : '';
+      worksheet.getCell('B11').value = regForm.foreignerNumber || '';
+      worksheet.getCell('C11').value = regForm.residentAddress || '';
+      worksheet.getCell('D11').value = '청년';
+      worksheet.getCell('E11').value = ageAtEmployment || '';
+      worksheet.getCell('F11').value = '-';
+      worksheet.getCell('G11').value = '-';
+      
+      // Start/End Dates are written into Row 12 H/I
+      worksheet.getCell('H12').value = reductionStart || '';
+      worksheet.getCell('I12').value = reductionEnd || '';
 
-    const blob = new Blob([htmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    
-    const cleanName = regForm.name.trim().replace(/\s+/g, '_');
-    link.download = `중소기업_감면명세서_${cleanName}.xls`;
-    
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    setSmeModalOpen(false);
-    showToast('감면 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
-    
-    // Automatically trigger save consult info to sync to Supabase Client table
-    handleSaveConsultInfo();
+      // 7. Fill Bottom metadata (Date & Signature)
+      const today = new Date();
+      const currentYearStr = String(today.getFullYear());
+      const currentMonthStr = String(today.getMonth() + 1).padStart(2, '0');
+      const currentDayStr = String(today.getDate()).padStart(2, '0');
+
+      worksheet.getCell('A22').value = `${currentYearStr}년         ${currentMonthStr}월         ${currentDayStr}일`;
+      
+      // Set richText signature
+      worksheet.getCell('A23').value = {
+        richText: [
+          { text: "원천징수의무자                  " },
+          { font: { size: 10, bold: true, name: "돋움" }, text: companyName },
+          { text: "                  " },
+          { font: { size: 8, color: { argb: "FF7F7F7F" }, name: "돋움" }, text: "(서명 또는 인)" }
+        ]
+      };
+
+      // 8. Generate and download workbook xlsx buffer
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const cleanName = regForm.name.trim().replace(/\s+/g, '_');
+      link.download = `중소기업_감면명세서_${cleanName}.xlsx`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setSmeModalOpen(false);
+      showToast('감면 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
+      
+      // Automatically trigger database save to sync company details
+      handleSaveConsultInfo();
+    } catch (err: any) {
+      console.error('Error generating Excel from template:', err);
+      showToast('엑셀 생성 실패: ' + err.message, 'error');
+    }
   };
 
   const handleSaveConsultInfo = async () => {

@@ -113,6 +113,32 @@ export async function uploadPdfToSupabase(file: File, path: string): Promise<str
  */
 export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: Record<string, File | null>) {
   try {
+    // 1. Map manager name to their actual UUID in the database to satisfy the foreign key constraint
+    let dbManagerId: string | null = null;
+    try {
+      const { data: managers } = await supabase
+        .from('Manager')
+        .select('id, name');
+      
+      if (managers && regForm.managerName) {
+        const match = managers.find(m => m.name && m.name.trim().toLowerCase() === regForm.managerName.trim().toLowerCase());
+        if (match) {
+          dbManagerId = match.id;
+        } else {
+          const partialMatch = managers.find(m => m.name && (m.name.includes(regForm.managerName) || regForm.managerName.includes(m.name)));
+          if (partialMatch) {
+            dbManagerId = partialMatch.id;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to resolve manager UUID:', err);
+    }
+
+    if (!dbManagerId) {
+      dbManagerId = 'a13ec999-31d8-4421-9628-4f0fe4a1e217'; // Default fallback to Boram's UUID
+    }
+
     let clientId: string | null = null;
     if (!clientId && regForm.foreignerNumber) {
       const { data: existing } = await supabase
@@ -140,7 +166,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       name: regForm.name ? regForm.name.toUpperCase() : '',
       regNum: regForm.foreignerNumber || '',
       country: regForm.nationality || '인도네시아',
-      managerId: regForm.managerName || 'Boram',
+      managerId: dbManagerId,
       visa: regForm.visaType || 'E9',
       company: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '',
       isMonthlyTenant: regForm.isMonthlyRent === '가',

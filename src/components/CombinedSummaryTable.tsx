@@ -143,6 +143,25 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
               </td>
             </tr>
 
+            {/* Row: 적용 부양가족 환급금 */}
+            <tr style={{ backgroundColor: '#f0fdf4' }}>
+              <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
+                적용 부양가족 환급금
+              </td>
+              {targetYears.map(yr => {
+                const yrData = regForm.years[yr];
+                const depRefund = Number(yrData?.dependentRefundTotal) || 0;
+                return (
+                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#15803d', fontWeight: 'bold' }}>
+                    {yrData?.active ? `+${depRefund.toLocaleString()}원` : '-'}
+                  </td>
+                );
+              })}
+              <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#dcfce7', color: '#15803d' }}>
+                +{targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.dependentRefundTotal) || 0 : 0), 0).toLocaleString()}원
+              </td>
+            </tr>
+
             {/* Row 4: 통합 청구 수수료 */}
             <tr style={{ backgroundColor: '#eff6ff' }}>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', color: '#1e40af', backgroundColor: '#dbeafe', textAlign: 'center' }}>

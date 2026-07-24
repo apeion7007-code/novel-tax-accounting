@@ -373,6 +373,21 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               </td>
             </tr>
 
+            {/* Row: 적용 부양가족 환급금 */}
+            <tr style={{ backgroundColor: '#f0fdf4' }}>
+              <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#0f766e', backgroundColor: '#ccfbf1' }}>
+                적용 부양가족 환급금
+              </td>
+              {targetYears.map(yr => (
+                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#0f766e' }}>
+                  -
+                </td>
+              ))}
+              <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#ccfbf1', color: '#0f766e' }}>
+                -
+              </td>
+            </tr>
+
             {/* Row 11: 3.3% 수수료 금액 */}
             <tr style={{ backgroundColor: '#fef9c3' }}>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', color: '#854d0e', backgroundColor: '#fef08a', textAlign: 'center' }}>

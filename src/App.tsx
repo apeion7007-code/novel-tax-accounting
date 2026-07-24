@@ -2669,15 +2669,17 @@ function App() {
       
       const infoLabels = [t.name, t.rrn, t.company];
       
-      let companyName = '';
-      const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
-      for (const yr of sortedYears) {
+      const companyNamesList: string[] = [];
+      ['2021', '2022', '2023', '2024', '2025'].forEach(yr => {
         const yrData = regForm.years[yr];
-        if (yrData?.active && yrData.workPlace) {
-          companyName = yrData.workPlace;
-          break;
+        if (yrData?.active && yrData.workPlace && yrData.workPlace.trim()) {
+          const nameTrim = yrData.workPlace.trim();
+          if (!companyNamesList.includes(nameTrim)) {
+            companyNamesList.push(nameTrim);
+          }
         }
-      }
+      });
+      let companyName = companyNamesList.join(', ');
       if (!companyName) {
         companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
       }

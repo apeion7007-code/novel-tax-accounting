@@ -1039,8 +1039,7 @@ function App() {
     };
   };
 
-  /*
-const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disabledCount' | 'childCount', delta: number) => {
+  const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disabledCount' | 'childCount', delta: number) => {
     setRegForm(prev => {
       const newDepCount = key === 'dependentsCount' ? Math.max(0, prev.dependentsCount + delta) : prev.dependentsCount;
       const newSenCount = key === 'seniorCount' ? Math.max(0, prev.seniorCount + delta) : prev.seniorCount;
@@ -1082,7 +1081,6 @@ const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disable
       };
     });
   };
-*/
 
   const handleFeeRateChange = (rate: number) => {
     setSelectedFeeRate(rate);
@@ -1748,8 +1746,7 @@ const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disable
     '◆지방세수수료수납완료',
     '◆수수료 연체'
   ];
-  /*
-const visaTypes = [
+  const visaTypes = [
     'F1',
     'F2',
     'F3',
@@ -1764,9 +1761,7 @@ const visaTypes = [
     '한국국적',
     '기타'
   ];
-*/
-  /*
-const bankList = [
+  const bankList = [
     'KB국민은행',
     'SC제일은행',
     '경남은행',
@@ -1790,9 +1785,7 @@ const bankList = [
     '한국씨티은행',
     '토스뱅크'
   ];
-*/
-  /*
-const submissionStatuses = [
+  const submissionStatuses = [
     '◎제출이력없음',
     '◎이전회사재출',
     '◎재직회사재출',
@@ -1804,7 +1797,6 @@ const submissionStatuses = [
     '감면명세서 요망',
     '기타'
   ];
-*/
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -3204,7 +3196,336 @@ const submissionStatuses = [
                 </div>
 
                 {/* Form Group 1: Basic Information Input Grid (Light Blue Header Style, Table format for perfect alignment) */}
-                                <WageSettlementTable
+                                {/* Form Group 1: Basic Information Input Grid (Light Blue Header Style, Table format for perfect alignment) */}
+                <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1000px', backgroundColor: '#ffffff' }}>
+                    <tbody>
+                      {/* Row 1 Header */}
+                      <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>신청인</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '11%' }}>외국인 등록번호</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>국적</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '13%' }}>전화번호</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>비자 종류</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>
+                          {(regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace) 
+                            ? `${regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace} 취업일` 
+                            : '취업일'}
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>비자만료일</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>월세여부</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '18%' }}>환급금 입금계좌</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '10%' }}>환급처리상태</td>
+                      </tr>
+                      {/* Row 1 Inputs */}
+                      <tr>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.name} onChange={(e) => setRegForm(prev => ({ ...prev, name: e.target.value }))} placeholder="이름 입력" />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.foreignerNumber} onChange={(e) => setRegForm(prev => ({ ...prev, foreignerNumber: e.target.value }))} placeholder="890528-5580013" />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.nationality} onChange={(e) => setRegForm(prev => ({ ...prev, nationality: e.target.value }))}>
+                            {nationalities.map(n => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <select
+                              className="form-control"
+                              style={{ fontSize: '13px', height: '32px', padding: '2px', width: '65px', flexShrink: 0 }}
+                              value={regForm.telecom || 'SKT'}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, telecom: e.target.value }))}
+                            >
+                              <option value="SKT">SKT</option>
+                              <option value="KT">KT</option>
+                              <option value="LGU+">LGU+</option>
+                              <option value="알뜰폰">알뜰폰</option>
+                              <option value="기타">기타</option>
+                            </select>
+                            <input
+                              type="text"
+                              className="form-control"
+                              style={{ fontSize: '13px', height: '32px', flexGrow: 1 }}
+                              value={regForm.phone}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, phone: e.target.value }))}
+                              placeholder="010-XXXX-XXXX"
+                            />
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.visaType} onChange={(e) => setRegForm(prev => ({ ...prev, visaType: e.target.value }))}>
+                            {visaTypes.map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.residentAddress} onChange={(e) => setRegForm(prev => ({ ...prev, residentAddress: e.target.value }))} />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.visaExpiry} onChange={(e) => setRegForm(prev => ({ ...prev, visaExpiry: e.target.value }))} />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', fontSize: '13px', height: '32px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                              <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '가'} onChange={() => setRegForm(prev => ({ ...prev, isMonthlyRent: '가' }))} /> 가
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                              <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '부'} onChange={() => setRegForm(prev => ({ ...prev, isMonthlyRent: '부' }))} /> 부
+                            </label>
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <select
+                              className="form-control"
+                              style={{ fontSize: '13px', height: '32px', padding: '2px', width: '95px', flexShrink: 0 }}
+                              value={regForm.refundBankName || 'KB국민은행'}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, refundBankName: e.target.value }))}
+                            >
+                              {bankList.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <input
+                              type="text"
+                              className="form-control"
+                              style={{ fontSize: '13px', height: '32px', flexGrow: 1 }}
+                              value={regForm.refundBank}
+                              onChange={(e) => setRegForm(prev => ({ ...prev, refundBank: e.target.value }))}
+                              placeholder="계좌번호 입력"
+                            />
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.refundStatus} onChange={(e) => setRegForm(prev => ({ ...prev, refundStatus: e.target.value }))}>
+                            {refundStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+
+                      {/* Row 2 Header */}
+                      <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
+                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px' }}>주민등록상 주소지</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>감면명세서 제출상태</td>
+                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px' }}>기존 감면명세서 적용기간</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>감면명세서 발송일</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>경정청구일</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>추가환급 여부</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>추가 신청예정일</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>수수료수납선택</td>
+                      </tr>
+                      {/* Row 2 Inputs */}
+                      <tr>
+                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.residentRegisterAddress} onChange={(e) => setRegForm(prev => ({ ...prev, residentRegisterAddress: e.target.value }))} placeholder="주소지 도로명 주소" />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.deductionSubmissionStatus} onChange={(e) => setRegForm(prev => ({ ...prev, deductionSubmissionStatus: e.target.value }))}>
+                            {submissionStatuses.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                        <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
+                            <span style={{ fontSize: '12px' }}>~</span>
+                            <input type="date" className="form-control" style={{ fontSize: '12px', height: '32px', padding: '2px' }} />
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.deductionSentDate} onChange={(e) => setRegForm(prev => ({ ...prev, deductionSentDate: e.target.value }))} />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.claimCompleteDate} onChange={(e) => setRegForm(prev => ({ ...prev, claimCompleteDate: e.target.value }))} />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', fontSize: '13px', height: '32px' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                              <input type="radio" name="addRefund" checked={regForm.additionalApplyPerformance === '가'} onChange={() => setRegForm(prev => ({ ...prev, additionalApplyPerformance: '가' }))} /> 가
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
+                              <input type="radio" name="addRefund" checked={regForm.additionalApplyPerformance !== '가'} onChange={() => setRegForm(prev => ({ ...prev, additionalApplyPerformance: '부' }))} /> 부
+                            </label>
+                          </div>
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <input type="date" className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.claimRequestDate} onChange={(e) => setRegForm(prev => ({ ...prev, claimRequestDate: e.target.value }))} />
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+                          <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.feePaymentStatus} onChange={(e) => setRegForm(prev => ({ ...prev, feePaymentStatus: e.target.value }))}>
+                            <option value="후불 22%">후불 22%</option>
+                            <option value="선불 17%">선불 17%</option>
+                            <option value="선불10%, 후불10%">선불10%, 후불10%</option>
+                          </select>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Dependents & Additional Deductions Setting Panel */}
+                <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '14px 18px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>👨‍👩‍👧‍👦</span>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#0f172a' }}>
+                        부양가족 공제 및 세액 감면 설정
+                      </h3>
+                      <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 'normal' }}>
+                        부양가족 등록 시 소득공제(인당 150만 원) 및 세액공제가 추가 적용되어 환급금이 자동 증가합니다.
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <span style={{ backgroundColor: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                        총 소득공제: +{((regForm.dependentsCount * 150) + (regForm.seniorCount * 100) + (regForm.disabledCount * 200)).toLocaleString()}만 원
+                      </span>
+                      <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+                        총 세액공제: +{(regForm.childCount * 15).toLocaleString()}만 원
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    {/* 1. 기본 부양가족 */}
+                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>기본 부양가족</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 150만 원 공제</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('dependentsCount', -1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >-</button>
+                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.dependentsCount}명</span>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('dependentsCount', 1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >+</button>
+                      </div>
+                    </div>
+
+                    {/* 2. 만 70세 이상 경로우대 */}
+                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>경로우대 (70세 이상)</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 +100만 원 추가</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('seniorCount', -1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >-</button>
+                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.seniorCount}명</span>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('seniorCount', 1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >+</button>
+                      </div>
+                    </div>
+
+                    {/* 3. 장애인 부양가족 */}
+                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>장애인 부양가족</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 +200만 원 추가</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('disabledCount', -1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >-</button>
+                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.disabledCount}명</span>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('disabledCount', 1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >+</button>
+                      </div>
+                    </div>
+
+                    {/* 4. 자녀 세액공제 */}
+                    <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>공제 대상 자녀</div>
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>인당 15만 원 세액공제</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('childCount', -1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >-</button>
+                        <span style={{ fontWeight: 'bold', fontSize: '14px', minWidth: '20px', textAlign: 'center' }}>{regForm.childCount}명</span>
+                        <button
+                          type="button"
+                          onClick={() => updateDependentsCount('childCount', 1)}
+                          style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
+                        >+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* File Upload Row for Family Proof Documents */}
+                  <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', gap: '20px', alignItems: 'center' }}>
+                    {/* 1. 가족관계증명서 */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>📁 가족관계증명서:</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.png,.jpeg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setRegForm(prev => ({ ...prev, familyDocFile: file }));
+                          if (file) showToast(`가족관계증명서 (${file.name}) 파일이 첨부되었습니다.`, 'info');
+                        }}
+                        style={{ fontSize: '12px' }}
+                      />
+                      {regForm.familyDocUrl && (
+                        <a
+                          href={regForm.familyDocUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
+                        >
+                          [저장된 파일 보기]
+                        </a>
+                      )}
+                    </div>
+
+                    {/* 2. 외화 송금영수증 */}
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>💸 외화 송금영수증:</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.png,.jpeg"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setRegForm(prev => ({ ...prev, remittanceDocFile: file }));
+                          if (file) showToast(`송금영수증 (${file.name}) 파일이 첨부되었습니다.`, 'info');
+                        }}
+                        style={{ fontSize: '12px' }}
+                      />
+                      {regForm.remittanceDocUrl && (
+                        <a
+                          href={regForm.remittanceDocUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
+                        >
+                          [저장된 파일 보기]
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                 {/* Yearly Detailed Calculation Grid (Matching screenshot color themes: light blue headers, yellow highlights, zebra grid) */}
+
+                <WageSettlementTable
                   regForm={regForm}
                   setRegForm={setRegForm}
                   targetYears={targetYears}

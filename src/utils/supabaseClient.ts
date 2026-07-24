@@ -139,8 +139,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       dbManagerId = 'a13ec999-31d8-4421-9628-4f0fe4a1e217'; // Default fallback to Boram's UUID
     }
 
-    let clientId: string | null = null;
+    let clientId: string | null = regForm.clientId || null;
     let newClientSerial: number | null = null;
+    let isNewInsert = false;
+
     if (!clientId && regForm.foreignerNumber) {
       const { data: existing } = await supabase
         .from('Client')
@@ -161,6 +163,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
             const v = c === 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
           });
+      isNewInsert = true;
     }
 
     const clientPayload: Record<string, any> = {
@@ -212,7 +215,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       if (remitUrl) clientPayload.remittanceDocUrl = remitUrl;
     }
 
-    if (clientId) {
+    if (!isNewInsert) {
       const { error: updateErr } = await supabase.from('Client').update(clientPayload).eq('id', clientId);
       if (updateErr) {
         throw new Error(`Client Update Error: ${updateErr.message}`);

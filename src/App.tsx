@@ -3790,7 +3790,7 @@ function App() {
                               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
                               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                             >
-                              <Settings size={14} style={{ color: '#475569' }} /> 국세청 홈택스 전산매체 파일등록
+                              <Settings size={14} style={{ color: '#475569' }} /> 세무대리인 정보 설정
                             </button>
                             <button
                               onClick={() => {

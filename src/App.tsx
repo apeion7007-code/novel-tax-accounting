@@ -163,6 +163,7 @@ function App() {
   const [signUpEmail, setSignUpEmail] = useState<string>('');
   const [signUpPassword, setSignUpPassword] = useState<string>('');
   const [signUpConfirmPassword, setSignUpConfirmPassword] = useState<string>('');
+  const [signUpTeamId, setSignUpTeamId] = useState<number>(1);
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
@@ -707,6 +708,15 @@ function App() {
   // Listen to Supabase Auth state changes and check session on mount
   useEffect(() => {
     async function checkUserSession() {
+      try {
+        const teamsList = await fetchTeamsFromSupabase();
+        if (teamsList && teamsList.length > 0) {
+          setDbTeams(teamsList);
+        }
+      } catch (err) {
+        console.error('Fetch teams early error:', err);
+      }
+
       // Check if client is accessing via consent URL
       const params = new URLSearchParams(window.location.search);
       const viewParam = params.get('view') || params.get('v');
@@ -3471,7 +3481,7 @@ function App() {
         options: {
           data: {
             name: signUpName.trim(),
-            teamId: 1
+            teamId: signUpTeamId
           }
         }
       });
@@ -3486,7 +3496,7 @@ function App() {
           .upsert([{
             id: authData.user.id,
             name: signUpName.trim(),
-            teamId: 1,
+            teamId: signUpTeamId,
             isAdmin: isFirstUser,
             isConfirmed: isFirstUser
           }], { onConflict: 'id' });
@@ -3749,6 +3759,46 @@ function App() {
                     placeholder="홍길동"
                     required
                   />
+                </div>
+                <div className="form-group">
+                  <label>소속 팀 / 담당 국가</label>
+                  <select
+                    className="login-input"
+                    value={signUpTeamId}
+                    onChange={(e) => setSignUpTeamId(Number(e.target.value))}
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      height: '42px',
+                      fontSize: '14px',
+                      padding: '0 12px',
+                      width: '100%',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {dbTeams.length > 0 ? (
+                      dbTeams.map(team => (
+                        <option key={team.id} value={team.id} style={{ color: '#000000' }}>
+                          {team.name}
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value={1} style={{ color: '#000000' }}>관리자</option>
+                        <option value={2} style={{ color: '#000000' }}>베트남팀</option>
+                        <option value={3} style={{ color: '#000000' }}>미얀마팀</option>
+                        <option value={4} style={{ color: '#000000' }}>몽골팀</option>
+                        <option value={5} style={{ color: '#000000' }}>인도네시아팀</option>
+                        <option value={6} style={{ color: '#000000' }}>우즈베키스탄팀</option>
+                        <option value={7} style={{ color: '#000000' }}>캄보디아팀</option>
+                        <option value={8} style={{ color: '#000000' }}>스리랑카팀</option>
+                      </>
+                    )}
+                  </select>
                 </div>
                 <div className="form-group">
                   <label>이메일 주소</label>

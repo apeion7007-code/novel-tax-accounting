@@ -1102,12 +1102,16 @@ function App() {
   }, [currentView, currentManager]);
 
   const handleResetAll = () => {
+    const defaultNationality = (currentManagerCountry && currentManagerCountry !== 'ALL')
+      ? currentManagerCountry
+      : '미얀마';
+
     setRegForm({
       clientId: '',
       serial: 0,
       name: '',
       foreignerNumber: '',
-      nationality: '미얀마',
+      nationality: defaultNationality,
       companyAddress: '',
       companyPhone: '',
       companyIndustry: '',

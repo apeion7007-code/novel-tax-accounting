@@ -1,5 +1,5 @@
 import React from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, X } from 'lucide-react';
 
 interface FreelancerSettlementTableProps {
   regForm: any;
@@ -9,6 +9,7 @@ interface FreelancerSettlementTableProps {
   handleFreelancerSingleYearPdfUpload: (e: React.ChangeEvent<HTMLInputElement>, fallbackYr?: string) => Promise<void>;
   handleBulkPdfUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleFeeRateChange: (rate: number) => void;
+  handleRemoveFreelancerYear: (yr: string) => void;
 }
 
 export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps> = ({
@@ -18,7 +19,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
   selectedFeeRate,
   handleFreelancerSingleYearPdfUpload,
   handleBulkPdfUpload,
-  handleFeeRateChange: _handleFeeRateChange
+  handleFeeRateChange: _handleFeeRateChange,
+  handleRemoveFreelancerYear
 }) => {
   return (
     <div style={{ marginTop: '24px', marginBottom: '24px', border: '2px solid #0d9488', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
@@ -69,7 +71,28 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               </th>
               {targetYears.map(yr => (
                 <th key={yr} style={{ border: '1px solid #99f6e4', padding: '8px', width: '150px' }}>
-                  {yr}년도 (3.3%)
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <span>{yr}년도 (3.3%)</span>
+                    {regForm.freelancerYears?.[yr]?.active && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFreelancerYear(yr)}
+                        style={{
+                          border: 'none',
+                          background: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: 0,
+                          fontSize: '12px',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}
+                        title="연도 삭제"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 </th>
               ))}
               <th style={{ width: '160px', border: '1px solid #99f6e4', padding: '8px', backgroundColor: '#99f6e4', color: '#0f766e' }}>

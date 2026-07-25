@@ -1511,6 +1511,35 @@ function App() {
     }
   };
 
+  const handleRemoveFreelancerYear = (yr: string) => {
+    if (window.confirm(`정말 ${yr}년도의 3.3% 사업소득 정보를 삭제하시겠습니까?`)) {
+      setRegForm((prev: any) => {
+        const updatedFreelancerYears = { ...prev.freelancerYears };
+        if (updatedFreelancerYears[yr]) {
+          updatedFreelancerYears[yr] = {
+            ...updatedFreelancerYears[yr],
+            active: false,
+            totalIncome: '0',
+            withholdingTax3: '0',
+            localTax03: '0',
+            totalWithholding33: '0',
+            refundExpectNational: '0',
+            refundExpectLocal: '0',
+            courtFee: '0',
+            expectedFeeAmt: '0',
+            workPlace: '',
+            businessNumber: ''
+          };
+        }
+        return {
+          ...prev,
+          freelancerYears: updatedFreelancerYears
+        };
+      });
+      showToast(`${yr}년도 3.3% 사업소득 데이터가 삭제되었습니다. 고객 업데이트 시 영구 적용됩니다.`, 'info');
+    }
+  };
+
 
 
   const handleDownloadPdf = async (targetId: string, yrLabel: string) => {
@@ -4366,6 +4395,7 @@ function App() {
                   handleFreelancerSingleYearPdfUpload={handleFreelancerSingleYearPdfUpload}
                   handleBulkPdfUpload={handleBulkPdfUpload}
                   handleFeeRateChange={handleFeeRateChange}
+                  handleRemoveFreelancerYear={handleRemoveFreelancerYear}
                 />
 
                 {/* Combined Summary Table */}

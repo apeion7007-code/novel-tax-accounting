@@ -270,7 +270,21 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     for (const yr of targetYearsList) {
       const freelancerData = regForm.freelancerYears?.[yr];
       const hasFreelancerData = freelancerData && (freelancerData.active || freelancerData.isFileUploaded);
-      if (!hasFreelancerData) continue;
+      if (!hasFreelancerData) {
+        // If it exists in the database as standalone (companyName === ''), delete it
+        if (clientId) {
+          const { error: delErr } = await supabase
+            .from('YearEndData')
+            .delete()
+            .eq('clientId', clientId)
+            .eq('year', parseInt(yr, 10))
+            .eq('companyName', '');
+          if (delErr) {
+            console.warn(`Failed to delete inactive standalone freelancer record for year ${yr}:`, delErr.message);
+          }
+        }
+        continue;
+      }
 
       let freelancerFileURL: string | undefined = undefined;
       const freelancerPdfFile = pdfFileObjects[`freelancer_${yr}`];

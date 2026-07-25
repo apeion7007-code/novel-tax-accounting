@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet, Plus, X } from 'lucide-react';
-import { checkYouthEligibility } from '../App';
+import { checkYouthEligibility } from '../utils/taxCalculator';
 
 interface WageSettlementTableProps {
   regForm: any;

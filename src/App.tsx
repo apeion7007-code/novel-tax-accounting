@@ -3096,7 +3096,7 @@ function App() {
 
       // Define default column widths
       worksheet.getColumn('A').width = 4;
-      worksheet.getColumn('B').width = 16;
+      worksheet.getColumn('B').width = 30;
       worksheet.getColumn('C').width = 24;
       worksheet.getColumn('D').width = 24;
       worksheet.getColumn('E').width = 4;

@@ -5,21 +5,19 @@ import { checkYouthEligibility } from '../App';
 interface WageSettlementTableProps {
   regForm: any;
   setRegForm: React.Dispatch<React.SetStateAction<any>>;
-  targetYears: string[];
   selectedFeeRate: number;
-  handleSingleYearPdfUpload: (e: React.ChangeEvent<HTMLInputElement>, fallbackYr?: string) => Promise<void>;
+  handleSingleYearPdfUpload: (e: React.ChangeEvent<HTMLInputElement>, targetId?: string) => Promise<void>;
   handleBulkPdfUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  handleReanalyzeYearPdf: (yr: string) => Promise<void>;
-  handleDownloadPdf: (yr: string) => Promise<void>;
+  handleReanalyzeYearPdf: (targetId: string, yrLabel: string) => Promise<void>;
+  handleDownloadPdf: (targetId: string, yrLabel: string) => Promise<void>;
   handleAddYear: () => void;
-  handleRemoveYear: (yearToRemove: string) => void;
+  handleRemoveYear: (idToRemove: string, yearLabel: string) => void;
   handleFeeRateChange: (rate: number) => void;
 }
 
 export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
   regForm,
   setRegForm,
-  targetYears,
   selectedFeeRate,
   handleSingleYearPdfUpload,
   handleBulkPdfUpload,
@@ -29,8 +27,37 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
   handleRemoveYear,
   handleFeeRateChange
 }) => {
+  const yearsList = regForm.years || [];
+
+  // Helper to generate headers with repeated counts (e.g. 2024년도 (1), 2024년도 (2))
+  const getYearLabel = (index: number, year: string) => {
+    const sameYearsBefore = yearsList.slice(0, index).filter((y: any) => y.year === year).length;
+    const sameYearsTotal = yearsList.filter((y: any) => y.year === year).length;
+    
+    if (sameYearsTotal > 1) {
+      return `${year}년도 (${sameYearsBefore + 1})`;
+    }
+    return `${year}년도`;
+  };
+
+  const updateYearField = (id: string, field: string, value: any) => {
+    setRegForm((prev: any) => {
+      const updatedYears = (prev.years || []).map((y: any) => {
+        if (y.id === id) {
+          const updatedRow = { ...y, [field]: value };
+          if (field === 'salaryTotal' || field === 'taxBase' || field === 'childReduction' || field === 'childDeduction' || field === 'decisionTax' || field === 'localTax') {
+            updatedRow.active = true;
+          }
+          return updatedRow;
+        }
+        return y;
+      });
+      return { ...prev, years: updatedYears };
+    });
+  };
+
   return (
-    <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
+    <div className="table-scroll-container" style={{ marginBottom: '20px', border: '1px solid #cbd5e1' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1100px' }}>
         <thead>
           {/* Year columns header */}
@@ -61,30 +88,33 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                 <Plus size={12} /> 연도 추가
               </button>
             </th>
-            {targetYears.map(yr => (
-              <th key={yr} style={{ border: '1px solid #cbd5e1', padding: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <span>{yr}년도</span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveYear(yr)}
-                    style={{
-                      border: 'none',
-                      background: 'none',
-                      color: '#ef4444',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontSize: '12px',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    title="연도 삭제"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              </th>
-            ))}
+            {yearsList.map((yrData: any, idx: number) => {
+              const yearLabel = getYearLabel(idx, yrData.year);
+              return (
+                <th key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <span>{yearLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveYear(yrData.id, yearLabel)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="연도 삭제"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                </th>
+              );
+            })}
             <th style={{ border: '1px solid #cbd5e1', padding: '8px', width: '120px' }}>합계금액</th>
           </tr>
         </thead>
@@ -119,17 +149,17 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                 </label>
               </div>
             </td>
-            {targetYears.map(yr => {
-              const yrData = regForm.years[yr];
-              const hasPdf = yrData?.isFileUploaded || Boolean(yrData?.fileURL) || Boolean(yrData?.pdfUrl) || Boolean(yrData?.pdfFile);
+            {yearsList.map((yrData: any, idx: number) => {
+              const yearLabel = getYearLabel(idx, yrData.year);
+              const hasPdf = yrData.isFileUploaded || Boolean(yrData.fileURL) || Boolean(yrData.pdfUrl) || Boolean(yrData.pdfFile);
               return (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
+                <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
                   <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                     {hasPdf ? (
                       <>
                         <button
                           type="button"
-                          onClick={() => handleDownloadPdf(yr)}
+                          onClick={() => handleDownloadPdf(yrData.id, yearLabel)}
                           style={{
                             backgroundColor: '#15803d',
                             color: '#ffffff',
@@ -146,7 +176,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleReanalyzeYearPdf(yr)}
+                          onClick={() => handleReanalyzeYearPdf(yrData.id, yearLabel)}
                           style={{
                             backgroundColor: '#0284c7',
                             color: '#ffffff',
@@ -167,9 +197,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                       <input 
                         type="file" 
                         accept=".pdf" 
-                        multiple
                         style={{ fontSize: '12px', width: '150px' }} 
-                        onChange={(e) => handleSingleYearPdfUpload(e, yr)} 
+                        onChange={(e) => handleSingleYearPdfUpload(e, yrData.id)} 
                       />
                     )}
                   </div>
@@ -182,22 +211,19 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           {/* Work Details Row Group */}
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>적용연도</td>
-            {targetYears.map(yr => <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>{yr}</td>)}
+            {yearsList.map((yrData: any) => <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>{yrData.year}</td>)}
             <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
           </tr>
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>근무기간</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                  value={regForm.years[yr]?.workPeriod || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], workPeriod: val } } }));
-                  }}
+                  value={yrData.workPeriod || ''}
+                  onChange={(e) => updateYearField(yrData.id, 'workPeriod', e.target.value)}
                   placeholder="-"
                 />
               </td>
@@ -206,17 +232,14 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           </tr>
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>근무처명</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                  value={regForm.years[yr]?.workPlace || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], workPlace: val } } }));
-                  }}
+                  value={yrData.workPlace || ''}
+                  onChange={(e) => updateYearField(yrData.id, 'workPlace', e.target.value)}
                   placeholder="-"
                 />
               </td>
@@ -225,17 +248,14 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           </tr>
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>사업자등록번호</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                  value={regForm.years[yr]?.businessNumber || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], businessNumber: val } } }));
-                  }}
+                  value={yrData.businessNumber || ''}
+                  onChange={(e) => updateYearField(yrData.id, 'businessNumber', e.target.value)}
                   placeholder="-"
                 />
               </td>
@@ -244,17 +264,14 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           </tr>
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', backgroundColor: '#f8fafc', fontWeight: 'bold', textAlign: 'center' }}>생년월일</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                  value={regForm.years[yr]?.birthDate || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], birthDate: val } } }));
-                  }}
+                  value={yrData.birthDate || ''}
+                  onChange={(e) => updateYearField(yrData.id, 'birthDate', e.target.value)}
                   placeholder="-"
                 />
               </td>
@@ -262,46 +279,43 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             <td style={{ border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}></td>
           </tr>
 
-          {/* Financial values (Zebra rows, light purple headers on left) */}
+          {/* Financial values */}
           {/* 1. 급여 -> 총급여, 계 */}
           <tr style={{ backgroundColor: '#faf5ff' }}>
             <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#f3e8ff', verticalAlign: 'middle' }}>급여</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>총급여</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.salaryTotal || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], salaryTotal: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.salaryTotal || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'salaryTotal', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.salaryTotal) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.salaryTotal) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
           <tr style={{ backgroundColor: '#faf5ff' }}>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>계</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.salaryTotal || '0' : ''}
+                  value={yrData.active ? yrData.salaryTotal || '0' : ''}
                   placeholder="-"
                   readOnly
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.salaryTotal) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.salaryTotal) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -309,23 +323,20 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>과세표준</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>산출세액</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.taxBase || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], taxBase: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.taxBase || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'taxBase', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.taxBase) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.taxBase) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -333,23 +344,20 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr style={{ backgroundColor: '#faf5ff' }}>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#f3e8ff' }}>세액감면</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>중소기업 청년 세액감면</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.childReduction || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childReduction: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.childReduction || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'childReduction', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childReduction) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.childReduction) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -357,102 +365,89 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>세액공제</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>근로소득 세액공제</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.childDeduction || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childDeduction: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.childDeduction || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'childDeduction', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childDeduction) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.childDeduction) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* 5. 결정세액 */}
           <tr style={{ backgroundColor: '#faf5ff' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>결정세액</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTax || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTax: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.decisionTax || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTax', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTax) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.decisionTax) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* 6. 지방세 */}
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>지방세</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.localTax || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], localTax: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.localTax || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'localTax', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.localTax) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.localTax) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* 7. 세액합계금액 */}
           <tr style={{ backgroundColor: '#faf5ff' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#7e22ce', backgroundColor: '#faf5ff' }}>세액합계금액</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.taxRefundTotal || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], taxRefundTotal: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.taxRefundTotal || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'taxRefundTotal', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f3e8ff' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.taxRefundTotal) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.taxRefundTotal) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* 8. 중소기업 청년 세액감면 적용 */}
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>중소기업 청년 세액감면 적용</td>
-            {targetYears.map(yr => {
-              const yearData = regForm.years[yr];
-              const isFileUploaded = Boolean(yearData?.isFileUploaded);
-              const applyVal = yearData?.childReductionApply;
+            {yearsList.map((yrData: any) => {
+              const isFileUploaded = Boolean(yrData.isFileUploaded);
+              const applyVal = yrData.childReductionApply;
 
               const eligibility = checkYouthEligibility(regForm.foreignerNumber, regForm.residentAddress);
               const isEligible = eligibility.isEligible;
@@ -460,12 +455,12 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
               const isApplied = isEligible && Boolean(
                 applyVal !== 'N' && 
                 applyVal !== '0' && 
-                (applyVal === 'Y' || applyVal === '90%' || Number(yearData?.childReductionApplyAmt) > 0)
+                (applyVal === 'Y' || applyVal === '90%' || Number(yrData.childReductionApplyAmt) > 0)
               );
 
               return (
                 <td 
-                  key={yr} 
+                  key={yrData.id} 
                   style={{ 
                     border: '1px solid #cbd5e1', 
                     padding: isFileUploaded ? '6px' : '2px', 
@@ -476,16 +471,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   }}
                   onClick={() => {
                     if (isEligible && isFileUploaded) {
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        years: {
-                          ...prev.years,
-                          [yr]: {
-                            ...prev.years[yr],
-                            childReductionApply: isApplied ? 'N' : 'Y'
-                          }
-                        }
-                      }));
+                      updateYearField(yrData.id, 'childReductionApply', isApplied ? 'N' : 'Y');
                     }
                   }}
                 >
@@ -498,20 +484,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                       type="text"
                       className="form-control"
                       style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
-                      value={(!yearData?.childReductionApply || yearData?.childReductionApply === '0') ? '90%' : yearData?.childReductionApply}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setRegForm((prev: any) => ({
-                          ...prev,
-                          years: {
-                            ...prev.years,
-                            [yr]: {
-                              ...prev.years[yr],
-                              childReductionApply: val
-                            }
-                          }
-                        }));
-                      }}
+                      value={(!yrData.childReductionApply || yrData.childReductionApply === '0') ? '90%' : yrData.childReductionApply}
+                      onChange={(e) => updateYearField(yrData.id, 'childReductionApply', e.target.value)}
                       placeholder="90%"
                     />
                   ) : isApplied ? (
@@ -534,23 +508,20 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1', width: '120px' }}>세액감면</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>중소기업 청년 세액감면</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.childReductionApplyAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childReductionApplyAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.childReductionApplyAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'childReductionApplyAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childReductionApplyAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.childReductionApplyAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -558,92 +529,80 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr>
             <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1', verticalAlign: 'middle' }}>세액공제</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>근로소득 세액공제(변경)</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.childDeductionApplyAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], childDeductionApplyAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.childDeductionApplyAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'childDeductionApplyAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.childDeductionApplyAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.childDeductionApplyAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* Row 4: 결정세액(변경) */}
           <tr>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>결정세액(변경)</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTaxApplyAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTaxApplyAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.decisionTaxApplyAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxApplyAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.decisionTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* Row 5: 지방세액(변경) */}
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>지방세액(변경)</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.localTaxApplyAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], localTaxApplyAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.localTaxApplyAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'localTaxApplyAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.localTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.localTaxApplyAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
           {/* Row 6: 세액합계금액(변경) */}
           <tr>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#e0f2fe', color: '#0369a1' }}>세액합계금액(변경)</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.decisionTaxRefundAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], decisionTaxRefundAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.decisionTaxRefundAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxRefundAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f1f5f9' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.decisionTaxRefundAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.decisionTaxRefundAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -651,74 +610,78 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           <tr style={{ backgroundColor: '#fef9c3' }}>
             <td rowSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a', verticalAlign: 'middle' }}>환급예상금액</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef9c3' }}>국세환급금</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.refundExpectNational || '0' : ''}
+                  value={yrData.active ? yrData.refundExpectNational || '0' : ''}
                   onChange={(e) => {
                     const val = e.target.value;
-                    const local = Number(regForm.years[yr]?.refundExpectLocal) || 0;
+                    const local = Number(yrData.refundExpectLocal) || 0;
                     const newCourtFee = (Number(val) || 0) + local;
                     const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                    setRegForm((prev: any) => ({
-                      ...prev,
-                      years: {
-                        ...prev.years,
-                        [yr]: {
-                          ...prev.years[yr],
-                          refundExpectNational: val,
-                          courtFee: String(newCourtFee),
-                          expectedFeeAmt: String(newFee),
-                          active: true
+                    setRegForm((prev: any) => {
+                      const updated = (prev.years || []).map((y: any) => {
+                        if (y.id === yrData.id) {
+                          return {
+                            ...y,
+                            refundExpectNational: val,
+                            courtFee: String(newCourtFee),
+                            expectedFeeAmt: String(newFee),
+                            active: true
+                          };
                         }
-                      }
-                    }));
+                        return y;
+                      });
+                      return { ...prev, years: updated };
+                    });
                   }}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.refundExpectNational) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.refundExpectNational) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
           <tr style={{ backgroundColor: '#fef9c3' }}>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef9c3' }}>지방세 환급금</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.refundExpectLocal || '0' : ''}
+                  value={yrData.active ? yrData.refundExpectLocal || '0' : ''}
                   onChange={(e) => {
                     const val = e.target.value;
-                    const nat = Number(regForm.years[yr]?.refundExpectNational) || 0;
+                    const nat = Number(yrData.refundExpectNational) || 0;
                     const newCourtFee = nat + (Number(val) || 0);
                     const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                    setRegForm((prev: any) => ({
-                      ...prev,
-                      years: {
-                        ...prev.years,
-                        [yr]: {
-                          ...prev.years[yr],
-                          refundExpectLocal: val,
-                          courtFee: String(newCourtFee),
-                          expectedFeeAmt: String(newFee),
-                          active: true
+                    setRegForm((prev: any) => {
+                      const updated = (prev.years || []).map((y: any) => {
+                        if (y.id === yrData.id) {
+                          return {
+                            ...y,
+                            refundExpectLocal: val,
+                            courtFee: String(newCourtFee),
+                            expectedFeeAmt: String(newFee),
+                            active: true
+                          };
                         }
-                      }
-                    }));
+                        return y;
+                      });
+                      return { ...prev, years: updated };
+                    });
                   }}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.refundExpectLocal) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.refundExpectLocal) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -727,13 +690,13 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
               총 환급 합계금액
             </td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#854d0e' }}>
-                {regForm.years[yr]?.active ? `${Number(regForm.years[yr]?.courtFee || 0).toLocaleString()}원` : '-'}
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#854d0e' }}>
+                {yrData.active ? `${Number(yrData.courtFee || 0).toLocaleString()}원` : '-'}
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fef08a', color: '#854d0e', fontSize: '13px' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.courtFee) || 0 : 0), 0).toLocaleString()}원
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.courtFee) || 0 : 0), 0).toLocaleString()}원
             </td>
           </tr>
 
@@ -745,11 +708,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                 <span>적용 부양가족 수 / 인적공제</span>
               </div>
             </td>
-            {targetYears.map(yr => {
+            {yearsList.map((yrData: any) => {
               const totalDeps = regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount;
               const totalDeductionVal = (regForm.dependentsCount * 150) + (regForm.seniorCount * 100) + (regForm.disabledCount * 200);
               return (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center', fontSize: '11px', color: '#15803d', fontWeight: 'bold', backgroundColor: '#f0fdf4' }}>
+                <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center', fontSize: '11px', color: '#15803d', fontWeight: 'bold', backgroundColor: '#f0fdf4' }}>
                   {totalDeps > 0 ? `${totalDeps}명 (+${totalDeductionVal}만 원 공제)` : '본인 기본공제'}
                 </td>
               );
@@ -764,17 +727,16 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
               적용 부양가족 환급금
             </td>
-            {targetYears.map(yr => {
-              const yrData = regForm.years[yr];
-              const depRefund = Number(yrData?.dependentRefundTotal) || 0;
+            {yearsList.map((yrData: any) => {
+              const depRefund = Number(yrData.dependentRefundTotal) || 0;
               return (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#15803d' }}>
-                  {yrData?.active ? `+${depRefund.toLocaleString()}원` : '-'}
+                <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#15803d' }}>
+                  {yrData.active ? `+${depRefund.toLocaleString()}원` : '-'}
                 </td>
               );
             })}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '13px' }}>
-              +{targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.dependentRefundTotal) || 0 : 0), 0).toLocaleString()}원
+              +{yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.dependentRefundTotal) || 0 : 0), 0).toLocaleString()}원
             </td>
           </tr>
 
@@ -803,23 +765,20 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                 </select>
               </div>
             </td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
                   type="number"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={regForm.years[yr]?.active ? regForm.years[yr]?.expectedFeeAmt || '0' : ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRegForm((prev: any) => ({ ...prev, years: { ...prev.years, [yr]: { ...prev.years[yr], expectedFeeAmt: val, active: true } } }));
-                  }}
+                  value={yrData.active ? yrData.expectedFeeAmt || '0' : ''}
+                  onChange={(e) => updateYearField(yrData.id, 'expectedFeeAmt', e.target.value)}
                   placeholder="-"
                 />
               </td>
             ))}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a' }}>
-              {targetYears.reduce((sum, yr) => sum + (regForm.years[yr]?.active ? Number(regForm.years[yr]?.expectedFeeAmt) || 0 : 0), 0).toLocaleString()}
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.expectedFeeAmt) || 0 : 0), 0).toLocaleString()}
             </td>
           </tr>
 
@@ -828,8 +787,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#fef08a', color: '#854d0e' }}>
               세액재정정 경정 청구서 파일
             </td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <input 
                     type="file" 
@@ -844,8 +803,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
           {/* PDF file attachment row at the very bottom */}
           <tr style={{ backgroundColor: '#f1f5f9' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center' }}>세액결정 경정 청구서 파일</td>
-            {targetYears.map(yr => (
-              <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center' }}>
                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
                   <input type="file" style={{ fontSize: '12px', width: '150px' }} />
                 </div>

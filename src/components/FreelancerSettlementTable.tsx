@@ -60,7 +60,7 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
       </div>
 
       {/* 3.3% Table */}
-      <div style={{ overflowX: 'auto' }}>
+      <div className="table-scroll-container">
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1100px' }}>
           <thead>
             <tr style={{ backgroundColor: '#ccfbf1', color: '#115e59', fontWeight: 'bold', textAlign: 'center' }}>

@@ -247,25 +247,30 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       return { success: false, clientId: null };
     }
 
-    const years = ['2022', '2023', '2024', '2025'];
-    for (const yr of years) {
-      const yrData = regForm.years[yr];
-      const freelancerData = regForm.freelancerYears?.[yr];
-
-      const hasWageData = yrData && (yrData.active || yrData.isFileUploaded);
-      const hasFreelancerData = freelancerData && (freelancerData.active || freelancerData.isFileUploaded);
-
-      if (!hasWageData && !hasFreelancerData) continue;
-
-      let fileURL: string | undefined = undefined;
-      const pdfFile = pdfFileObjects[yr];
-      if (pdfFile) {
-        const uploadPath = `${clientId}/${yr}.pdf`;
-        const uploadedUrl = await uploadPdfToSupabase(pdfFile, uploadPath);
-        if (uploadedUrl) {
-          fileURL = uploadedUrl;
+    // 1. Delete removed YearEndData records
+    if (regForm.deletedYearIds && regForm.deletedYearIds.length > 0) {
+      const validDeleteIds = regForm.deletedYearIds.filter((id: any) => id && !String(id).startsWith('temp_'));
+      if (validDeleteIds.length > 0) {
+        const { error: deleteErr } = await supabase
+          .from('YearEndData')
+          .delete()
+          .in('id', validDeleteIds);
+        if (deleteErr) {
+          console.warn('Failed to delete YearEndData records:', deleteErr.message);
         }
       }
+    }
+
+    // Map of client-side ID to DB ID for newly inserted rows
+    const updatedYearIdsMap: Record<string, any> = {};
+
+    // 2. Pre-process Freelancer Data
+    const freelancerPayloadsMap: Record<string, any> = {};
+    const targetYearsList = ['2022', '2023', '2024', '2025'];
+    for (const yr of targetYearsList) {
+      const freelancerData = regForm.freelancerYears?.[yr];
+      const hasFreelancerData = freelancerData && (freelancerData.active || freelancerData.isFileUploaded);
+      if (!hasFreelancerData) continue;
 
       let freelancerFileURL: string | undefined = undefined;
       const freelancerPdfFile = pdfFileObjects[`freelancer_${yr}`];
@@ -277,28 +282,81 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         }
       }
 
+      freelancerPayloadsMap[yr] = {
+        freelancerActive: true,
+        freelancerCompanyName: freelancerData.workPlace || '',
+        freelancerCompanyRegNo: freelancerData.businessNumber || '',
+        freelancerNetSalary: Number(freelancerData.totalIncome) || 0,
+        freelancerDeterminedTax: Number(freelancerData.withholdingTax3) || 0,
+        freelancerLocalTax: Number(freelancerData.localTax03) || 0,
+        freelancerRefundExpectNational: Number(freelancerData.refundExpectNational) || 0,
+        freelancerRefundExpectLocal: Number(freelancerData.refundExpectLocal) || 0,
+        freelancerCourtFee: Number(freelancerData.courtFee) || 0,
+        freelancerExpectedFeeAmt: Number(freelancerData.expectedFeeAmt) || 0,
+        freelancerIncomeTypeCode: freelancerData.incomeTypeCode || '3.3%',
+        freelancerIsNonRefundable: Boolean(freelancerData.isNonRefundable),
+        ...(freelancerFileURL ? { freelancerFileURL } : (freelancerData.fileURL ? { freelancerFileURL: freelancerData.fileURL } : {}))
+      };
+    }
+
+    // 3. Process Wage Income Years (from array)
+    const processedWageYears = new Set<string>();
+    for (const yrData of (regForm.years || [])) {
+      const yr = String(yrData.year);
+      let fileURL: string | undefined = yrData.fileURL || undefined;
+
+      const pdfFile = pdfFileObjects[yrData.id];
+      if (pdfFile) {
+        const uploadPath = `${clientId}/yearend_${yrData.id}.pdf`;
+        const uploadedUrl = await uploadPdfToSupabase(pdfFile, uploadPath);
+        if (uploadedUrl) {
+          fileURL = uploadedUrl;
+        }
+      }
+
       let workPeriodStart: string | null = null;
       let workPeriodEnd: string | null = null;
-      if (yrData && yrData.workPeriod && yrData.workPeriod.includes('~')) {
+      if (yrData.workPeriod && yrData.workPeriod.includes('~')) {
         const parts = yrData.workPeriod.split('~').map((s: string) => s.trim());
         if (parts[0]) workPeriodStart = parts[0];
         if (parts[1]) workPeriodEnd = parts[1];
       }
 
-      const totalSal = yrData ? (Number(yrData.salaryTotal || yrData.totalSalary) || 0) : 0;
-      const calcTax = yrData ? (Number(yrData.taxBase) || 0) : 0;
-      const smallDed = yrData ? (Number(yrData.childReduction || yrData.appliedTaxReduction) || 0) : 0;
-      const origTax = yrData ? (Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0) : 0;
-      const recalcDetTax = yrData ? (Number(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax) || 0) : 0;
-      const recalcLocTax = yrData ? (Number(yrData.localTaxApplyAmt || yrData.recalcLocalTax) || 0) : 0;
-      const refNat = yrData ? (Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0) : 0;
-      const refLoc = yrData ? (Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0) : 0;
+      const totalSal = Number(yrData.salaryTotal || yrData.totalSalary) || 0;
+      const calcTax = Number(yrData.taxBase) || 0;
+      const smallDed = Number(yrData.childReduction || yrData.appliedTaxReduction) || 0;
+      const origTax = Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0;
+      const recalcDetTax = Number(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax) || 0;
+      const recalcLocTax = Number(yrData.localTaxApplyAmt || yrData.recalcLocalTax) || 0;
+      const refNat = Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0;
+      const refLoc = Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0;
+
+      // Merge freelancer data only into the first wage income row for this year
+      const isFirstRowForYear = !processedWageYears.has(yr);
+      processedWageYears.add(yr);
+
+      const mergedFreelancerPayload = (isFirstRowForYear && freelancerPayloadsMap[yr]) 
+        ? freelancerPayloadsMap[yr] 
+        : {
+            freelancerActive: false,
+            freelancerCompanyName: '',
+            freelancerCompanyRegNo: '',
+            freelancerNetSalary: 0,
+            freelancerDeterminedTax: 0,
+            freelancerLocalTax: 0,
+            freelancerRefundExpectNational: 0,
+            freelancerRefundExpectLocal: 0,
+            freelancerCourtFee: 0,
+            freelancerExpectedFeeAmt: 0,
+            freelancerIncomeTypeCode: '3.3%',
+            freelancerIsNonRefundable: false
+          };
 
       const yearPayload: Record<string, any> = {
         clientId: clientId,
         year: parseInt(yr, 10),
-        companyName: yrData?.workPlace || '',
-        companyRegNo: yrData?.businessNumber || yrData?.companyRegNum || '',
+        companyName: yrData.workPlace || '',
+        companyRegNo: yrData.businessNumber || yrData.companyRegNum || '',
         netSalary: totalSal,
         netSalaryFromAllCompany: totalSal,
         determinedTax: origTax,
@@ -310,53 +368,98 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         changedDeterminedTax: recalcDetTax,
         changedLocalTax: recalcLocTax,
         changedTotalTax: recalcDetTax + recalcLocTax,
-        regNum: regForm.foreignerNumber || yrData?.birthDate || '',
-        isSmallBusinessDeduction: yrData ? (yrData.isReductionEligible === '여' || smallDed > 0) : false,
+        regNum: regForm.foreignerNumber || yrData.birthDate || '',
+        isSmallBusinessDeduction: yrData.isReductionEligible === '여' || smallDed > 0,
         ...(workPeriodStart ? { workPeriodStart } : {}),
         ...(workPeriodEnd ? { workPeriodEnd } : {}),
         ...(fileURL ? { fileURL } : {}),
-
-        // Freelancer (3.3%) fields
-        freelancerActive: freelancerData ? Boolean(freelancerData.active) : false,
-        freelancerCompanyName: freelancerData?.workPlace || '',
-        freelancerCompanyRegNo: freelancerData?.businessNumber || '',
-        freelancerNetSalary: freelancerData ? (Number(freelancerData.totalIncome) || 0) : 0,
-        freelancerDeterminedTax: freelancerData ? (Number(freelancerData.withholdingTax3) || 0) : 0,
-        freelancerLocalTax: freelancerData ? (Number(freelancerData.localTax03) || 0) : 0,
-        freelancerRefundExpectNational: freelancerData ? (Number(freelancerData.refundExpectNational) || 0) : 0,
-        freelancerRefundExpectLocal: freelancerData ? (Number(freelancerData.refundExpectLocal) || 0) : 0,
-        freelancerCourtFee: freelancerData ? (Number(freelancerData.courtFee) || 0) : 0,
-        freelancerExpectedFeeAmt: freelancerData ? (Number(freelancerData.expectedFeeAmt) || 0) : 0,
-        freelancerIncomeTypeCode: freelancerData?.incomeTypeCode || '3.3%',
-        freelancerIsNonRefundable: freelancerData ? Boolean(freelancerData.isNonRefundable) : false,
-        ...(freelancerFileURL ? { freelancerFileURL } : (freelancerData?.fileURL ? { freelancerFileURL: freelancerData.fileURL } : {}))
+        ...mergedFreelancerPayload
       };
 
-      const { data: existingYr } = await supabase
-        .from('YearEndData')
-        .select('clientId, year')
-        .eq('clientId', clientId)
-        .eq('year', parseInt(yr, 10))
-        .maybeSingle();
+      let existingRecordId: any = null;
+      if (yrData.id && !String(yrData.id).startsWith('temp_')) {
+        const { data: existingYr } = await supabase
+          .from('YearEndData')
+          .select('id')
+          .eq('id', yrData.id)
+          .maybeSingle();
+        if (existingYr) {
+          existingRecordId = existingYr.id;
+        }
+      }
 
-      if (existingYr) {
+      if (existingRecordId) {
         const { error: yrUpdateErr } = await supabase
           .from('YearEndData')
           .update(yearPayload)
-          .eq('clientId', clientId)
-          .eq('year', parseInt(yr, 10));
+          .eq('id', existingRecordId);
         if (yrUpdateErr) {
           throw new Error(`YearEndData Update Error (${yr}): ${yrUpdateErr.message}`);
         }
       } else {
-        const { error: yrInsertErr } = await supabase.from('YearEndData').insert([{ ...yearPayload, createdAt: new Date().toISOString() }]);
+        const { data: inserted, error: yrInsertErr } = await supabase
+          .from('YearEndData')
+          .insert([{ ...yearPayload, createdAt: new Date().toISOString() }])
+          .select('id')
+          .single();
         if (yrInsertErr) {
           throw new Error(`YearEndData Insert Error (${yr}): ${yrInsertErr.message}`);
+        }
+        if (inserted) {
+          updatedYearIdsMap[yrData.id] = inserted.id;
         }
       }
     }
 
-    return { success: true, clientId, serial: newClientSerial || regForm.serial || null };
+    // 4. Standalone Freelancer data rows (no matching wage income years)
+    for (const yr of targetYearsList) {
+      if (processedWageYears.has(yr)) continue; // Already merged
+
+      const freelancerPayload = freelancerPayloadsMap[yr];
+      if (!freelancerPayload) continue;
+
+      const yearPayload: Record<string, any> = {
+        clientId: clientId,
+        year: parseInt(yr, 10),
+        companyName: '',
+        companyRegNo: '',
+        netSalary: 0,
+        netSalaryFromAllCompany: 0,
+        determinedTax: 0,
+        smallBusinessDeduction: 0,
+        calculatedTax: 0,
+        determinedTaxRefund: 0,
+        totalTaxRefund: 0,
+        localTaxRefund: 0,
+        changedDeterminedTax: 0,
+        changedLocalTax: 0,
+        changedTotalTax: 0,
+        regNum: regForm.foreignerNumber || '',
+        isSmallBusinessDeduction: false,
+        ...freelancerPayload
+      };
+
+      const { data: existingYr } = await supabase
+        .from('YearEndData')
+        .select('id')
+        .eq('clientId', clientId)
+        .eq('year', parseInt(yr, 10))
+        .eq('companyName', '')
+        .maybeSingle();
+
+      if (existingYr) {
+        await supabase
+          .from('YearEndData')
+          .update(yearPayload)
+          .eq('id', existingYr.id);
+      } else {
+        await supabase
+          .from('YearEndData')
+          .insert([{ ...yearPayload, createdAt: new Date().toISOString() }]);
+      }
+    }
+
+    return { success: true, clientId, serial: newClientSerial || regForm.serial || null, updatedYearIdsMap };
   } catch (err) {
     console.error('saveRegistrationToSupabase Exception:', err);
     return { success: false, error: err };

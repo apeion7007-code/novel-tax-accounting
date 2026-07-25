@@ -28,6 +28,7 @@ import ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { WageSettlementTable } from './components/WageSettlementTable';
 import { FreelancerSettlementTable } from './components/FreelancerSettlementTable';
 import { CombinedSummaryTable } from './components/CombinedSummaryTable';
+import { SmeVerification } from './components/SmeVerification';
 import {
   supabase,
   fetchInitialClientsFromSupabase,
@@ -918,13 +919,14 @@ function App() {
     taxReductionApplyDateEnd: '',
 
     // Yearly calculations: 2021 ~ 2025
-    years: {
-      '2021': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-      '2022': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-      '2023': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-      '2024': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-      '2025': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-    } as Record<string, any>,
+    years: [
+      { id: 'temp_2021', year: '2021', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+      { id: 'temp_2022', year: '2022', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+      { id: 'temp_2023', year: '2023', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+      { id: 'temp_2024', year: '2024', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+      { id: 'temp_2025', year: '2025', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+    ] as any[],
+    deletedYearIds: [] as any[],
 
     // Customer Consultation Information
     snsName: '',
@@ -981,7 +983,7 @@ function App() {
     const rrn = regForm.foreignerNumber ? regForm.foreignerNumber.replace(/-/g, '').trim() : '';
     const actualEmpDateStr = regForm.residentAddress ? regForm.residentAddress.trim() : '';
 
-    const periods = Object.values(regForm.years || {})
+    const periods = (regForm.years || [])
       .map((y: any) => y.workPeriod)
       .filter((wp: string) => wp && wp.includes('~'))
       .map((wp: string) => wp.split('~')[0].trim())
@@ -1066,12 +1068,10 @@ function App() {
   useEffect(() => {
     setRegForm(prev => {
       let changed = false;
-      const updatedYears = { ...prev.years };
-
-      Object.keys(updatedYears).forEach(yr => {
-        if (updatedYears[yr] && (updatedYears[yr].active || updatedYears[yr].isFileUploaded)) {
+      const updatedYears = (prev.years || []).map(yrData => {
+        if (yrData && (yrData.active || yrData.isFileUploaded)) {
           const recalculated = recalculateYearData(
-            updatedYears[yr],
+            yrData,
             prev.dependentsCount,
             prev.seniorCount,
             prev.disabledCount,
@@ -1081,12 +1081,12 @@ function App() {
             prev.residentAddress
           );
 
-          // Deep comparison to avoid infinite loops
-          if (JSON.stringify(recalculated) !== JSON.stringify(updatedYears[yr])) {
-            updatedYears[yr] = recalculated;
+          if (JSON.stringify(recalculated) !== JSON.stringify(yrData)) {
             changed = true;
+            return recalculated;
           }
         }
+        return yrData;
       });
 
       if (changed) {
@@ -1137,13 +1137,14 @@ function App() {
       taxReductionApplyDateStart: '',
       taxReductionApplyDateEnd: '',
 
-      years: {
-        '2021': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-        '2022': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-        '2023': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-        '2024': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-        '2025': { active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
-      },
+      years: [
+        { id: 'temp_2021', year: '2021', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        { id: 'temp_2022', year: '2022', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        { id: 'temp_2023', year: '2023', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        { id: 'temp_2024', year: '2024', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        { id: 'temp_2025', year: '2025', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+      ],
+      deletedYearIds: [],
 
       snsName: '',
       snsAddress: '',
@@ -1255,9 +1256,8 @@ function App() {
       const newDisCount = key === 'disabledCount' ? Math.max(0, prev.disabledCount + delta) : prev.disabledCount;
       const newChCount = key === 'childCount' ? Math.max(0, prev.childCount + delta) : prev.childCount;
 
-      const updatedYears = { ...prev.years };
-      Object.keys(updatedYears).forEach(yr => {
-        updatedYears[yr] = recalculateYearData(updatedYears[yr], newDepCount, newSenCount, newDisCount, newChCount, selectedFeeRate);
+      const updatedYears = (prev.years || []).map(yrData => {
+        return recalculateYearData(yrData, newDepCount, newSenCount, newDisCount, newChCount, selectedFeeRate);
       });
 
       const updatedFreelancerYears = { ...prev.freelancerYears };
@@ -1294,54 +1294,68 @@ function App() {
   const handleFeeRateChange = (rate: number) => {
     setSelectedFeeRate(rate);
     setRegForm(prev => {
-      const updatedYears = { ...prev.years };
-      targetYears.forEach(yr => {
-        if (updatedYears[yr]) {
-          updatedYears[yr] = recalculateYearData(updatedYears[yr], prev.dependentsCount, prev.seniorCount, prev.disabledCount, prev.childCount, rate);
-        }
+      const updatedYears = (prev.years || []).map(yrData => {
+        return recalculateYearData(yrData, prev.dependentsCount, prev.seniorCount, prev.disabledCount, prev.childCount, rate);
       });
       return { ...prev, years: updatedYears };
     });
   };
 
   const getCombinedRefund = (yr: string) => {
-    const yrData = regForm.years[yr];
+    const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
     const freeData = regForm.freelancerYears?.[yr];
 
-    if (!yrData?.active && !freeData?.active) return { refund: 0, fee: 0 };
+    const hasWage = matchingWageDataList.length > 0;
+    const hasFree = freeData?.active;
+
+    if (!hasWage && !hasFree) return { refund: 0, fee: 0 };
     
-    // Case 1: Only wage income active
-    if (yrData?.active && !freeData?.active) {
-      const refund = (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
-      const fee = Number(yrData.expectedFeeAmt) || 0;
+    // Case 1: Only wage active
+    if (hasWage && !hasFree) {
+      let refund = 0;
+      let fee = 0;
+      matchingWageDataList.forEach((yrData: any) => {
+        refund += (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
+        fee += Number(yrData.expectedFeeAmt) || 0;
+      });
       return { refund, fee };
     }
 
     // Case 2: Only freelancer active
-    if (!yrData?.active && freeData?.active) {
+    if (!hasWage && hasFree) {
       const refund = (Number(freeData.refundExpectNational) || 0) + (Number(freeData.refundExpectLocal) || 0);
       const fee = Number(freeData.expectedFeeAmt) || 0;
       return { refund, fee };
     }
 
     // Case 3: Both active -> Combined tax calculation
-    const wageCalcTax = Number(yrData.taxBase) || 0;
+    let wageCalcTax = 0;
+    let wagePaidTax = 0;
+    let wagePaidLocalTax = 0;
+    let childDeduction = 0;
+    let childReductionApply = 'Y';
+    
+    matchingWageDataList.forEach((yrData: any) => {
+      wageCalcTax += Number(yrData.taxBase) || 0;
+      wagePaidTax += Number(yrData.decisionTax) || 0;
+      wagePaidLocalTax += Number(yrData.localTax) || 0;
+      childDeduction += Number(yrData.childDeduction) || 0;
+      if (yrData.childReductionApply === 'N' || yrData.childReductionApply === '0') {
+        childReductionApply = 'N';
+      }
+    });
+
     const freeIncome = Number(freeData.totalIncome) || 0;
     
-    // Derive wage taxable income from wage calculated tax
     const deriveTaxableIncome = (calcTax: number): number => {
       if (calcTax <= 840000) return calcTax / 0.06;
       if (calcTax <= 6240000) return (calcTax + 1260000) / 0.15;
       return (calcTax + 5760000) / 0.24;
     };
     const wageTaxable = deriveTaxableIncome(wageCalcTax);
-    
-    // Freelancer taxable income (assuming 64.1% simple expense rate for 940909)
     const freeTaxable = freeIncome * 0.359;
-    
     const combinedTaxable = wageTaxable + freeTaxable;
     
-    // Calculate combined calculated tax
     let combinedCalcTax = 0;
     if (combinedTaxable <= 14000000) {
       combinedCalcTax = combinedTaxable * 0.06;
@@ -1352,11 +1366,9 @@ function App() {
     }
     combinedCalcTax = Math.max(0, Math.round(combinedCalcTax));
 
-    // Recalculate youth tax reduction (90% up to 1.5 million KRW)
-    const isReductionApplied = yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
+    const isReductionApplied = childReductionApply !== 'N' && childReductionApply !== '0';
     const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(combinedCalcTax * 0.9)) : 0;
 
-    // Extra family dependent deductions
     const depCount = Number(regForm.dependentsCount) || 0;
     const senCount = Number(regForm.seniorCount) || 0;
     const disCount = Number(regForm.disabledCount) || 0;
@@ -1368,22 +1380,14 @@ function App() {
 
     const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
     
-    // Scale child deduction
-    const childDeduction = Number(yrData.childDeduction) || 0;
     const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
 
-    // Final combined decision tax
     const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
     const combinedLocalTax = Math.round(combinedDecisionTax * 0.1);
 
-    // Total paid tax
-    const wagePaidTax = Number(yrData.decisionTax) || 0;
     const freePaidTax = Number(freeData.withholdingTax3) || 0;
-    
-    const wagePaidLocalTax = Number(yrData.localTax) || 0;
     const freePaidLocalTax = Number(freeData.localTax03) || 0;
 
-    // Combined refund
     const refundNational = Math.max(0, (wagePaidTax + freePaidTax) - combinedDecisionTax);
     const refundLocal = Math.max(0, (wagePaidLocalTax + freePaidLocalTax) - combinedLocalTax);
     
@@ -1394,89 +1398,98 @@ function App() {
   };
 
   const handleAddYear = () => {
-    const maxYear = targetYears.length > 0 ? Math.max(...targetYears.map(Number)) : 2025;
-    const nextYearSuggested = String(maxYear + 1);
-    const newYearInput = window.prompt('추가할 연말정산 연도를 입력하세요 (숫자 4자리):', nextYearSuggested);
-    if (!newYearInput) return;
-    
-    const cleanYear = newYearInput.trim();
+    const rawYear = prompt('추가할 정산 연도를 입력해주세요 (예: 2024):');
+    if (!rawYear) return;
+    const cleanYear = rawYear.trim();
     if (!/^\d{4}$/.test(cleanYear)) {
       alert('올바른 4자리 연도를 입력해주세요 (예: 2026).');
       return;
     }
-    if (targetYears.includes(cleanYear)) {
-      alert('이미 존재하는 연도입니다.');
-      return;
-    }
 
-    // Add to targetYears in sorted order
-    const updatedYears = [...targetYears, cleanYear].sort((a, b) => Number(a) - Number(b));
-    setTargetYears(updatedYears);
-
-    // Initialize in regForm.years if not exists
     setRegForm(prev => {
-      const existingYears = { ...prev.years };
-      if (!existingYears[cleanYear]) {
-        existingYears[cleanYear] = {
-          active: false,
-          workPeriod: '',
-          workPlace: '',
-          businessNumber: '',
-          birthDate: '',
-          salaryTotal: '0',
-          taxBase: '0',
-          childReduction: '0',
-          childDeduction: '0',
-          decisionTax: '0',
-          localTax: '0',
-          taxRefundTotal: '0',
-          childReductionApply: '0',
-          childReductionApplyAmt: '0',
-          childDeductionApplyAmt: '0',
-          decisionTaxApplyAmt: '0',
-          localTaxApplyAmt: '0',
-          decisionTaxRefundAmt: '0',
-          refundExpectNational: '0',
-          refundExpectLocal: '0',
-          courtFee: '0',
-          expectedFeeAmt: '0'
-        };
-      }
-      return { ...prev, years: existingYears };
+      const newId = 'temp_' + Date.now();
+      const newYearObj = {
+        id: newId,
+        year: cleanYear,
+        active: false,
+        workPeriod: '',
+        workPlace: '',
+        businessNumber: '',
+        birthDate: '',
+        salaryTotal: '0',
+        taxBase: '0',
+        childReduction: '0',
+        childDeduction: '0',
+        decisionTax: '0',
+        localTax: '0',
+        taxRefundTotal: '0',
+        childReductionApply: '90%',
+        childReductionApplyAmt: '0',
+        childDeductionApplyAmt: '0',
+        decisionTaxApplyAmt: '0',
+        localTaxApplyAmt: '0',
+        decisionTaxRefundAmt: '0',
+        refundExpectNational: '0',
+        refundExpectLocal: '0',
+        courtFee: '0',
+        expectedFeeAmt: '0'
+      };
+      const updatedYears = [...(prev.years || []), newYearObj].sort((a, b) => {
+        const yrA = Number(a.year) || 0;
+        const yrB = Number(b.year) || 0;
+        if (yrA !== yrB) return yrA - yrB;
+        const dateA = a.workPeriod?.split('~')[0]?.trim() || '';
+        const dateB = b.workPeriod?.split('~')[0]?.trim() || '';
+        return dateA.localeCompare(dateB);
+      });
+      return { ...prev, years: updatedYears };
     });
     showToast(`${cleanYear}년도가 정산 연도에 추가되었습니다.`, 'success');
   };
 
-  const handleRemoveYear = (yearToRemove: string) => {
-    if (window.confirm(`${yearToRemove}년도 정산 데이터를 정산 화면에서 제외하시겠습니까?\n(입력된 임시 데이터는 유지되나 화면에 표시되지 않습니다)`)) {
-      setTargetYears(prev => prev.filter(yr => yr !== yearToRemove));
-      showToast(`${yearToRemove}년도가 정산 연도에서 제외되었습니다.`, 'info');
+  const handleRemoveYear = (idToRemove: string, yearLabel: string) => {
+    if (window.confirm(`정말 ${yearLabel}의 근로소득 정보를 삭제하시겠습니까?`)) {
+      setRegForm(prev => {
+        const itemToRemove = (prev.years || []).find((y: any) => y.id === idToRemove);
+        const updatedDeletedIds = [...(prev.deletedYearIds || [])];
+        if (itemToRemove && itemToRemove.id && !String(itemToRemove.id).startsWith('temp_')) {
+          updatedDeletedIds.push(itemToRemove.id);
+        }
+        const updatedYears = (prev.years || []).filter((y: any) => y.id !== idToRemove);
+        return {
+          ...prev,
+          years: updatedYears,
+          deletedYearIds: updatedDeletedIds
+        };
+      });
+      showToast(`${yearLabel} 데이터가 삭제되었습니다. 고객 업데이트 시 영구 적용됩니다.`, 'info');
     }
   };
 
 
 
-  const handleDownloadPdf = async (yr: string) => {
-    const yearData = regForm.years[yr];
-    
+  const handleDownloadPdf = async (targetId: string, yrLabel: string) => {
+    const yearData = (regForm.years || []).find((y: any) => y.id === targetId);
+    const yr = yearData?.year || '';
+
     // 1. Memory uploaded file
     if (yearData?.pdfFile) {
       const url = URL.createObjectURL(yearData.pdfFile);
       const a = document.createElement('a');
       a.href = url;
-      a.download = yearData.pdfFile.name || `${yr}년도_원천징수영수증.pdf`;
+      a.download = yearData.pdfFile.name || `${yrLabel}_원천징수영수증.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      showToast(`[${yr}년도] PDF 원본 파일 다운로드를 완료했습니다.`, 'success');
+      showToast(`[${yrLabel}] PDF 원본 파일 다운로드를 완료했습니다.`, 'success');
       return;
     }
 
     // 1-2. Supabase Storage uploaded file URL
     if ((yearData as any)?.fileURL) {
       window.open((yearData as any).fileURL, '_blank');
-      showToast(`[${yr}년도] Supabase 스토리지 원본 PDF 파일을 엽니다.`, 'success');
+      showToast(`[${yrLabel}] Supabase 스토리지 원본 PDF 파일을 엽니다.`, 'success');
       return;
     }
 
@@ -1489,12 +1502,12 @@ function App() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${yr}년도_원천징수영수증.pdf`;
+        a.download = `${yrLabel}_원천징수영수증.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        showToast(`[${yr}년도] PDF 원본 파일 다운로드를 완료했습니다.`, 'success');
+        showToast(`[${yrLabel}] PDF 원본 파일 다운로드를 완료했습니다.`, 'success');
         return;
       }
     } catch (e) {
@@ -1502,7 +1515,7 @@ function App() {
     }
 
     // 3. Fallback text file
-    const textContent = `[노벨세무회계 연구] ${yr}년도 근로소득 원천징수영수증 정산 데이터\n\n` +
+    const textContent = `[노벨세무회계 연구] ${yrLabel} 근로소득 원천징수영수증 정산 데이터\n\n` +
       `신청인: ${regForm.name || '-'}\n` +
       `외국인등록번호: ${regForm.foreignerNumber || '-'}\n` +
       `근무처: ${yearData?.workPlace || '-'}\n` +
@@ -1518,50 +1531,55 @@ function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${yr}년도_원천징수영수증_정산서.txt`;
+    a.download = `${yrLabel}_원천징수영수증_정산서.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showToast(`[${yr}년도] 정산서 다운로드를 완료했습니다.`, 'success');
+    showToast(`[${yrLabel}] 정산서 다운로드를 완료했습니다.`, 'success');
   };
 
-  const handleSingleYearPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, fallbackYr?: string) => {
+  const handleSingleYearPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetId?: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       showToast(`PDF 분석을 시작합니다 (${file.name})...`, 'info');
       const text = await extractTextFromPdf(file);
-      const parsed = parsePdfText(text, fallbackYr);
+      const parsed = parsePdfText(text);
 
-      // Automatically detect year from PDF text, fallback to target column year
-      const yr = parsed.year || fallbackYr;
+      const yr = parsed.year;
       if (!yr || !/^\d{4}$/.test(yr)) {
         showToast(`PDF 파일에서 귀속연도를 감지하지 못했습니다.`, 'error');
         return;
       }
 
-      // Automatically activate the year column if not present
-      setTargetYears(prev => {
-        if (!prev.includes(yr)) {
-          return [...prev, yr].sort((a, b) => Number(a) - Number(b));
-        }
-        return prev;
-      });
-
       const originalDecisionTax = Number(parsed.determinedIncomeTax) || 0;
       const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
+
       setRegForm(prev => {
-        const updatedYears = { ...prev.years };
+        const updatedYears = [...(prev.years || [])];
+        
+        let targetIndex = -1;
+        if (targetId) {
+          targetIndex = updatedYears.findIndex(y => y.id === targetId);
+        }
+        
+        // If not found by ID, try to find an inactive column for the parsed year to occupy
+        if (targetIndex === -1) {
+          targetIndex = updatedYears.findIndex(y => y.year === yr && !y.active && !y.isFileUploaded);
+        }
+
         const rawYrData = {
+          id: targetIndex !== -1 ? updatedYears[targetIndex].id : ('temp_' + Date.now()),
           active: true,
           isFileUploaded: true,
           pdfFile: file,
-          workPeriod: parsed.workPeriod || updatedYears[yr]?.workPeriod || '',
-          workPlace: parsed.workPlace || updatedYears[yr]?.workPlace || '',
-          businessNumber: parsed.businessNumber || updatedYears[yr]?.businessNumber || '',
-          birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : updatedYears[yr]?.birthDate || '',
+          year: yr,
+          workPeriod: parsed.workPeriod || (targetIndex !== -1 ? updatedYears[targetIndex].workPeriod : '') || '',
+          workPlace: parsed.workPlace || (targetIndex !== -1 ? updatedYears[targetIndex].workPlace : '') || '',
+          businessNumber: parsed.businessNumber || (targetIndex !== -1 ? updatedYears[targetIndex].businessNumber : '') || '',
+          birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : (targetIndex !== -1 ? updatedYears[targetIndex].birthDate : '') || '',
           salaryTotal: parsed.salaryTotal || '0',
           taxBase: parsed.decisionTax || parsed.taxBase || '0',
           childReduction: parsed.childReduction || '0',
@@ -1591,7 +1609,7 @@ function App() {
         const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
         const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-        updatedYears[yr] = recalculateYearData(
+        const recalculated = recalculateYearData(
           rawYrData, 
           prev.dependentsCount, 
           prev.seniorCount, 
@@ -1601,6 +1619,21 @@ function App() {
           newRrn,
           newEmpDate
         );
+
+        if (targetIndex !== -1) {
+          updatedYears[targetIndex] = recalculated;
+        } else {
+          updatedYears.push(recalculated);
+        }
+
+        updatedYears.sort((a, b) => {
+          const yrA = Number(a.year) || 0;
+          const yrB = Number(b.year) || 0;
+          if (yrA !== yrB) return yrA - yrB;
+          const dateA = a.workPeriod?.split('~')[0]?.trim() || '';
+          const dateB = b.workPeriod?.split('~')[0]?.trim() || '';
+          return dateA.localeCompare(dateB);
+        });
 
         return {
           ...prev,
@@ -1690,12 +1723,14 @@ function App() {
     }
   };
 
-  const handleReanalyzeYearPdf = async (yr: string) => {
-    const yrData = regForm.years[yr];
-    if (!yrData) return;
+  const handleReanalyzeYearPdf = async (targetId: string, yrLabel: string) => {
+    const targetIndex = (regForm.years || []).findIndex((y: any) => y.id === targetId);
+    if (targetIndex === -1) return;
+    const yrData = regForm.years[targetIndex];
+    const yr = yrData.year;
 
     try {
-      showToast(`[${yr}년도] 원본 PDF 파일 다시 읽기 및 세액 재계산을 진행합니다...`, 'info');
+      showToast(`[${yrLabel}] 원본 PDF 파일 다시 읽기 및 세액 재계산을 진행합니다...`, 'info');
       let text = '';
       let fileObj: File | null = yrData.pdfFile || null;
 
@@ -1709,7 +1744,7 @@ function App() {
         fileObj = new File([blob], `${yr}.pdf`, { type: 'application/pdf' });
         text = await extractTextFromPdf(fileObj);
       } else {
-        showToast(`[${yr}년도] 재분석할 PDF 파일이 존재하지 않습니다.`, 'error');
+        showToast(`[${yrLabel}] 재분석할 PDF 파일이 존재하지 않습니다.`, 'error');
         return;
       }
 
@@ -1718,19 +1753,23 @@ function App() {
       const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
 
       setRegForm(prev => {
-        const updatedYears = { ...prev.years };
+        const updatedYears = [...(prev.years || [])];
+        const idx = updatedYears.findIndex((y: any) => y.id === targetId);
+        if (idx === -1) return prev;
+
         const rawYrData = {
+          id: targetId,
           active: true,
           isFileUploaded: true,
           pdfFile: fileObj,
           fileURL: yrData.fileURL || yrData.pdfUrl || '',
           pdfUrl: yrData.fileURL || yrData.pdfUrl || '',
-          workPeriod: parsed.workPeriod || updatedYears[yr]?.workPeriod || '',
-          workPlace: parsed.workPlace || updatedYears[yr]?.workPlace || '',
-          businessNumber: parsed.businessNumber || updatedYears[yr]?.businessNumber || '',
-          birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : updatedYears[yr]?.birthDate || '',
-          salaryTotal: parsed.salaryTotal || updatedYears[yr]?.salaryTotal || '0',
-          taxBase: parsed.decisionTax || parsed.taxBase || updatedYears[yr]?.taxBase || '0',
+          workPeriod: parsed.workPeriod || updatedYears[idx]?.workPeriod || '',
+          workPlace: parsed.workPlace || updatedYears[idx]?.workPlace || '',
+          businessNumber: parsed.businessNumber || updatedYears[idx]?.businessNumber || '',
+          birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : updatedYears[idx]?.birthDate || '',
+          salaryTotal: parsed.salaryTotal || updatedYears[idx]?.salaryTotal || '0',
+          taxBase: parsed.decisionTax || parsed.taxBase || updatedYears[idx]?.taxBase || '0',
           childReduction: parsed.childReduction || '0',
           childDeduction: parsed.childDeduction || '0',
           decisionTax: parsed.determinedIncomeTax || '0',
@@ -1739,7 +1778,7 @@ function App() {
           childReductionApply: 'Y',
         };
 
-        updatedYears[yr] = recalculateYearData(
+        updatedYears[idx] = recalculateYearData(
           rawYrData,
           prev.dependentsCount,
           prev.seniorCount,
@@ -1754,7 +1793,7 @@ function App() {
         };
       });
 
-      showToast(`[${yr}년도] PDF 원본 재분석 완료! 세액 및 환급금이 최신 로직으로 자동 교정되었습니다.`, 'success');
+      showToast(`[${yrLabel}] PDF 원본 재분석 완료! 세액 및 환급금이 최신 로직으로 자동 교정되었습니다.`, 'success');
     } catch (err: any) {
       console.error('Reanalyze PDF Error:', err);
       showToast(`PDF 재분석 실패: ${err.message || err}`, 'error');
@@ -1844,15 +1883,21 @@ function App() {
           const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
 
           setRegForm((prev: any) => {
-            const updatedYears = { ...prev.years };
+            const updatedYears = [...(prev.years || [])];
+            
+            // Find if there is an inactive column for this year to occupy
+            let targetIndex = updatedYears.findIndex(y => y.year === yr && !y.active && !y.isFileUploaded);
+
             const rawYrData = {
+              id: targetIndex !== -1 ? updatedYears[targetIndex].id : ('temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
               active: true,
               isFileUploaded: true,
               pdfFile: file,
-              workPeriod: parsed.workPeriod || '',
-              workPlace: parsed.workPlace || '',
-              businessNumber: parsed.businessNumber || '',
-              birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : '',
+              year: yr,
+              workPeriod: parsed.workPeriod || (targetIndex !== -1 ? updatedYears[targetIndex].workPeriod : '') || '',
+              workPlace: parsed.workPlace || (targetIndex !== -1 ? updatedYears[targetIndex].workPlace : '') || '',
+              businessNumber: parsed.businessNumber || (targetIndex !== -1 ? updatedYears[targetIndex].businessNumber : '') || '',
+              birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : (targetIndex !== -1 ? updatedYears[targetIndex].birthDate : '') || '',
               salaryTotal: parsed.salaryTotal || '0',
               taxBase: parsed.decisionTax || parsed.taxBase || '0',
               childReduction: parsed.childReduction || '0',
@@ -1882,7 +1927,7 @@ function App() {
             const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
             const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-            updatedYears[yr] = recalculateYearData(
+            const recalculated = recalculateYearData(
               rawYrData, 
               prev.dependentsCount, 
               prev.seniorCount, 
@@ -1892,6 +1937,21 @@ function App() {
               newRrn,
               newEmpDate
             );
+
+            if (targetIndex !== -1) {
+              updatedYears[targetIndex] = recalculated;
+            } else {
+              updatedYears.push(recalculated);
+            }
+
+            updatedYears.sort((a, b) => {
+              const yrA = Number(a.year) || 0;
+              const yrB = Number(b.year) || 0;
+              if (yrA !== yrB) return yrA - yrB;
+              const dateA = a.workPeriod?.split('~')[0]?.trim() || '';
+              const dateB = b.workPeriod?.split('~')[0]?.trim() || '';
+              return dateA.localeCompare(dateB);
+            });
 
             return {
               ...prev,
@@ -2112,60 +2172,12 @@ function App() {
       }
       setConsultMemos(consultMemosList);
 
-      const defaultYearObj = () => ({
-        active: false,
-        isFileUploaded: false,
-        pdfFile: null,
-        fileURL: '',
-        pdfUrl: '',
-        workPeriod: '',
-        workPlace: '',
-        businessNumber: '',
-        companyRegNum: '',
-        birthDate: '',
-        salaryTotal: 0,
-        totalSalary: 0,
-        taxBase: 0,
-        childReduction: 0,
-        appliedTaxReduction: 0,
-        decisionTax: 0,
-        originalDeterminedTax: 0,
-        localTax: 0,
-        taxRefundTotal: 0,
-        childReductionApply: '90%',
-        childReductionApplyAmt: 0,
-        decisionTaxApplyAmt: 0,
-        recalcDeterminedTax: 0,
-        localTaxApplyAmt: 0,
-        recalcLocalTax: 0,
-        decisionTaxRefundAmt: 0,
-        refundExpectNational: 0,
-        expectedRefundNational: 0,
-        refundExpectLocal: 0,
-        expectedRefundLocal: 0,
-        courtFee: 0,
-        expectedFeeAmt: 0,
-        isReductionEligible: '가',
-        correctionFileUrl: ''
-      });
-
-      const yearsObj: Record<string, any> = {
-        '2021': defaultYearObj(),
-        '2022': defaultYearObj(),
-        '2023': defaultYearObj(),
-        '2024': defaultYearObj(),
-        '2025': defaultYearObj(),
-      };
+      const loadedYearsList: any[] = [];
+      const loadedYearsSet = new Set<string>();
 
       for (const yr of yearRecords) {
         const yrKey = String(yr.year);
-        if (!yearsObj[yrKey]) continue;
-
-        const currentYr = yearsObj[yrKey];
-        const hasPdf = Boolean(yr.fileURL);
-        if (currentYr.active && currentYr.isFileUploaded && !hasPdf) {
-          continue; // Prioritize records with uploaded PDF
-        }
+        loadedYearsSet.add(yrKey);
 
         const workPeriodStr = (yr.workPeriodStart && yr.workPeriodEnd) 
           ? `${yr.workPeriodStart} ~ ${yr.workPeriodEnd}` 
@@ -2181,54 +2193,101 @@ function App() {
         const totalRef = yr.totalTaxRefund || yr.determinedTaxRefund || 0;
         const localRef = yr.localTaxRefund || 0;
 
-        yearsObj[yrKey] = {
-          active: true,
-          isFileUploaded: hasPdf || currentYr.isFileUploaded,
+        const isWageActive = Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL);
+
+        loadedYearsList.push({
+          id: String(yr.id),
+          active: isWageActive,
+          isFileUploaded: Boolean(yr.fileURL),
           pdfFile: null,
-          fileURL: yr.fileURL || currentYr.fileURL || '',
-          pdfUrl: yr.fileURL || currentYr.pdfUrl || '',
-          workPeriod: workPeriodStr || currentYr.workPeriod || '',
-          workPlace: yr.companyName || currentYr.workPlace || customer.companyName || '',
-          businessNumber: yr.companyRegNo || yr.companyRegisterNumber || currentYr.businessNumber || '',
-          companyRegNum: yr.companyRegNo || yr.companyRegisterNumber || currentYr.companyRegNum || '',
-          birthDate: yr.regNum || currentYr.birthDate || customer.birthDate || '',
+          fileURL: yr.fileURL || '',
+          pdfUrl: yr.fileURL || '',
+          year: yrKey,
+          workPeriod: workPeriodStr,
+          workPlace: yr.companyName || '',
+          businessNumber: yr.companyRegNo || yr.companyRegisterNumber || '',
+          companyRegNum: yr.companyRegNo || yr.companyRegisterNumber || '',
+          birthDate: yr.regNum || customer.birthDate || '',
           
-          salaryTotal: totalSal || currentYr.salaryTotal || 0,
-          totalSalary: totalSal || currentYr.totalSalary || 0,
-          
-          taxBase: calcTax || currentYr.taxBase || 0,
-          
-          childReduction: smallDed || currentYr.childReduction || 0,
-          appliedTaxReduction: smallDed || currentYr.appliedTaxReduction || 0,
-          
-          decisionTax: detTax || currentYr.decisionTax || 0,
-          originalDeterminedTax: detTax || currentYr.originalDeterminedTax || 0,
-          
-          localTax: locTax || currentYr.localTax || 0,
-          taxRefundTotal: yr.totalTax || currentYr.taxRefundTotal || 0,
-          
-          childReductionApply: yr.isSmallBusinessDeduction ? '90%' : (currentYr.childReductionApply || '90%'),
-          childReductionApplyAmt: smallDed || currentYr.childReductionApplyAmt || 0,
-          
-          decisionTaxApplyAmt: changedDetTax || currentYr.decisionTaxApplyAmt || 0,
-          recalcDeterminedTax: changedDetTax || currentYr.recalcDeterminedTax || 0,
-          
-          localTaxApplyAmt: changedLocTax || currentYr.localTaxApplyAmt || 0,
-          recalcLocalTax: changedLocTax || currentYr.recalcLocalTax || 0,
-          
-          decisionTaxRefundAmt: (changedDetTax + changedLocTax) || currentYr.decisionTaxRefundAmt || 0,
-          
-          refundExpectNational: totalRef || currentYr.refundExpectNational || 0,
-          expectedRefundNational: totalRef || currentYr.expectedRefundNational || 0,
-          
-          refundExpectLocal: localRef || currentYr.refundExpectLocal || 0,
-          expectedRefundLocal: localRef || currentYr.expectedRefundLocal || 0,
-          
-          courtFee: totalRef || currentYr.courtFee || 0,
+          salaryTotal: totalSal,
+          totalSalary: totalSal,
+          taxBase: calcTax,
+          childReduction: smallDed,
+          appliedTaxReduction: smallDed,
+          decisionTax: detTax,
+          originalDeterminedTax: detTax,
+          localTax: locTax,
+          taxRefundTotal: yr.totalTax || 0,
+          childReductionApply: yr.isSmallBusinessDeduction ? '90%' : '90%',
+          childReductionApplyAmt: smallDed,
+          decisionTaxApplyAmt: changedDetTax,
+          recalcDeterminedTax: changedDetTax,
+          localTaxApplyAmt: changedLocTax,
+          recalcLocalTax: changedLocTax,
+          decisionTaxRefundAmt: (changedDetTax + changedLocTax),
+          refundExpectNational: totalRef,
+          expectedRefundNational: totalRef,
+          refundExpectLocal: localRef,
+          expectedRefundLocal: localRef,
+          courtFee: totalRef,
           isReductionEligible: (yr.isSmallBusiness || yr.isSmallBusinessDeduction) ? '여' : '부',
-          correctionFileUrl: yr.correction_file_url || currentYr.correctionFileUrl || ''
-        };
+          correctionFileUrl: yr.correction_file || yr.correction_file_url || ''
+        });
       }
+
+      const defaultYears = ['2021', '2022', '2023', '2024', '2025'];
+      for (const defYr of defaultYears) {
+        if (!loadedYearsSet.has(defYr)) {
+          loadedYearsList.push({
+            id: `temp_${defYr}`,
+            year: defYr,
+            active: false,
+            isFileUploaded: false,
+            pdfFile: null,
+            fileURL: '',
+            pdfUrl: '',
+            workPeriod: '',
+            workPlace: '',
+            businessNumber: '',
+            companyRegNum: '',
+            birthDate: '',
+            salaryTotal: 0,
+            totalSalary: 0,
+            taxBase: 0,
+            childReduction: 0,
+            appliedTaxReduction: 0,
+            decisionTax: 0,
+            originalDeterminedTax: 0,
+            localTax: 0,
+            taxRefundTotal: 0,
+            childReductionApply: '90%',
+            childReductionApplyAmt: 0,
+            decisionTaxApplyAmt: 0,
+            recalcDeterminedTax: 0,
+            localTaxApplyAmt: 0,
+            recalcLocalTax: 0,
+            decisionTaxRefundAmt: 0,
+            refundExpectNational: 0,
+            expectedRefundNational: 0,
+            refundExpectLocal: 0,
+            expectedRefundLocal: 0,
+            courtFee: 0,
+            isReductionEligible: '가',
+            correctionFileUrl: ''
+          });
+        }
+      }
+
+      loadedYearsList.sort((a, b) => {
+        const yrA = Number(a.year) || 0;
+        const yrB = Number(b.year) || 0;
+        if (yrA !== yrB) return yrA - yrB;
+        const dateA = a.workPeriod?.split('~')[0]?.trim() || '';
+        const dateB = b.workPeriod?.split('~')[0]?.trim() || '';
+        return dateA.localeCompare(dateB);
+      });
+
+      const yearsObj = loadedYearsList;
 
       setRegForm(prev => ({
         ...prev,
@@ -2370,15 +2429,16 @@ function App() {
     const today = new Date();
     const formattedDate = `${String(today.getFullYear()).slice(-2)}. ${today.getMonth() + 1}. ${today.getDate()}.`;
 
-    // Gather uploaded PDF file objects for each year
+    // Gather uploaded PDF file objects dynamically mapping by each yrData's id
     const pdfFiles: Record<string, File | null> = {
-      '2022': regForm.years['2022']?.pdfFile || null,
-      '2023': regForm.years['2023']?.pdfFile || null,
-      '2024': regForm.years['2024']?.pdfFile || null,
-      '2025': regForm.years['2025']?.pdfFile || null,
       'familyDoc': regForm.familyDocFile || null,
       'remittanceDoc': regForm.remittanceDocFile || null
     };
+    (regForm.years || []).forEach((y: any) => {
+      if (y.pdfFile) {
+        pdfFiles[y.id] = y.pdfFile;
+      }
+    });
 
     showToast('Supabase 클라우드 저장소에 고객 정보 및 PDF 파일 동기화를 진행 중입니다...', 'info');
 
@@ -2389,6 +2449,15 @@ function App() {
         const isUpdate = regForm.serial && regForm.serial > 0;
         const actualSerial = res.serial || regForm.serial || nextId;
         
+        let companyName = '-';
+        for (let i = (regForm.years || []).length - 1; i >= 0; i--) {
+          const yrData = regForm.years[i];
+          if (yrData?.active && yrData.workPlace) {
+            companyName = yrData.workPlace;
+            break;
+          }
+        }
+
         const savedCustomerItem: Customer = {
           id: actualSerial,
           registeredDate: formattedDate,
@@ -2396,7 +2465,7 @@ function App() {
           name: regForm.name.toUpperCase(),
           birthDate: regForm.foreignerNumber,
           visa: regForm.visaType,
-          companyName: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '-',
+          companyName: companyName,
           refundStatus: regForm.refundStatus,
           submissionStatus: regForm.deductionSubmissionStatus,
           monthlyRent: regForm.isMonthlyRent === '가' ? '예' : '아니오',
@@ -2411,6 +2480,23 @@ function App() {
         } else {
           setCustomers(prev => [savedCustomerItem, ...prev]);
         }
+
+        // Update temp IDs with real DB IDs, clear deletedYearIds, and update serial/clientId
+        setRegForm(prev => {
+          const updatedYears = (prev.years || []).map((y: any) => {
+            if (res.updatedYearIdsMap && res.updatedYearIdsMap[y.id]) {
+              return { ...y, id: String(res.updatedYearIdsMap[y.id]) };
+            }
+            return y;
+          });
+          return {
+            ...prev,
+            clientId: res.clientId || prev.clientId,
+            serial: actualSerial,
+            years: updatedYears,
+            deletedYearIds: []
+          };
+        });
 
         showToast('고객 정보, 정산 결과 및 PDF 파일이 Supabase DB에 완벽히 동기화되었습니다!', 'success');
       } else {
@@ -2524,17 +2610,18 @@ function App() {
       // 3. Resolve Company Details (Last/Recent Active Employer)
       let companyName = '';
       let businessNumber = '';
-      const sortedYears = ['2025', '2024', '2023', '2022', '2021'];
-      for (const yr of sortedYears) {
-        const yrData = regForm.years[yr];
+      for (let i = (regForm.years || []).length - 1; i >= 0; i--) {
+        const yrData = regForm.years[i];
         if (yrData?.active && yrData.workPlace) {
           companyName = yrData.workPlace;
           businessNumber = yrData.businessNumber || yrData.companyRegNum || '';
           break;
         }
       }
-      if (!companyName) {
-        companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+      if (!companyName && (regForm.years || []).length > 0) {
+        const lastItem = regForm.years[regForm.years.length - 1];
+        companyName = lastItem.workPlace || '';
+        businessNumber = lastItem.businessNumber || lastItem.companyRegNum || '';
       }
 
       // 4. Load Excel Template
@@ -2870,8 +2957,7 @@ function App() {
       const infoLabels = [t.name, t.rrn, t.company];
       
       const companyNamesList: string[] = [];
-      ['2021', '2022', '2023', '2024', '2025'].forEach(yr => {
-        const yrData = regForm.years[yr];
+      (regForm.years || []).forEach(yrData => {
         if (yrData?.active && yrData.workPlace && yrData.workPlace.trim()) {
           const nameTrim = yrData.workPlace.trim();
           if (!companyNamesList.includes(nameTrim)) {
@@ -2880,8 +2966,9 @@ function App() {
         }
       });
       let companyName = companyNamesList.join(', ');
-      if (!companyName) {
-        companyName = regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2023']?.workPlace || '';
+      if (!companyName && (regForm.years || []).length > 0) {
+        const lastItem = regForm.years[regForm.years.length - 1];
+        companyName = lastItem.workPlace || '';
       }
 
       // Mask RRN
@@ -4153,9 +4240,10 @@ function App() {
                         <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '13%' }}>전화번호</td>
                         <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>비자 종류</td>
                         <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>
-                          {(regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace) 
-                            ? `${regForm.years['2023']?.workPlace || regForm.years['2024']?.workPlace || regForm.years['2022']?.workPlace} 취업일` 
-                            : '취업일'}
+                          {(() => {
+                            const activeYr = (regForm.years || []).find((y: any) => y.active && y.workPlace);
+                            return activeYr ? `${activeYr.workPlace} 취업일` : '취업일';
+                          })()}
                         </td>
                         <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>비자만료일</td>
                         <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>월세여부</td>
@@ -4478,14 +4566,19 @@ function App() {
                       )}
                     </div>
                   </div>
-                </div>
+
+                  </div>
+
+                  {/* 중소기업 판별기 영역 (스크린샷의 빨간색 박스 영역) */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', marginBottom: '14px' }}>
+                    <SmeVerification years={regForm.years} />
+                  </div>
 
                  {/* Yearly Detailed Calculation Grid (Matching screenshot color themes: light blue headers, yellow highlights, zebra grid) */}
 
                 <WageSettlementTable
                   regForm={regForm}
                   setRegForm={setRegForm}
-                  targetYears={targetYears}
                   selectedFeeRate={selectedFeeRate}
                   handleSingleYearPdfUpload={handleSingleYearPdfUpload}
                   handleBulkPdfUpload={handleBulkPdfUpload}

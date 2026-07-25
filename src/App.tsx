@@ -411,10 +411,19 @@ function App() {
 
   const currentManagerCountry = useMemo(() => {
     if (!currentManager) return null;
-    if (currentManager.email === 'admin@novel.com' || currentManager.isAdmin) return 'ALL';
+    // 이메일이 admin@novel.com이거나, isAdmin 플래그가 true이거나, 소속 팀ID가 1(관리자팀)인 경우 ALL 권한 부여
+    if (
+      currentManager.email === 'admin@novel.com' || 
+      currentManager.isAdmin || 
+      currentManager.teamId === 1
+    ) {
+      return 'ALL';
+    }
     const team = dbTeams.find(t => t.id === currentManager.teamId);
     if (team) {
-      return team.name ? team.name.replace(/팀$/, '').trim() : null;
+      const cleanName = team.name ? team.name.replace(/팀$/, '').trim() : '';
+      if (cleanName === '관리자') return 'ALL';
+      return cleanName || null;
     }
     return null;
   }, [currentManager, dbTeams]);

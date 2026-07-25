@@ -2385,6 +2385,40 @@ function App() {
 
       const yearsObj = loadedYearsList;
 
+      // 3.3% 프리랜서 사업소득 데이터 로드 로직 추가
+      const freelancerYearsObj: Record<string, any> = {
+        '2021': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        '2022': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        '2023': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        '2024': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
+        '2025': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' }
+      };
+
+      for (const yr of yearRecords) {
+        const yrKey = String(yr.year);
+        if (yr.freelancerActive || yr.freelancerNetSalary > 0 || yr.freelancerCourtFee > 0 || yr.freelancerFileURL) {
+          freelancerYearsObj[yrKey] = {
+            active: true,
+            isFileUploaded: Boolean(yr.freelancerFileURL),
+            pdfFile: null,
+            fileURL: yr.freelancerFileURL || '',
+            pdfUrl: yr.freelancerFileURL || '',
+            workPlace: yr.freelancerCompanyName || '',
+            businessNumber: yr.freelancerCompanyRegNo || '',
+            totalIncome: String(yr.freelancerNetSalary || 0),
+            withholdingTax3: String(yr.freelancerDeterminedTax || 0),
+            localTax03: String(yr.freelancerLocalTax || 0),
+            totalWithholding33: String((yr.freelancerDeterminedTax || 0) + (yr.freelancerLocalTax || 0)),
+            refundExpectNational: String(yr.freelancerRefundExpectNational || 0),
+            refundExpectLocal: String(yr.freelancerRefundExpectLocal || 0),
+            courtFee: String(yr.freelancerCourtFee || 0),
+            expectedFeeAmt: String(yr.freelancerExpectedFeeAmt || 0),
+            incomeTypeCode: yr.freelancerIncomeTypeCode || '3.3%',
+            isNonRefundable: Boolean(yr.freelancerIsNonRefundable)
+          };
+        }
+      }
+
       setRegForm(prev => ({
         ...prev,
         clientId: clientDetails?.id || '',
@@ -2435,7 +2469,8 @@ function App() {
         consentStatus: clientDetails?.consentStatus || '대기',
         arcImageUrl: clientDetails?.arcImageUrl || '',
         signatureImageUrl: clientDetails?.signatureImageUrl || '',
-        years: yearsObj
+        years: yearsObj,
+        freelancerYears: freelancerYearsObj
       }));
 
       setCurrentView('registration');

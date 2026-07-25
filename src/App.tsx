@@ -3363,7 +3363,11 @@ function App() {
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      showToast('로그인 실패: ' + err.message, 'error');
+      if (err.message === 'Invalid login credentials') {
+        showToast('등록되지 않은 아이디(이메일)이거나 비밀번호가 틀렸습니다.', 'error');
+      } else {
+        showToast('로그인 실패: ' + err.message, 'error');
+      }
     }
   };
 

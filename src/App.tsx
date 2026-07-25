@@ -152,6 +152,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [loginId, setLoginId] = useState<string>('');
   const [loginPw, setLoginPw] = useState<string>('');
+  const [authError, setAuthError] = useState<string | null>(null);
   const [passwordChangeText, setPasswordChangeText] = useState({ current: '', new: '', confirm: '' });
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
@@ -3345,8 +3346,11 @@ function App() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     if (!loginId || !loginPw) {
-      showToast('이메일과 비밀번호를 모두 입력해 주세요.', 'error');
+      const msg = '이메일과 비밀번호를 모두 입력해 주세요.';
+      setAuthError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -3371,13 +3375,17 @@ function App() {
           .single();
 
         if (managerErr || !managerData) {
-          showToast('등록되지 않은 매니저 계정입니다.', 'error');
+          const msg = '등록되지 않은 매니저 계정입니다.';
+          setAuthError(msg);
+          showToast(msg, 'error');
           await supabase.auth.signOut();
           return;
         }
 
         if (!managerData.isConfirmed) {
-          showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
+          const msg = '가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.';
+          setAuthError(msg);
+          showToast(msg, 'error');
           await supabase.auth.signOut();
           return;
         }
@@ -3393,21 +3401,30 @@ function App() {
     } catch (err: any) {
       console.error('Login error:', err);
       if (err.message === 'Invalid login credentials') {
-        showToast('등록되지 않은 아이디(이메일)이거나 비밀번호가 틀렸습니다.', 'error');
+        const msg = '등록되지 않은 아이디(이메일)이거나 비밀번호가 틀렸습니다.';
+        setAuthError(msg);
+        showToast(msg, 'error');
       } else {
-        showToast('로그인 실패: ' + err.message, 'error');
+        const msg = '로그인 실패: ' + err.message;
+        setAuthError(msg);
+        showToast(msg, 'error');
       }
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthError(null);
     if (!signUpEmail || !signUpPassword || !signUpConfirmPassword || !signUpName) {
-      showToast('모든 가입 필드를 입력해 주세요.', 'error');
+      const msg = '모든 가입 필드를 입력해 주세요.';
+      setAuthError(msg);
+      showToast(msg, 'error');
       return;
     }
     if (signUpPassword !== signUpConfirmPassword) {
-      showToast('비밀번호가 일치하지 않습니다.', 'error');
+      const msg = '비밀번호가 일치하지 않습니다.';
+      setAuthError(msg);
+      showToast(msg, 'error');
       return;
     }
 
@@ -3467,7 +3484,9 @@ function App() {
       }
     } catch (err: any) {
       console.error('Sign up error:', err);
-      showToast('회원가입 실패: ' + err.message, 'error');
+      const msg = '회원가입 실패: ' + err.message;
+      setAuthError(msg);
+      showToast(msg, 'error');
     }
   };
 
@@ -3652,7 +3671,7 @@ function App() {
                     type="text"
                     className="login-input"
                     value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
+                    onChange={(e) => { setLoginId(e.target.value); setAuthError(null); }}
                     placeholder="admin@novel-tax.kr"
                     required
                   />
@@ -3663,15 +3682,32 @@ function App() {
                     type="password"
                     className="login-input"
                     value={loginPw}
-                    onChange={(e) => setLoginPw(e.target.value)}
+                    onChange={(e) => { setLoginPw(e.target.value); setAuthError(null); }}
                     placeholder="비밀번호 입력"
                     required
                   />
                 </div>
+                {authError && (
+                  <div style={{
+                    color: '#f87171',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    fontSize: '12.5px',
+                    marginBottom: '16px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    {authError}
+                  </div>
+                )}
                 <button type="submit" className="btn-login">로그인</button>
                 <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px' }}>
-                  <span style={{ color: '#64748b' }}>계정이 없으신가요? </span>
-                  <button type="button" onClick={() => setIsSignUpMode(true)} style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
+                  <span style={{ color: '#94a3b8' }}>계정이 없으신가요? </span>
+                  <button type="button" onClick={() => { setIsSignUpMode(true); setAuthError(null); }} style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
                     회원가입 신청
                   </button>
                 </div>
@@ -3684,7 +3720,7 @@ function App() {
                     type="text"
                     className="login-input"
                     value={signUpName}
-                    onChange={(e) => setSignUpName(e.target.value)}
+                    onChange={(e) => { setSignUpName(e.target.value); setAuthError(null); }}
                     placeholder="홍길동"
                     required
                   />
@@ -3695,7 +3731,7 @@ function App() {
                     type="email"
                     className="login-input"
                     value={signUpEmail}
-                    onChange={(e) => setSignUpEmail(e.target.value)}
+                    onChange={(e) => { setSignUpEmail(e.target.value); setAuthError(null); }}
                     placeholder="manager@novel-tax.kr"
                     required
                   />
@@ -3706,7 +3742,7 @@ function App() {
                     type="password"
                     className="login-input"
                     value={signUpPassword}
-                    onChange={(e) => setSignUpPassword(e.target.value)}
+                    onChange={(e) => { setSignUpPassword(e.target.value); setAuthError(null); }}
                     placeholder="6자 이상 입력"
                     minLength={6}
                     required
@@ -3718,15 +3754,32 @@ function App() {
                     type="password"
                     className="login-input"
                     value={signUpConfirmPassword}
-                    onChange={(e) => setSignUpConfirmPassword(e.target.value)}
+                    onChange={(e) => { setSignUpConfirmPassword(e.target.value); setAuthError(null); }}
                     placeholder="비밀번호 재입력"
                     required
                   />
                 </div>
+                {authError && (
+                  <div style={{
+                    color: '#f87171',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    fontSize: '12.5px',
+                    marginBottom: '16px',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    {authError}
+                  </div>
+                )}
                 <button type="submit" className="btn-login" style={{ backgroundColor: '#10b981' }}>회원가입 신청</button>
                 <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px' }}>
-                  <span style={{ color: '#64748b' }}>이미 계정이 있으신가요? </span>
-                  <button type="button" onClick={() => setIsSignUpMode(false)} style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
+                  <span style={{ color: '#94a3b8' }}>이미 계정이 있으신가요? </span>
+                  <button type="button" onClick={() => { setIsSignUpMode(false); setAuthError(null); }} style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}>
                     로그인으로 돌아가기
                   </button>
                 </div>

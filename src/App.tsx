@@ -379,11 +379,19 @@ function App() {
   const availableTeamList = useMemo(() => {
     const teams = new Set<string>();
     if (dbTeams && dbTeams.length > 0) {
-      dbTeams.forEach(t => { if (t && t.name) teams.add(t.name); });
+      dbTeams.forEach(t => { 
+        if (t && t.name && t.name !== '관리자' && t.name !== '관리자팀') {
+          teams.add(t.name.replace(/팀$/, '').trim()); 
+        }
+      });
     }
     ['미얀마', '인도네시아', '베트남', '캄보디아', '몽골', '네팔', '방글라데시', '우즈베키스탄', '파키스탄', '필리핀', '태국', '스리랑카'].forEach(c => teams.add(c));
     if (customers && customers.length > 0) {
-      customers.forEach(c => { if (c && c.nationality) teams.add(c.nationality); });
+      customers.forEach(c => { 
+        if (c && c.nationality && c.nationality !== '관리자' && c.nationality !== '관리자팀') {
+          teams.add(c.nationality); 
+        }
+      });
     }
     return Array.from(teams).filter(Boolean);
   }, [dbTeams, customers]);
@@ -799,7 +807,11 @@ function App() {
               return s;
             };
 
-            const nat = c.country || teamMap.get(c.teamId) || '인도네시아';
+            const resolvedTeamName = teamMap.get(c.teamId) || '';
+            const cleanTeamName = resolvedTeamName.replace(/팀$/, '').trim();
+            const nat = (c.country && c.country.trim() !== '')
+              ? c.country
+              : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
             const resolvedMgr = mgrMap.get(c.managerId) || c.managerName || (nat === '미얀마' ? 'Boram' : nat === '베트남' ? 'Linh' : nat === '네팔' ? '레누카' : nat === '방글라데시' ? '사이풀' : nat === '필리핀' ? 'Jennie' : 'Gaby');
 
             return {
@@ -844,7 +856,11 @@ function App() {
               return s;
             };
 
-            const nat = c.country || teamMap.get(c.teamId) || '인도네시아';
+            const resolvedTeamName = teamMap.get(c.teamId) || '';
+            const cleanTeamName = resolvedTeamName.replace(/팀$/, '').trim();
+            const nat = (c.country && c.country.trim() !== '')
+              ? c.country
+              : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
             const resolvedMgr = mgrMap.get(c.managerId) || c.managerName || (nat === '미얀마' ? 'Boram' : nat === '베트남' ? 'Linh' : nat === '네팔' ? '레누카' : nat === '방글라데시' ? '사이풀' : nat === '필리핀' ? 'Jennie' : 'Gaby');
 
             return {

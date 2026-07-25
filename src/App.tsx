@@ -1139,6 +1139,15 @@ function App() {
   }, [currentView, currentManager]);
 
   const handleResetAll = () => {
+    // 폼에 입력 내용이 있거나 기존 고객이 로드된 상태인 경우 경고창 띄우기
+    const hasData = regForm.clientId || regForm.name || regForm.foreignerNumber || regForm.phone;
+    if (hasData) {
+      const confirmReset = window.confirm(
+        '⚠️ 정말 초기화하시겠습니까?\n현재 불러온 고객 정보와 입력된 모든 내용이 초기화되며, 신규 저장 화면으로 이동합니다.'
+      );
+      if (!confirmReset) return;
+    }
+
     const defaultNationality = (currentManagerCountry && currentManagerCountry !== 'ALL')
       ? currentManagerCountry
       : '미얀마';

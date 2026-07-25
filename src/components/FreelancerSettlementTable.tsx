@@ -73,25 +73,23 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                 <th key={yr} style={{ border: '1px solid #99f6e4', padding: '8px', width: '150px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                     <span>{yr}년도 (3.3%)</span>
-                    {regForm.freelancerYears?.[yr]?.active && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFreelancerYear(yr)}
-                        style={{
-                          border: 'none',
-                          background: 'none',
-                          color: '#ef4444',
-                          cursor: 'pointer',
-                          padding: 0,
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}
-                        title="연도 삭제"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFreelancerYear(yr)}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center'
+                      }}
+                      title="연도 삭제"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
                 </th>
               ))}

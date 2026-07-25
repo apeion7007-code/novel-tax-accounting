@@ -167,6 +167,7 @@ function App() {
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
+  const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
 
   // Customer List State
   const [customers, setCustomers] = useState<Customer[]>([
@@ -2081,36 +2082,58 @@ function App() {
   const handleInlineManagerChange = (customerId: number, managerName: string) => {
     const dbMgr = dbManagers.find(m => m.name === managerName);
     const matchedTeam = dbTeams.find(t => t.id === dbMgr?.teamId);
-    const matchedCountry = matchedTeam?.name || managers.find(m => m.name === managerName)?.country || '';
+    const matchedCountry = matchedTeam?.name || '';
 
-    setCustomers(prev =>
-      prev.map(c =>
-        c.id === customerId
-          ? {
-              ...c,
-              managerName,
-              ...(matchedCountry ? { managerCountry: matchedCountry } : {})
-            }
-          : c
-      )
-    );
+    setTempInlineEdits(prev => ({
+      ...prev,
+      [customerId]: {
+        ...prev[customerId],
+        managerName,
+        ...(matchedCountry ? { managerCountry: matchedCountry } : {})
+      }
+    }));
   };
 
   const handleInlineCountryChange = (customerId: number, nationality: string) => {
-    setCustomers(prev =>
-      prev.map(c => c.id === customerId ? { ...c, nationality } : c)
-    );
+    setTempInlineEdits(prev => ({
+      ...prev,
+      [customerId]: {
+        ...prev[customerId],
+        nationality
+      }
+    }));
   };
 
   const handleSaveRow = async (customerId: number) => {
     const customer = customers.find(c => c.id === customerId);
     if (customer) {
+      const edit = tempInlineEdits[customerId] || {};
+      const targetCountry = edit.nationality || customer.nationality;
+      const targetManager = edit.managerName || customer.managerName;
+
       showToast(`${customer.name}님의 담당자 정보를 DB에 저장 중입니다...`, 'info');
-      const res = await updateClientManagerInSupabase(customer.id, customer.managerName, customer.nationality);
+      const res = await updateClientManagerInSupabase(customer.id, targetManager, targetCountry);
       if (res.success) {
-        showToast(`${customer.name}님의 담당자(${customer.nationality}팀 / ${customer.managerName})가 DB 및 대시보드에 성공적으로 반영되었습니다!`, 'success');
+        setCustomers(prev =>
+          prev.map(c =>
+            c.id === customerId
+              ? {
+                  ...c,
+                  nationality: targetCountry,
+                  managerName: targetManager,
+                  managerCountry: edit.managerCountry || customer.managerCountry
+                }
+              : c
+          )
+        );
+        setTempInlineEdits(prev => {
+          const next = { ...prev };
+          delete next[customerId];
+          return next;
+        });
+        showToast(`${customer.name}님의 담당자(${targetCountry}팀 / ${targetManager})가 DB 및 대시보드에 성공적으로 반영되었습니다!`, 'success');
       } else {
-        showToast(`${customer.name}님의 담당자 정보가 변경되었습니다.`, 'success');
+        showToast(`${customer.name}님의 담당자 정보 저장에 실패했습니다: ${res.error || 'Unknown Error'}`, 'error');
       }
     }
   };
@@ -2459,6 +2482,7 @@ function App() {
 
         const savedCustomerItem: Customer = {
           id: actualSerial,
+          uuid: res.clientId || regForm.clientId || undefined,
           registeredDate: formattedDate,
           nationality: regForm.nationality,
           name: regForm.name.toUpperCase(),
@@ -3559,7 +3583,18 @@ function App() {
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
-  const displayedCustomers = filteredCustomers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const displayedCustomers = filteredCustomers
+    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+    .map(c => {
+      const edit = tempInlineEdits[c.id];
+      if (edit) {
+        return {
+          ...c,
+          ...edit
+        };
+      }
+      return c;
+    });
 
   return (
     <>

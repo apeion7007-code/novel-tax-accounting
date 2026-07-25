@@ -4184,21 +4184,7 @@ function App() {
                           return `${year}년 ${month}월 ${date}일 ${ampm} ${hours}:${minutes}`;
                         })()}
                       </span>
-                      <span style={{ color: '#94a3b8', fontWeight: 'bold' }}>|</span>
-                      <span style={{ 
-                        backgroundColor: '#fef2f2', 
-                        color: '#991b1b', 
-                        border: '2px solid #ef4444',
-                        padding: '3px 12px', 
-                        borderRadius: '4px', 
-                        fontSize: '13px', 
-                        fontWeight: 'bold', 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        🎯 청년 감면 대상 출생일 : {youthTaxReductionInfo.eligibleBirthRangeStr}
-                      </span>
+
                     </div>
                   </div>
                   

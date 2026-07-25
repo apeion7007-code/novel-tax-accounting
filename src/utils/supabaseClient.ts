@@ -303,6 +303,21 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     const processedWageYears = new Set<string>();
     for (const yrData of (regForm.years || [])) {
       const yr = String(yrData.year);
+      
+      // If inactive, delete from DB (if exists) and skip to prevent saving empty placeholder columns
+      if (!yrData.active) {
+        if (yrData.id && !String(yrData.id).startsWith('temp_')) {
+          const { error: delErr } = await supabase
+            .from('YearEndData')
+            .delete()
+            .eq('id', yrData.id);
+          if (delErr) {
+            console.warn(`Failed to delete inactive YearEndData record ${yrData.id}:`, delErr.message);
+          }
+        }
+        continue;
+      }
+      
       let fileURL: string | undefined = yrData.fileURL || undefined;
 
       const pdfFile = pdfFileObjects[yrData.id];

@@ -2853,14 +2853,46 @@ function App() {
     try {
       let totalRefundSum = 0;
       let totalFeeSum = 0;
-      const activeYearBreakdowns: { year: string; refund: number; fee: number }[] = [];
+      const activeYearBreakdowns: { year: string; type: 'wage' | 'free'; refund: number; fee: number }[] = [];
 
       targetYears.forEach(yr => {
-        const { refund, fee } = getCombinedRefund(yr);
-        if (refund > 0) {
-          totalRefundSum += refund;
-          totalFeeSum += fee;
-          activeYearBreakdowns.push({ year: yr, refund, fee });
+        const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
+        const freeData = regForm.freelancerYears?.[yr];
+        const hasWage = matchingWageDataList.length > 0;
+        const hasFree = freeData?.active;
+
+        if (hasWage && hasFree) {
+          const combined = getCombinedRefund(yr);
+          const wageRefund = matchingWageDataList.reduce((sum: number, y: any) => sum + Number(y.refundExpectNational || 0) + Number(y.refundExpectLocal || 0), 0);
+          const wageFee = Math.round(wageRefund * (selectedFeeRate / 100));
+          const businessRefund = combined.refund - wageRefund;
+          const businessFee = combined.fee - wageFee;
+
+          if (wageRefund > 0) {
+            totalRefundSum += wageRefund;
+            totalFeeSum += wageFee;
+            activeYearBreakdowns.push({ year: yr, type: 'wage', refund: wageRefund, fee: wageFee });
+          }
+          if (businessRefund > 0) {
+            totalRefundSum += businessRefund;
+            totalFeeSum += businessFee;
+            activeYearBreakdowns.push({ year: yr, type: 'free', refund: businessRefund, fee: businessFee });
+          }
+        } else if (hasWage) {
+          const wageRefund = matchingWageDataList.reduce((sum: number, y: any) => sum + Number(y.refundExpectNational || 0) + Number(y.refundExpectLocal || 0), 0);
+          const wageFee = matchingWageDataList.reduce((sum: number, y: any) => sum + Number(y.expectedFeeAmt || 0), 0);
+          if (wageRefund > 0) {
+            totalRefundSum += wageRefund;
+            totalFeeSum += wageFee;
+            activeYearBreakdowns.push({ year: yr, type: 'wage', refund: wageRefund, fee: wageFee });
+          }
+        } else if (hasFree) {
+          const combined = getCombinedRefund(yr);
+          if (combined.refund > 0) {
+            totalRefundSum += combined.refund;
+            totalFeeSum += combined.fee;
+            activeYearBreakdowns.push({ year: yr, type: 'free', refund: combined.refund, fee: combined.fee });
+          }
         }
       });
 
@@ -2887,6 +2919,8 @@ function App() {
           owner: '예 금 주',
           footnote: '※ 대행 수수료 입금이 확인된 후, 세무서 국세청 경정청구 최종 접수가 진행됩니다.\n※ 입금하실 때는 반드시 고객님 본인 성명으로 입금해 주시기 바랍니다.',
           filePrefix: '청구서',
+          wageLabel: '근로소득',
+          freeLabel: '사업소득(3.3%)',
           feeNoticePrefix: '★ 고객님께서 납부하실 총 대행수수료는 ',
           feeNoticeSuffix: '원 입니다.'
         },
@@ -2907,6 +2941,8 @@ function App() {
           owner: 'Chủ tài khoản',
           footnote: '※ Phí dịch vụ đại lý sau khi được xác nhận thanh toán, thủ tục nộp hồ sơ hoàn thuế lên cơ quan thuế mới được tiến hành.\n※ Khi chuyển tiền, vui lòng ghi đúng họ và tên của khách hàng.',
           filePrefix: 'Hoa_Don',
+          wageLabel: 'Thu nhập từ lương',
+          freeLabel: 'Thu nhập tự do (3.3%)',
           feeNoticePrefix: '★ Tổng phí dịch vụ quý khách cần thanh toán: ',
           feeNoticeSuffix: '원.'
         },
@@ -2927,6 +2963,8 @@ function App() {
           owner: 'Nama Pemilik Rekening',
           footnote: '※ Setelah pembayaran biaya jasa agen dikonfirmasi, pengajuan pengembalian pajak ke Kantor Pajak akan diproses.\n※ Saat mentransfer, harap pastikan menggunakan nama asli pelanggan.',
           filePrefix: 'Faktur',
+          wageLabel: 'Pendapatan gaji',
+          freeLabel: 'Pekerja bebas (3.3%)',
           feeNoticePrefix: '★ Total biaya jasa agen yang harus dibayar: ',
           feeNoticeSuffix: '원.'
         },
@@ -2947,6 +2985,8 @@ function App() {
           owner: 'Данс эзэмшигч',
           footnote: '※ Үйлчилгээний хөлсний шилжүүлэг баталгаажсаны дараа, Татварын албанд хийх эцсийн мэдүүлэг боловсруулагдах болно.\n※ Шилжүүлэг хийхдээ үйлчлүүлэгч өөрийн нэрээр шилжүүлнэ үү.',
           filePrefix: 'Nehemjleh',
+          wageLabel: 'Цалингийн орлого',
+          freeLabel: 'Чөлөөт орлого (3.3%)',
           feeNoticePrefix: '★ Төлөх нийт үйлчилгээний хөлс: ',
           feeNoticeSuffix: '원.'
         },
@@ -3129,7 +3169,8 @@ function App() {
         
         // Year Label
         const cellY = worksheet.getCell("B" + currentIdx);
-        cellY.value = invoiceLanguage === '한국어' ? item.year + "년 정산" : item.year + " settlement";
+        const suffix = item.type === 'wage' ? t.wageLabel : t.freeLabel;
+        cellY.value = item.year + (invoiceLanguage === '한국어' ? '년 ' : ' ') + suffix;
         cellY.font = { name: currentFont, size: 10 };
         cellY.border = thinBorder;
         cellY.alignment = { vertical: 'middle', horizontal: 'center' };

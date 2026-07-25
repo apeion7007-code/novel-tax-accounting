@@ -2829,8 +2829,8 @@ function App() {
       const link = document.createElement('a');
       link.href = url;
       
-      const cleanName = regForm.name.trim().replace(/\s+/g, '_');
-      link.download = `중소기업_감면명세서_${cleanName}.xlsx`;
+      const cleanCustomerName = regForm.name.replace(/테스트/g, '').trim();
+      link.download = `${cleanCustomerName} 중소기업 감면 명세서.xlsx`;
       
       document.body.appendChild(link);
       link.click();
@@ -3266,8 +3266,8 @@ function App() {
       const link = document.createElement('a');
       link.href = url;
       
-      const cleanName = regForm.name.trim().replace(/\s+/g, '_');
-      link.download = t.filePrefix + "_" + cleanName + "_" + selectedFeeRate + "%.xlsx";
+      const cleanCustomerName = regForm.name.replace(/테스트/g, '').trim();
+      link.download = `${cleanCustomerName} 청구서.xlsx`;
       
       document.body.appendChild(link);
       link.click();

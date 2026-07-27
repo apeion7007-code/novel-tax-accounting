@@ -2068,9 +2068,15 @@ function App() {
           submissionStatus: regForm.deductionSubmissionStatus,
           monthlyRent: regForm.isMonthlyRent === '가' ? '예' : '아니오',
           claimDate: regForm.claimCompleteDate || '-',
+          additionalApplyDate: regForm.claimRequestDate || '-',
           additionalPerformance: Number(regForm.additionalApplyPerformance) || 0,
           managerCountry: regForm.nationality,
-          managerName: regForm.managerName || managers.find(m => m.country === regForm.nationality)?.name || managers[0].name
+          managerName: regForm.managerName || managers.find(m => m.country === regForm.nationality)?.name || managers[0].name,
+          phone: regForm.phone || '',
+          consentStatus: regForm.consentStatus || '대기',
+          arcImageUrl: regForm.arcImageUrl || '',
+          signatureImageUrl: regForm.signatureImageUrl || '',
+          visaExpireDate: regForm.visaExpiry || ''
         };
 
         if (isUpdate) {

@@ -1,3 +1,12 @@
+
+function cleanNum(val: any): number {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') return val;
+  const cleaned = String(val).replace(/,/g, '').trim();
+  const parsed = Number(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 // Helper to determine youth tax reduction eligibility based on RRN and Employment Date
 export const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsObj?: any) => {
   const rrn = rrnStr ? rrnStr.replace(/-/g, '').trim() : '';
@@ -70,7 +79,7 @@ export const calculateRentDeduction = (yrData: any, formObj: any) => {
     return 0;
   }
   
-  const totalSalary = Number(yrData.salaryTotal) || 0;
+  const totalSalary = cleanNum(yrData.salaryTotal);
   // 연봉 요건: 총급여 8,000만 원 이하
   if (totalSalary <= 0 || totalSalary > 80000000) {
     return 0;
@@ -102,10 +111,10 @@ export const recalculateYearData = (
 
   const eligibility = checkYouthEligibility(rrn, empDate);
 
-  const originalDecisionTax = Number(yrData.decisionTax) || 0;
-  const originalLocalTax = Number(yrData.localTax) || 0;
-  const calculatedTax = Number(yrData.taxBase) || 0;
-  const childDeduction = Number(yrData.childDeduction) || 0;
+  const originalDecisionTax = cleanNum(yrData.decisionTax);
+  const originalLocalTax = cleanNum(yrData.localTax) || Math.round(originalDecisionTax * 0.1);
+  const calculatedTax = cleanNum(yrData.taxBase);
+  const childDeduction = cleanNum(yrData.childDeduction);
 
   const isReductionApplied = eligibility.isEligible && yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
   const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(calculatedTax * 0.9)) : 0;

@@ -276,7 +276,8 @@ export function generateHometaxFile(submitter: SubmitterInfo, clients: any[]): B
       cRec.set(padNumberBytes(2, 1), 28); // C10 (1) - 2:파견근로자 아님
       cRec.set(padStringBytes(c.name, 30), 29); // C11 (30) - Name
       cRec.set(padNumberBytes(9, 1), 59); // C12 (1) - 9:외국인
-      cRec.set(padStringBytes(c.regNum || c.foreignerNumber || '', 13), 60); // C13 (13)
+      const cleanClientRrn = String(c.regNum || c.foreignerNumber || '').replace(/-/g, '').trim();
+      cRec.set(padStringBytes(cleanClientRrn, 13), 60); // C13 (13)
       cRec.set(padStringBytes(countryCode, 2), 73); // C14 (2)
       cRec.set(padNumberBytes(2, 1), 75); // C15 (1) - 세대원
       cRec.set(padNumberBytes(1, 1), 76); // C16 (1) - 계속근로
@@ -381,7 +382,7 @@ export function generateERecords(submitter: SubmitterInfo, client: any, cSeq: nu
     relation: '0', // 본인
     isForeign: isForeignerNum,
     name: client.name || '',
-    rrn: client.regNum || '',
+    rrn: String(client.regNum || '').replace(/-/g, '').trim(),
     isBasic: '1',
     isSenior: ' ',
     isDisabled: ' ',
@@ -454,7 +455,7 @@ export function generateERecords(submitter: SubmitterInfo, client: any, cSeq: nu
     rec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // E3 (3)
     rec.set(padNumberBytes(cSeq, 6), 6); // E4 (6)
     rec.set(padStringBytes(client.companyRegNum || client.businessNumber || '0000000000', 10), 12); // E5 (10)
-    rec.set(padStringBytes(client.regNum || '', 13), 22); // E6 (13)
+    rec.set(padStringBytes(String(client.regNum || '').replace(/-/g, '').trim(), 13), 22); // E6 (13)
 
     for (let j = 0; j < 3; j++) {
       const dep = chunk[j];
@@ -516,7 +517,7 @@ export function generateGRecord(submitter: SubmitterInfo, client: any, cSeq: num
   rec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // G3 (3)
   rec.set(padNumberBytes(cSeq, 6), 6); // G4 (6)
   rec.set(padStringBytes(client.companyRegNum || client.businessNumber || '0000000000', 10), 12); // G5 (10)
-  rec.set(padStringBytes(client.regNum || '', 13), 22); // G6 (13)
+  rec.set(padStringBytes(String(client.regNum || '').replace(/-/g, '').trim(), 13), 22); // G6 (13)
   rec.set(encodeEucKr('01'), 35); // G7 무주택자해당여부 ('01': 여)
 
   const lName = client.landlordName || '';
@@ -671,7 +672,7 @@ export function generateFreelancerHometaxFile(submitter: SubmitterInfo, clients:
       cRec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // C3 (3)
       cRec.set(padNumberBytes(cSequence++, 7), 6); // C4 (7)
       cRec.set(padStringBytes(bizNo, 10), 13); // C5 (10)
-      cRec.set(padStringBytes(c.regNum || '', 13), 23); // C6 (13)
+      cRec.set(padStringBytes(String(c.regNum || '').replace(/-/g, '').trim(), 13), 23); // C6 (13)
       cRec.set(padStringBytes(c.name, 30), 36); // C7 (30)
       cRec.set(padNumberBytes('1', 1), 106); // C10 (1)
       cRec.set(padNumberBytes(isForeignClient, 1), 107); // C11 (1)

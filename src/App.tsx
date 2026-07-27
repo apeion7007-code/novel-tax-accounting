@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   BarChart3,
+  Search,
 } from 'lucide-react';
 
 import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';
@@ -21,6 +22,7 @@ import { StaffManagementView } from './components/views/StaffManagementView';
 import { CustomerListView } from './components/views/CustomerListView';
 import { AuthView } from './components/views/AuthView';
 import { RegistrationView } from './components/views/RegistrationView';
+import { HometaxValidatorView } from './components/views/HometaxValidatorView';
 
 import { recalculateYearData } from './utils/taxCalculator';
 import {
@@ -90,8 +92,8 @@ function App() {
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
 
-  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View
-  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
+  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View
+  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
@@ -2399,6 +2401,14 @@ function App() {
               </button>
 
               <button
+                className={`sidebar-item ${currentView === 'validator' ? 'active' : ''}`}
+                onClick={() => setCurrentView('validator')}
+              >
+                <Search size={18} />
+                전산매체 파일 검증
+              </button>
+
+              <button
                 className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}
                 onClick={() => setCurrentView('password')}
               >
@@ -2552,6 +2562,10 @@ function App() {
             )}
 
 
+
+            {currentView === 'validator' && (
+              <HometaxValidatorView />
+            )}
 
             {currentView === 'password' && (
               <ChangePasswordView

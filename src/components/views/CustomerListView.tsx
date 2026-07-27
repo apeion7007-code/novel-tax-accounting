@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, RotateCcw, Search, Plus, Trash2, FileSpreadsheet, Download, X } from 'lucide-react';
+import { Filter, RotateCcw, Search, Plus, Trash2, FileSpreadsheet, Download, X, AlertTriangle, Clock } from 'lucide-react';
 import type { Customer } from '../../App';
 
 
@@ -120,6 +120,40 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   handleInlineManagerChange,
   handleSaveRow
 }) => {
+  const [isVisaWidgetExpanded, setIsVisaWidgetExpanded] = React.useState<boolean>(false);
+
+  const visaAlerts = React.useMemo(() => {
+    const today = new Date();
+    const urgent: any[] = [];
+    const warning: any[] = [];
+
+    filteredCustomers.forEach(c => {
+      if (!c.visaExpireDate) return;
+      const expire = new Date(c.visaExpireDate);
+      if (isNaN(expire.getTime())) return;
+      
+      const diffTime = expire.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      const alertItem = {
+        customer: c,
+        days: diffDays,
+        dateStr: c.visaExpireDate.split('T')[0]
+      };
+
+      if (diffDays >= 0 && diffDays <= 30) {
+        urgent.push(alertItem);
+      } else if (diffDays > 30 && diffDays <= 90) {
+        warning.push(alertItem);
+      }
+    });
+
+    urgent.sort((a, b) => a.days - b.days);
+    warning.sort((a, b) => a.days - b.days);
+
+    return { urgent, warning };
+  }, [filteredCustomers]);
+
   return (
     <>
       <header className="top-bar">
@@ -186,6 +220,109 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
           </div>
         </div>
       </header>
+
+      {/* ⚠️ 비자 만료 경고 대시보드 위젯 */}
+      {(visaAlerts.urgent.length > 0 || visaAlerts.warning.length > 0) && (
+        <div style={{ margin: '0 0 20px 0', border: '1px solid #fed7d7', borderRadius: '12px', backgroundColor: '#fff5f5', overflow: 'hidden', boxShadow: '0 4px 15px -3px rgba(239, 68, 68, 0.1)' }}>
+          <div 
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', cursor: 'pointer', userSelect: 'none', backgroundColor: '#fff0f0' }}
+            onClick={() => setIsVisaWidgetExpanded(!isVisaWidgetExpanded)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <span style={{ fontSize: '18px' }}>🚨</span>
+              <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '14px' }}>비자 만료 경보 대시보드</span>
+              
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {visaAlerts.urgent.length > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', border: '1px solid #fca5a5' }}>
+                    <AlertTriangle size={12} color="#dc2626" />
+                    임박 (30일 이내) {visaAlerts.urgent.length}건
+                  </span>
+                )}
+                {visaAlerts.warning.length > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fef3c7', color: '#92400e', fontSize: '12px', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', border: '1px solid #fde68a' }}>
+                    <Clock size={12} color="#d97706" />
+                    예정 (90일 이내) {visaAlerts.warning.length}건
+                  </span>
+                )}
+              </div>
+            </div>
+            <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 'bold', fontSize: '13px' }}>
+              {isVisaWidgetExpanded ? '접기 ▲' : '자세히 보기 ▼'}
+            </button>
+          </div>
+
+          {isVisaWidgetExpanded && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', padding: '20px', backgroundColor: '#ffffff', borderTop: '1px solid #fed7d7' }}>
+              {/* 왼쪽: 임박 (30일 이내) */}
+              <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '14px', backgroundColor: '#fffafb' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 'bold', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%' }}></span>
+                  임박 고객 리스트 (30일 이내)
+                </h4>
+                {visaAlerts.urgent.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>임박 고객이 없습니다.</p>
+                ) : (
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {visaAlerts.urgent.map(item => (
+                      <div key={item.customer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: '#ffffff', border: '1px solid #fecaca', borderRadius: '6px' }}>
+                        <div>
+                          <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{item.customer.name}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{item.customer.visa}</span>
+                          <span style={{ fontSize: '11px', color: '#ef4444', marginLeft: '8px', fontWeight: 'bold' }}>({item.customer.nationality})</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 700 }}>D-{item.days} ({item.dateStr})</span>
+                          <button 
+                            className="btn-filter"
+                            style={{ padding: '3px 8px', fontSize: '11px', height: '24px', backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                            onClick={() => handleOpenCustomerRegistration(item.customer)}
+                          >
+                            바로가기
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 오른쪽: 예정 (90일 이내) */}
+              <div style={{ border: '1px solid #fef3c7', borderRadius: '8px', padding: '14px', backgroundColor: '#fffdf9' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 'bold', color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#f59e0b', borderRadius: '50%' }}></span>
+                  만료 예정 고객 리스트 (90일 이내)
+                </h4>
+                {visaAlerts.warning.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>만료 예정 고객이 없습니다.</p>
+                ) : (
+                  <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {visaAlerts.warning.map(item => (
+                      <div key={item.customer.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', backgroundColor: '#ffffff', border: '1px solid #fde68a', borderRadius: '6px' }}>
+                        <div>
+                          <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{item.customer.name}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{item.customer.visa}</span>
+                          <span style={{ fontSize: '11px', color: '#d97706', marginLeft: '8px', fontWeight: 'bold' }}>({item.customer.nationality})</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 700 }}>D-{item.days} ({item.dateStr})</span>
+                          <button 
+                            className="btn-filter"
+                            style={{ padding: '3px 8px', fontSize: '11px', height: '24px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' }}
+                            onClick={() => handleOpenCustomerRegistration(item.customer)}
+                          >
+                            바로가기
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="table-wrapper">
         <div className="table-container">

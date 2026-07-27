@@ -64,6 +64,7 @@ export interface Customer {
   consentStatus?: string;
   arcImageUrl?: string;
   signatureImageUrl?: string;
+  visaExpireDate?: string;
 }
 
 // Define manager interface
@@ -823,7 +824,8 @@ function App() {
               phone: c.phone || '',
               consentStatus: c.consentStatus || '대기',
               arcImageUrl: c.arcImageUrl || '',
-              signatureImageUrl: c.signatureImageUrl || ''
+              signatureImageUrl: c.signatureImageUrl || '',
+              visaExpireDate: c.visaExpireDate || ''
             };
           });
 
@@ -872,7 +874,8 @@ function App() {
               phone: c.phone || '',
               consentStatus: c.consentStatus || '대기',
               arcImageUrl: c.arcImageUrl || '',
-              signatureImageUrl: c.signatureImageUrl || ''
+              signatureImageUrl: c.signatureImageUrl || '',
+              visaExpireDate: c.visaExpireDate || ''
             };
           });
 

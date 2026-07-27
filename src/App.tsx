@@ -91,7 +91,6 @@ function App() {
   const [loginId, setLoginId] = useState<string>('');
   const [loginPw, setLoginPw] = useState<string>('');
   const [authError, setAuthError] = useState<string | null>(null);
-  const [passwordChangeText, setPasswordChangeText] = useState({ current: '', new: '', confirm: '' });
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
 
@@ -3430,38 +3429,6 @@ function App() {
       showToast('상담 정보 저장 실패: ' + err.message, 'error');
     }
   };
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!passwordChangeText.new || !passwordChangeText.confirm) {
-      showToast('새 비밀번호와 확인 비밀번호를 모두 입력해 주세요.', 'error');
-      return;
-    }
-    if (passwordChangeText.new !== passwordChangeText.confirm) {
-      showToast('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.', 'error');
-      return;
-    }
-
-    showToast('비밀번호를 업데이트하는 중입니다...', 'info');
-
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordChangeText.new
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      showToast('비밀번호가 성공적으로 변경되었습니다. 다음 로그인부터 적용됩니다.', 'success');
-      setPasswordChangeText({ current: '', new: '', confirm: '' });
-      setCurrentView('customer');
-    } catch (err: any) {
-      console.error('Password change error:', err);
-      showToast('비밀번호 변경 실패: ' + err.message, 'error');
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
@@ -4555,12 +4522,10 @@ function App() {
               />
             )}
 
-            {/* 4. Password Change View */}
             {currentView === 'password' && (
               <ChangePasswordView
-                passwordChangeText={passwordChangeText}
-                setPasswordChangeText={setPasswordChangeText}
-                handleChangePassword={handleChangePassword}
+                showToast={showToast}
+                setCurrentView={setCurrentView}
               />
             )}
 

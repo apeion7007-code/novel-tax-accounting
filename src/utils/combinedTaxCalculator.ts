@@ -188,7 +188,9 @@ export const calculateCombinedRefund = (
   combinedCalcTax = Math.max(0, Math.round(combinedCalcTax));
 
   const isReductionApplied = childReductionApply !== 'N' && childReductionApply !== '0';
-  const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(combinedCalcTax * 0.9)) : 0;
+  const yrNum = Number(yr) || 0;
+  const limit = yrNum >= 2023 ? 2000000 : 1500000;
+  const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(combinedCalcTax * 0.9)) : 0;
 
   const depCount = Number(regForm.dependentsCount) || 0;
   const senCount = Number(regForm.seniorCount) || 0;

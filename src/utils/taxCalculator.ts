@@ -117,7 +117,9 @@ export const recalculateYearData = (
   const childDeduction = cleanNum(yrData.childDeduction);
 
   const isReductionApplied = eligibility.isEligible && yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
-  const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(calculatedTax * 0.9)) : 0;
+  const yrNum = Number(yrData.year) || 0;
+  const limit = yrNum >= 2023 ? 2000000 : 1500000;
+  const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(calculatedTax * 0.9)) : 0;
   
   // 부양가족 소득공제 (인당 150만, 경로우대 +100만, 장애인 +200만)
   const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);

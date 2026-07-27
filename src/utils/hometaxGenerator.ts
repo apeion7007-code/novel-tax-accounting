@@ -87,6 +87,21 @@ export function padNumberBytes(val: number | string | null | undefined, length: 
 }
 
 /**
+ * Generates a valid RRN (Resident Registration Number) checksum based on NTS guidelines.
+ */
+export function generateValidRrn(birthDate6: string, genderDigit: string): string {
+  const cleanBirth = String(birthDate6 || '800101').replace(/-/g, '').slice(0, 6).padEnd(6, '0');
+  const base = cleanBirth + genderDigit + '00001';
+  let sum = 0;
+  const weights = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5];
+  for (let i = 0; i < 12; i++) {
+    sum += Number(base[i]) * weights[i];
+  }
+  const checksum = (11 - (sum % 11)) % 10;
+  return base + String(checksum);
+}
+
+/**
  * Generates the National Tax Service Electronic Media File content (.txt)
  */
 export function generateHometaxFile(submitter: SubmitterInfo, clients: any[]): Blob {
@@ -321,12 +336,24 @@ export function generateHometaxFile(submitter: SubmitterInfo, clients: any[]): B
       cRec.set(padNumberBytes(0, 10), 1943);
 
       records.push(cRec);
+
+      // Generate E records (Dependents)
+      const eRecs = generateERecords(submitter, c, cSequence - 1);
+      eRecs.forEach(eRec => {
+        records.push(eRec);
+      });
+
+      // Generate G record (Monthly Rent) if eligible
+      const hasRent = (c.isMonthlyRent === '가' || c.isMonthlyRent === 'true' || c.isMonthlyRent === true || Number(c.monthlyRentFee) > 0);
+      const rentExpectNational = cyData ? Number(cyData.rentRefundExpectNational) : 0;
+      if (hasRent && rentExpectNational > 0) {
+        const gRec = generateGRecord(submitter, c, cSequence - 1, cyData);
+        records.push(gRec);
+      }
     });
   }
 
   // 3. Assemble all records separated by CRLF
-  // Join all records. A file has records.length rows.
-  // Each row is 2,010 bytes + 2 bytes CRLF = 2,012 bytes.
   const totalLength = records.length * 2012;
   const fileBytes = new Uint8Array(totalLength);
   let offset = 0;
@@ -335,6 +362,351 @@ export function generateHometaxFile(submitter: SubmitterInfo, clients: any[]): B
     fileBytes[offset + 2010] = 0x0D; // CR
     fileBytes[offset + 2011] = 0x0A; // LF
     offset += 2012;
+  });
+
+  return new Blob([fileBytes], { type: 'text/plain;charset=cp949' });
+}
+
+/**
+ * Generates E-records (Dependents Deduction) dynamically based on client counts.
+ */
+export function generateERecords(submitter: SubmitterInfo, client: any, cSeq: number): Uint8Array[] {
+  const eRecords: Uint8Array[] = [];
+
+  const dependentsList: any[] = [];
+  
+  // 1. Employee Self
+  const isForeignerNum = (client.nationality && !client.nationality.includes('대한민국')) ? '9' : '1';
+  dependentsList.push({
+    relation: '0', // 본인
+    isForeign: isForeignerNum,
+    name: client.name || '',
+    rrn: client.regNum || '',
+    isBasic: '1',
+    isSenior: ' ',
+    isDisabled: ' ',
+    isChild: ' ',
+    isFemale: ' ',
+    isSingleParent: ' '
+  });
+
+  const depCount = Number(client.dependentsCount) || 0;
+  const senCount = Number(client.seniorCount) || 0;
+  const disCount = Number(client.disabledCount) || 0;
+  const chCount = Number(client.childCount) || 0;
+
+  const totalUniqueDeps = Math.max(depCount, senCount, disCount, chCount);
+
+  for (let i = 0; i < totalUniqueDeps; i++) {
+    let birth = '850101';
+    let gender = '5';
+    let rel = '5'; 
+
+    if (i < senCount) {
+      birth = '500101';
+      gender = '7'; 
+      rel = '1'; 
+    } else if (i >= (senCount + disCount) && i < (senCount + disCount + chCount)) {
+      birth = '150101';
+      gender = '8'; 
+      rel = '4'; 
+    } else if (i >= senCount && i < (senCount + disCount)) {
+      birth = '800101';
+      gender = '5'; 
+      rel = '5';
+    }
+
+    const rrn = generateValidRrn(birth, gender);
+
+    dependentsList.push({
+      relation: rel,
+      isForeign: '9',
+      name: `DEPENDENT ${i + 1}`,
+      rrn: rrn,
+      isBasic: (i < depCount || i < (senCount + disCount + chCount)) ? '1' : ' ',
+      isSenior: i < senCount ? '1' : ' ',
+      isDisabled: (i >= senCount && i < (senCount + disCount)) ? '1' : ' ',
+      isChild: (i >= (senCount + disCount) && i < (senCount + disCount + chCount)) ? '1' : ' ',
+      isFemale: ' ',
+      isSingleParent: ' '
+    });
+  }
+
+  const chunks: any[][] = [];
+  for (let i = 0; i < dependentsList.length; i += 3) {
+    chunks.push(dependentsList.slice(i, i + 3));
+  }
+
+  let eSeq = 1;
+  chunks.forEach(chunk => {
+    const rec = new Uint8Array(2010);
+    for (let i = 0; i < rec.length; i++) rec[i] = 0x20;
+
+    const fillZeros = (start: number, end: number) => {
+      for (let i = start; i < end; i++) rec[i] = 0x30;
+    };
+    fillZeros(90, 507);
+    fillZeros(562, 979);
+    fillZeros(1034, 1451);
+
+    rec.set(encodeEucKr('E'), 0); // E1 (1)
+    rec.set(padNumberBytes('20', 2), 1); // E2 (2)
+    rec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // E3 (3)
+    rec.set(padNumberBytes(cSeq, 6), 6); // E4 (6)
+    rec.set(padStringBytes(client.companyRegNum || client.businessNumber || '0000000000', 10), 12); // E5 (10)
+    rec.set(padStringBytes(client.regNum || '', 13), 22); // E6 (13)
+
+    for (let j = 0; j < 3; j++) {
+      const dep = chunk[j];
+      if (!dep) continue;
+
+      let detailOffset = 0;
+      if (j === 0) detailOffset = 35;
+      else if (j === 1) detailOffset = 507;
+      else if (j === 2) detailOffset = 979;
+
+      rec.set(encodeEucKr(dep.relation), detailOffset); 
+      rec.set(encodeEucKr(dep.isForeign), detailOffset + 1); 
+      rec.set(padStringBytes(dep.name, 30), detailOffset + 2); 
+      rec.set(padStringBytes(dep.rrn, 13), detailOffset + 32); 
+      rec.set(encodeEucKr(dep.isBasic), detailOffset + 45); 
+      rec.set(encodeEucKr(dep.isDisabled), detailOffset + 46); 
+      rec.set(encodeEucKr(dep.isFemale), detailOffset + 47); 
+      rec.set(encodeEucKr(dep.isSenior), detailOffset + 48); 
+      rec.set(encodeEucKr(dep.isSingleParent), detailOffset + 49); 
+      rec.set(encodeEucKr(dep.isChild), detailOffset + 50); 
+      rec.set(encodeEucKr(dep.isChild), detailOffset + 51); 
+    }
+
+    rec.set(padNumberBytes(eSeq++, 2), 1451); // E172 일련번호
+    eRecords.push(rec);
+  });
+
+  return eRecords;
+}
+
+/**
+ * Generates G-record (Monthly Rent Deduction) for NTS file.
+ */
+export function generateGRecord(submitter: SubmitterInfo, client: any, cSeq: number, yrRent: any): Uint8Array {
+  const rec = new Uint8Array(2010);
+  for (let i = 0; i < rec.length; i++) rec[i] = 0x20;
+
+  const fillZeros = (start: number, end: number) => {
+    for (let i = start; i < end; i++) rec[i] = 0x30;
+  };
+
+  fillZeros(282, 302);
+  fillZeros(391, 435);
+  fillZeros(509, 514);
+  fillZeros(664, 690);
+  fillZeros(764, 769);
+  fillZeros(919, 955);
+  fillZeros(1044, 1088);
+  fillZeros(1162, 1167);
+  fillZeros(1317, 1343);
+  fillZeros(1417, 1422);
+  fillZeros(1572, 1608);
+  fillZeros(1697, 1741);
+  fillZeros(1815, 1820);
+  fillZeros(1970, 1996);
+
+  rec.set(encodeEucKr('G'), 0); // G1 (1)
+  rec.set(padNumberBytes('20', 2), 1); // G2 (2)
+  rec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // G3 (3)
+  rec.set(padNumberBytes(cSeq, 6), 6); // G4 (6)
+  rec.set(padStringBytes(client.companyRegNum || client.businessNumber || '0000000000', 10), 12); // G5 (10)
+  rec.set(padStringBytes(client.regNum || '', 13), 22); // G6 (13)
+  rec.set(encodeEucKr('01'), 35); // G7 무주택자해당여부 ('01': 여)
+
+  const lName = client.landlordName || '';
+  const lRegNum = (client.landlordRegNum || '').replace(/-/g, '').trim();
+  const rentType = client.rentHousingType || '오피스텔';
+  let typeCode = '6'; 
+  if (rentType.includes('단독')) typeCode = '1';
+  else if (rentType.includes('다가구')) typeCode = '2';
+  else if (rentType.includes('다세대')) typeCode = '3';
+  else if (rentType.includes('연립')) typeCode = '4';
+  else if (rentType.includes('아파트')) typeCode = '5';
+  else if (rentType.includes('오피스텔')) typeCode = '6';
+  else if (rentType.includes('고시원')) typeCode = '7';
+  else if (rentType.includes('기타')) typeCode = '8';
+
+  let areaVal = '00000';
+  const sizeNum = Number(client.rentHousingSize) || 0;
+  if (sizeNum > 0) {
+    const parts = sizeNum.toFixed(2).split('.');
+    const integerPart = parts[0].padStart(3, '0');
+    const decimalPart = parts[1].padEnd(2, '0');
+    areaVal = integerPart + decimalPart;
+  }
+
+  const rentAddr = client.residentRegisterAddress || client.address || '';
+  const startD = (client.rentLeaseStart || '').replace(/-/g, '').trim();
+  const endD = (client.rentLeaseEnd || '').replace(/-/g, '').trim();
+  
+  const annualRentAmt = Number(client.monthlyRentFee || 0) * 12;
+  const taxCreditAmt = Number(yrRent.rentRefundExpectNational || 0);
+
+  rec.set(padStringBytes(lName, 60), 37); // G8 임대인성명
+  rec.set(padStringBytes(lRegNum, 13), 97); // G9 임대인주민번호
+  rec.set(encodeEucKr(typeCode), 110); // G10 유형
+  rec.set(padNumberBytes(areaVal, 5), 111); // G11 임차면적
+  rec.set(padStringBytes(rentAddr, 150), 116); // G12 임대차주소
+  rec.set(padNumberBytes(startD, 8), 266); // G13 임대차개시일
+  rec.set(padNumberBytes(endD, 8), 274); // G14 임대차종료일
+  rec.set(padNumberBytes(annualRentAmt, 10), 282); // G15 연간월세액
+  rec.set(padNumberBytes(taxCreditAmt, 10), 292); // G16 세액공제금액
+
+  rec.set(padNumberBytes('01', 2), 1996); // G86 일련번호
+  
+  return rec;
+}
+
+/**
+ * Generates the National Tax Service Resident Business Income (Freelancer 3.3%) Electronic Media File content (.txt - 190 bytes layout)
+ */
+export function generateFreelancerHometaxFile(submitter: SubmitterInfo, clients: any[]): Blob {
+  const records: Uint8Array[] = [];
+  const targetYr = submitter.targetYear || '2025';
+
+  // 1. Build A-record
+  const aRec = new Uint8Array(190);
+  for (let i = 0; i < aRec.length; i++) aRec[i] = 0x20;
+
+  aRec.set(encodeEucKr('A'), 0); // A1 (1)
+  aRec.set(padNumberBytes('24', 2), 1); // A2 (2)
+  aRec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // A3 (3)
+  aRec.set(padNumberBytes(new Date().toISOString().slice(0, 10).replace(/-/g, ''), 8), 6); // A4 (8)
+  aRec.set(padNumberBytes(submitter.submitterType, 1), 14); // A5 (1)
+  aRec.set(padStringBytes(submitter.submitterType === '1' ? submitter.agentNum : '', 6), 15); // A6 (6)
+  aRec.set(padStringBytes(submitter.hometaxId, 20), 21); // A7 (20)
+  aRec.set(padStringBytes('9000', 4), 41); // A8 (4)
+  aRec.set(padStringBytes(submitter.bizNum, 10), 45); // A9 (10)
+  aRec.set(padStringBytes(submitter.companyName, 30), 55); // A10 (30)
+  aRec.set(padStringBytes(submitter.deptName, 30), 85); // A11 (30)
+  aRec.set(padStringBytes(submitter.managerName, 30), 115); // A12 (30)
+  aRec.set(padStringBytes(submitter.managerPhone, 15), 145); // A13 (15)
+
+  const companyGroups: Record<string, any[]> = {};
+  clients.forEach(c => {
+    const yrData = c.freelancerYears?.[targetYr];
+    const bizNo = (yrData?.businessNumber || '0000000000').replace(/-/g, '').trim();
+    if (!companyGroups[bizNo]) {
+      companyGroups[bizNo] = [];
+    }
+    companyGroups[bizNo].push(c);
+  });
+
+  const numCompanies = Object.keys(companyGroups).length;
+  aRec.set(padNumberBytes(numCompanies, 5), 160); // A14 (5)
+
+  records.push(aRec);
+
+  // 2. Build B & C records for each company group
+  let bSequence = 1;
+  for (const [bizNo, group] of Object.entries(companyGroups)) {
+    const firstClient = group[0];
+    const yrData = firstClient.freelancerYears?.[targetYr];
+    const compName = yrData?.workPlace || '';
+
+    let totalIncomeSum = 0;
+    let totalIncomeTaxSum = 0;
+    let totalLocalTaxSum = 0;
+
+    group.forEach(c => {
+      const cyData = c.freelancerYears?.[targetYr];
+      totalIncomeSum += Number(cyData?.totalIncome || 0);
+      totalIncomeTaxSum += Number(cyData?.withholdingTax3 || 0);
+      totalLocalTaxSum += Number(cyData?.localTax03 || 0);
+    });
+
+    const bRec = new Uint8Array(190);
+    for (let i = 0; i < bRec.length; i++) bRec[i] = 0x20;
+
+    bRec.set(encodeEucKr('B'), 0); // B1 (1)
+    bRec.set(padNumberBytes('24', 2), 1); // B2 (2)
+    bRec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // B3 (3)
+    bRec.set(padNumberBytes(bSequence++, 6), 6); // B4 (6)
+    bRec.set(padStringBytes(bizNo, 10), 12); // B5 (10)
+    bRec.set(padStringBytes(compName, 30), 22); // B6 (30)
+    bRec.set(padNumberBytes(group.length, 6), 52); // B7 (6)
+    bRec.set(padNumberBytes(group.length, 10), 58); // B8 (10)
+    bRec.set(padNumberBytes(totalIncomeSum, 15), 68); // B9 (15)
+    bRec.set(padNumberBytes(totalIncomeTaxSum, 15), 83); // B10 (15)
+    bRec.set(padNumberBytes(totalLocalTaxSum, 15), 98); // B11 (15)
+    bRec.set(padNumberBytes(totalIncomeTaxSum + totalLocalTaxSum, 15), 113); // B12 (15)
+    
+    for (let i = 128; i < 138; i++) bRec[i] = 0x30;
+    for (let i = 138; i < 153; i++) bRec[i] = 0x30;
+
+    bRec.set(padNumberBytes('1', 1), 153); // B15 (1)
+
+    records.push(bRec);
+
+    // Build C-record for each client in the company group
+    let cSequence = 1;
+    group.forEach(c => {
+      const cyData = c.freelancerYears?.[targetYr];
+      const income = Number(cyData?.totalIncome || 0);
+      const incTax = Number(cyData?.withholdingTax3 || 0);
+      const locTax = Number(cyData?.localTax03 || 0);
+      const isForeignClient = (c.nationality && !c.nationality.includes('대한민국')) ? '9' : '1';
+      
+      const cRec = new Uint8Array(190);
+      for (let i = 0; i < cRec.length; i++) cRec[i] = 0x20;
+
+      const fillZeros = (start: number, end: number) => {
+        for (let i = start; i < end; i++) cRec[i] = 0x30;
+      };
+      fillZeros(122, 130); 
+      fillZeros(130, 144); 
+      fillZeros(144, 146); 
+      fillZeros(146, 160); 
+      fillZeros(160, 174); 
+      fillZeros(174, 188); 
+
+      cRec.set(encodeEucKr('C'), 0); // C1 (1)
+      cRec.set(padNumberBytes('24', 2), 1); // C2 (2)
+      cRec.set(padStringBytes(submitter.taxOfficeCode, 3), 3); // C3 (3)
+      cRec.set(padNumberBytes(cSequence++, 7), 6); // C4 (7)
+      cRec.set(padStringBytes(bizNo, 10), 13); // C5 (10)
+      cRec.set(padStringBytes(c.regNum || '', 13), 23); // C6 (13)
+      cRec.set(padStringBytes(c.name, 30), 36); // C7 (30)
+      cRec.set(padNumberBytes('1', 1), 106); // C10 (1)
+      cRec.set(padNumberBytes(isForeignClient, 1), 107); // C11 (1)
+      cRec.set(padStringBytes(cyData?.incomeTypeCode || '940909', 6), 108); // C12 (6)
+      cRec.set(padStringBytes(targetYr, 4), 114); // C13 (4)
+      cRec.set(padStringBytes(targetYr, 4), 118); // C14 (4)
+      cRec.set(padNumberBytes('1', 8), 122); // C15 (8)
+      
+      cRec.set(encodeEucKr('0'), 130); 
+      cRec.set(padNumberBytes(income, 13), 131); 
+      
+      cRec.set(padNumberBytes('03', 2), 144); // C17 (3%)
+      
+      cRec.set(encodeEucKr('0'), 146); 
+      cRec.set(padNumberBytes(incTax, 13), 147); 
+      
+      cRec.set(encodeEucKr('0'), 160); 
+      cRec.set(padNumberBytes(locTax, 13), 161); 
+      
+      cRec.set(encodeEucKr('0'), 174); 
+      cRec.set(padNumberBytes(incTax + locTax, 13), 175); 
+
+      records.push(cRec);
+    });
+  }
+
+  // Assemble records separated by CRLF
+  const totalLength = records.length * 192;
+  const fileBytes = new Uint8Array(totalLength);
+  let offset = 0;
+  records.forEach(rec => {
+    fileBytes.set(rec, offset);
+    fileBytes[offset + 190] = 0x0D; // CR
+    fileBytes[offset + 191] = 0x0A; // LF
+    offset += 192;
   });
 
   return new Blob([fileBytes], { type: 'text/plain;charset=cp949' });

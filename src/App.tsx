@@ -11,7 +11,7 @@ import {
   BarChart3,
 } from 'lucide-react';
 
-import { generateHometaxFile } from './utils/hometaxGenerator';
+import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';
 import { ConsentPage } from './components/ConsentPage';
 import { HometaxExcelSyncModal } from './components/modals/HometaxExcelSyncModal';
 
@@ -389,7 +389,15 @@ function App() {
     }
   }, [hometaxSubmitter]);
 
-  const handleDownloadHometaxFile = async () => {
+  const handleDownloadHometaxFile = () => {
+    if (selectedIds.length === 0) {
+      showToast('제출할 고객을 선택해 주세요.', 'error');
+      return;
+    }
+    setIsHometaxModalOpen(true);
+  };
+
+  const handleGenerateHometaxFile = async (type: 'wage' | 'freelancer') => {
     if (selectedIds.length === 0) {
       showToast('제출할 고객을 선택해 주세요.', 'error');
       return;
@@ -434,29 +442,48 @@ function App() {
       const clientsWithData = dbClients.map(c => {
         const cYearRecords = dbYearData ? dbYearData.filter(y => y.clientId === c.id) : [];
         const yearsMap: Record<string, any> = {};
+        const freelancerYearsMap: Record<string, any> = {};
         
         cYearRecords.forEach(y => {
-          if (!y.companyName) return; // Skip freelancer records for Wage Hometax file
-          yearsMap[String(y.year)] = {
-            active: true,
-            workPlace: y.companyName || '',
-            businessNumber: y.companyRegNo || '',
-            salaryTotal: y.netSalary || 0,
-            totalSalary: y.netSalary || 0,
-            taxBase: y.calculatedTax || 0,
-            childReduction: y.smallBusinessDeduction || 0,
-            appliedTaxReduction: y.smallBusinessDeduction || 0,
-            decisionTax: y.determinedTax || 0,
-            originalDeterminedTax: y.determinedTax || 0,
-            decisionTaxApplyAmt: y.changedDeterminedTax || 0,
-            recalcDeterminedTax: y.changedDeterminedTax || 0,
-            localTaxApplyAmt: y.changedLocalTax || 0,
-            recalcLocalTax: y.changedLocalTax || 0,
-            expectedRefundNational: y.determinedTaxRefund || 0,
-            refundExpectNational: y.determinedTaxRefund || 0,
-            expectedRefundLocal: y.localTaxRefund || 0,
-            refundExpectLocal: y.localTaxRefund || 0
-          };
+          if (y.companyName && !y.freelancerActive) {
+            // Wage record
+            yearsMap[String(y.year)] = {
+              active: true,
+              workPlace: y.companyName || '',
+              businessNumber: y.companyRegNo || '',
+              salaryTotal: y.netSalary || 0,
+              totalSalary: y.netSalary || 0,
+              taxBase: y.calculatedTax || 0,
+              childReduction: y.smallBusinessDeduction || 0,
+              appliedTaxReduction: y.smallBusinessDeduction || 0,
+              decisionTax: y.determinedTax || 0,
+              originalDeterminedTax: y.determinedTax || 0,
+              decisionTaxApplyAmt: y.changedDeterminedTax || 0,
+              recalcDeterminedTax: y.changedDeterminedTax || 0,
+              localTaxApplyAmt: y.changedLocalTax || 0,
+              recalcLocalTax: y.changedLocalTax || 0,
+              expectedRefundNational: y.determinedTaxRefund || 0,
+              refundExpectNational: y.determinedTaxRefund || 0,
+              expectedRefundLocal: y.localTaxRefund || 0,
+              refundExpectLocal: y.localTaxRefund || 0,
+              rentRefundTotal: y.rentRefundTotal || 0,
+              rentRefundExpectNational: y.rentRefundExpectNational || 0,
+              rentRefundExpectLocal: y.rentRefundExpectLocal || 0
+            };
+          } else if (y.freelancerActive || !y.companyName) {
+            // Freelancer record
+            freelancerYearsMap[String(y.year)] = {
+              active: true,
+              workPlace: y.freelancerCompanyName || '',
+              businessNumber: y.freelancerCompanyRegNo || '',
+              totalIncome: y.freelancerNetSalary || 0,
+              withholdingTax3: y.freelancerDeterminedTax || 0,
+              localTax03: y.freelancerLocalTax || 0,
+              refundExpectNational: y.freelancerRefundExpectNational || 0,
+              refundExpectLocal: y.freelancerRefundExpectLocal || 0,
+              incomeTypeCode: y.freelancerIncomeTypeCode || '940909'
+            };
+          }
         });
 
         return {
@@ -466,31 +493,60 @@ function App() {
           regNum: c.regNum || '',
           foreignerNumber: c.regNum || '',
           nationality: c.country || '',
-          years: yearsMap
+          isMonthlyRent: c.isMonthlyTenant ? '가' : '부',
+          landlordName: c.landlordName || '',
+          landlordRegNum: c.landlordRegNum || '',
+          rentHousingType: c.rentHousingType || '',
+          rentHousingSize: c.rentHousingSize || '',
+          rentLeaseStart: c.rentLeaseStart || '',
+          rentLeaseEnd: c.rentLeaseEnd || '',
+          monthlyRentFee: c.monthlyRentFee || '',
+          residentRegisterAddress: c.address || '',
+          dependentsCount: c.dependentsCount || 0,
+          seniorCount: c.seniorCount || 0,
+          disabledCount: c.disabledCount || 0,
+          childCount: c.childCount || 0,
+          years: yearsMap,
+          freelancerYears: freelancerYearsMap
         };
       }).filter(c => {
-        const yrData = c.years?.[yr];
-        // Only include clients with salary data AND who are '수임완료'
-        const hasSalary = yrData && (yrData.salaryTotal || yrData.totalSalary);
         const isConsentApproved = c.consentStatus === '수임완료';
-        return hasSalary && isConsentApproved;
+        if (type === 'wage') {
+          const yrData = c.years?.[yr];
+          const hasSalary = yrData && (yrData.salaryTotal || yrData.totalSalary);
+          return hasSalary && isConsentApproved;
+        } else {
+          const yrData = c.freelancerYears?.[yr];
+          const hasIncome = yrData && yrData.totalIncome > 0;
+          return hasIncome && isConsentApproved;
+        }
       });
 
       if (clientsWithData.length === 0) {
-        showToast(`${yr}년도 근로정산 소득 데이터가 있고 수임동의가 완료된 고객이 없습니다.`, 'error');
+        showToast(`${yr}년도 ${type === 'wage' ? '근로정산' : '프리랜서'} 소득 데이터가 있고 수임동의가 완료된 고객이 없습니다.`, 'error');
         return;
       }
 
-      const blob = generateHometaxFile(hometaxSubmitter, clientsWithData);
+      let blob: Blob;
+      let filename: string;
+      if (type === 'wage') {
+        blob = generateHometaxFile(hometaxSubmitter, clientsWithData);
+        filename = `근로소득지급명세서_${yr}_제출용.txt`;
+      } else {
+        blob = generateFreelancerHometaxFile(hometaxSubmitter, clientsWithData);
+        filename = `사업소득지급명세서_${yr}_제출용.txt`;
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `근로소득지급명세서_${yr}_제출용.txt`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(`${clientsWithData.length}명의 전산매체 파일 다운로드가 완료되었습니다.`, 'success');
+
+      showToast(`${clientsWithData.length}명의 ${type === 'wage' ? '근로소득' : '사업소득(프리랜서)'} 전산매체 파일 다운로드가 완료되었습니다.`, 'success');
       setIsHometaxModalOpen(false);
     } catch (e: any) {
       console.error(e);
@@ -2671,10 +2727,18 @@ function App() {
               <button
                 type="button"
                 className="btn-submit"
-                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#0f172a' }}
-                onClick={handleDownloadHometaxFile}
+                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                onClick={() => handleGenerateHometaxFile('wage')}
               >
-                파일 생성 및 다운로드
+                근로소득 파일 다운로드
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#10b981', color: '#ffffff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                onClick={() => handleGenerateHometaxFile('freelancer')}
+              >
+                사업소득(3.3%) 다운로드
               </button>
             </div>
           </div>

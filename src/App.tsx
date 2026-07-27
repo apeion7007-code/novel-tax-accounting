@@ -2264,6 +2264,10 @@ function App() {
         const localRef = yr.localTaxRefund || 0;
 
         const isWageActive = Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL);
+        const rentRefundTotal = yr.rentRefundTotal || 0;
+        const rentRefundExpectNational = yr.rentRefundExpectNational || 0;
+        const rentRefundExpectLocal = yr.rentRefundExpectLocal || 0;
+        const dependentRefundTotal = yr.dependentRefundTotal || 0;
 
         const rawYrData = {
           id: String(yr.id),
@@ -2302,7 +2306,11 @@ function App() {
           courtFee: totalRef,
           isReductionEligible: (yr.isSmallBusiness || yr.isSmallBusinessDeduction) ? '여' : '부',
           correctionFileUrl: yr.correction_file || yr.correction_file_url || '',
-          isRefundOverridden: false
+          isRefundOverridden: false,
+          rentRefundTotal,
+          rentRefundExpectNational,
+          rentRefundExpectLocal,
+          dependentRefundTotal
         };
 
         const tempRegForm = {

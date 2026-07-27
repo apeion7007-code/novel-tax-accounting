@@ -100,6 +100,10 @@
 | `fileURL` | `text` | 원천징수영수증 PDF 스토리지 URL |
 | `correction_file` | `text` | 경정청구 보완 서류 URL |
 | `createdAt` | `timestamp without time zone` | 데이터 생성 일시 |
+| `rentRefundTotal` | `numeric` | 월세 환급금 합계 |
+| `rentRefundExpectNational` | `numeric` | 월세 환급금 국세 |
+| `rentRefundExpectLocal` | `numeric` | 월세 환급금 지방세 |
+| `dependentRefundTotal` | `numeric` | 부양가족 환급금 합계 |
 
 ---
 

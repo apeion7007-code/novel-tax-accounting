@@ -433,7 +433,11 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         freelancerCourtFee: 0,
         freelancerExpectedFeeAmt: 0,
         freelancerIncomeTypeCode: '3.3%',
-        freelancerIsNonRefundable: false
+        freelancerIsNonRefundable: false,
+        rentRefundTotal: cleanNum(yrData.rentRefundTotal),
+        rentRefundExpectNational: cleanNum(yrData.rentRefundExpectNational),
+        rentRefundExpectLocal: cleanNum(yrData.rentRefundExpectLocal),
+        dependentRefundTotal: cleanNum(yrData.dependentRefundTotal)
       };
 
       let existingRecordId: any = null;

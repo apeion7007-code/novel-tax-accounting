@@ -28,7 +28,24 @@ export const calculateCombinedRefund = (
     let rentRefund = 0;
     matchingWageDataList.forEach((yrData: any) => {
       wageFreeRefund += (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
-      rentRefund += (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? Number(yrData.rentRefundTotal) : 0) || 0;
+      
+      let yrRentRefund = Number(yrData.rentRefundTotal) || 0;
+      if (!yrRentRefund && (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가') && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee) {
+        const totalSalary = Number(yrData.salaryTotal || yrData.totalSalary) || 0;
+        const rate = totalSalary <= 55000000 ? 0.17 : (totalSalary <= 80000000 ? 0.15 : 0);
+        const rentLimit = Math.min(Number(regForm.monthlyRentFee) * 12, 10000000);
+        const rentDeduction = Math.round(rentLimit * rate);
+        
+        const originalDecisionTax = Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0;
+        const refundNational = Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0;
+        const remainingDecisionTax = Math.max(0, originalDecisionTax - refundNational);
+        
+        const rentRefundNational = Math.min(rentDeduction, remainingDecisionTax);
+        const rentRefundLocal = Math.round(rentRefundNational * 0.1);
+        yrRentRefund = rentRefundNational + rentRefundLocal;
+      }
+      
+      rentRefund += (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? yrRentRefund : 0) || 0;
     });
     const finalRefund = wageFreeRefund + rentRefund;
     const fee = Math.round(finalRefund * (selectedFeeRate / 100));

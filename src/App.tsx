@@ -2245,7 +2245,7 @@ function App() {
       const loadedYearsSet = new Set<string>();
 
       for (const yr of yearRecords) {
-        if (!yr.companyName) continue; // Skip freelancer-only records for wage table
+        if (yr.freelancerActive) continue; // Skip freelancer-only records for wage table
         const yrKey = String(yr.year);
         loadedYearsSet.add(yrKey);
 
@@ -2370,7 +2370,7 @@ function App() {
       };
 
       for (const yr of yearRecords) {
-        if (yr.companyName && !yr.freelancerActive) continue; // Skip pure wage records
+        if (!yr.freelancerActive) continue; // Skip pure wage records
         const yrKey = String(yr.year);
         if (yr.freelancerActive || yr.freelancerNetSalary > 0 || yr.freelancerCourtFee > 0 || yr.freelancerFileURL) {
           freelancerYearsObj[yrKey] = {

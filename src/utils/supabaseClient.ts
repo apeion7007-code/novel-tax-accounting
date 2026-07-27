@@ -111,6 +111,15 @@ export async function uploadPdfToSupabase(file: File, path: string): Promise<str
 /**
  * Save complete registration form & year-end records to Supabase with exact 1:1 schema alignment
  */
+
+function cleanNum(val: any): number {
+  if (val === undefined || val === null) return 0;
+  if (typeof val === 'number') return val;
+  const cleaned = String(val).replace(/,/g, '').trim();
+  const parsed = Number(cleaned);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: Record<string, File | null>) {
   try {
     // 1. Map manager name to their actual UUID in the database to satisfy the foreign key constraint
@@ -192,10 +201,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       landlordName: regForm.landlordName || '',
       landlordRegNum: regForm.landlordRegNum || '',
       rentHousingType: regForm.rentHousingType || '오피스텔',
-      rentHousingSize: regForm.rentHousingSize ? Number(regForm.rentHousingSize) : null,
+      rentHousingSize: regForm.rentHousingSize ? cleanNum(regForm.rentHousingSize) : null,
       rentLeaseStart: safeToISOString(regForm.rentLeaseStart),
       rentLeaseEnd: safeToISOString(regForm.rentLeaseEnd),
-      monthlyRentFee: regForm.monthlyRentFee ? Number(regForm.monthlyRentFee) : null,
+      monthlyRentFee: regForm.monthlyRentFee ? cleanNum(regForm.monthlyRentFee) : null,
       rentContractor: regForm.rentContractor || '본인',
       rentHouseholder: regForm.rentHouseholder || '세대주',
       rentAllHouseholdsNoHouse: regForm.rentAllHouseholdsNoHouse || '부',
@@ -217,9 +226,9 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       seniorCount: Number(regForm.seniorCount) || 0,
       disabledCount: Number(regForm.disabledCount) || 0,
       childCount: Number(regForm.childCount) || 0,
-      refund_performance: Number(regForm.refundPerformance) || 0,
+      refund_performance: cleanNum(regForm.refundPerformance),
       refund_performance_date: safeToISOString(regForm.refundPerformanceDate),
-      fee_performance: Number(regForm.feeReceivedPerformance) || 0,
+      fee_performance: cleanNum(regForm.feeReceivedPerformance),
       fee_performance_date: safeToISOString(regForm.feeReceivedDate),
       companyAddress: regForm.companyAddress || '',
       companyPhone: regForm.companyPhone || '',

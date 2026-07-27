@@ -172,7 +172,24 @@ export function useExcelHandlers(
       worksheet.getCell('C6').value = "(전화번호 : " + (regForm.companyPhone || '') + ")";
 
       // 9. Fill Employee details (Row 11 / Row 12)
-      worksheet.getCell('A11').value = regForm.name ? regForm.name.toUpperCase() : '';
+      const nameCell = worksheet.getCell('A11');
+      const nameVal = regForm.name ? regForm.name.toUpperCase().trim() : '';
+      nameCell.value = nameVal;
+      
+      // Auto-scale font size and enable text wrapping for long names
+      if (nameVal.length > 20) {
+        nameCell.font = { name: '돋움', size: 7, bold: true };
+        nameCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        worksheet.getRow(11).height = 36; // allow 2 lines
+      } else if (nameVal.length > 12) {
+        nameCell.font = { name: '돋움', size: 8, bold: true };
+        nameCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        worksheet.getRow(11).height = 30; // allow 2 lines
+      } else {
+        nameCell.font = { name: '돋움', size: 9 };
+        nameCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      }
+
       worksheet.getCell('B11').value = regForm.foreignerNumber || '';
       worksheet.getCell('C11').value = regForm.residentAddress || '';
       worksheet.getCell('D11').value = '청년';

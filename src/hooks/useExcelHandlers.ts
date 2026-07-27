@@ -12,7 +12,7 @@ export function useExcelHandlers(
 ) {
   const triggerConsolidatedExcelDownload = async () => {
     try {
-      await generateConsolidatedExcel(regForm, showToast);
+      await generateConsolidatedExcel(regForm, selectedFeeRate, showToast);
 
       showToast('통합 경정청구 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
       handleSaveConsultInfo();

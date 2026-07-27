@@ -98,6 +98,28 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 }, 0).toLocaleString()}원
               </td>
             </tr>
+{/* Row 2b: 프리랜서 지방세 환급금 (B-local) */}
+<tr>
+  <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>
+    프리랜서 지방세 환급금 (B-local)
+  </td>
+  {targetYears.map(yr => {
+    const freeData = regForm.freelancerYears?.[yr];
+    const localRefund = freeData?.active ? (Number(freeData.localTax03) || 0) : 0;
+    return (
+      <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#475569' }}>
+        {freeData?.active ? `${localRefund.toLocaleString()}원` : '-'}
+      </td>
+    );
+  })}
+  <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f8fafc', color: '#475569' }}>
+    {targetYears.reduce((sum, yr) => {
+      const freeData = regForm.freelancerYears?.[yr];
+      const localRefund = freeData?.active ? (Number(freeData.localTax03) || 0) : 0;
+      return sum + localRefund;
+    }, 0).toLocaleString()}원
+  </td>
+</tr>
 
             {/* Row 3: 통합 합산 경정청구 예상 환급금 */}
             <tr style={{ backgroundColor: '#eff6ff' }}>
@@ -145,38 +167,11 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
               </td>
             </tr>
 
-            {/* Row: 최종 통합 경정청구 예상 환급금 (A + B + D) */}
-            <tr style={{ backgroundColor: '#fdf2f8', borderTop: '2px double #db2777' }}>
-              <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#db2777', backgroundColor: '#fce7f3' }}>
-                최종 통합 경정청구 예상 환급금 (E)
-              </td>
-              {targetYears.map(yr => {
-                const combined = getCombinedRefund(yr);
-                const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
-                const hasWage = matchingWageDataList.length > 0;
-                const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                return (
-                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#db2777', fontSize: '13px' }}>
-                    {isActive ? `${combined.finalRefund.toLocaleString()}원` : '-'}
-                  </td>
-                );
-              })}
-              <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fce7f3', color: '#db2777', fontSize: '13px' }}>
-                {targetYears.reduce((sum, yr) => {
-                  const combined = getCombinedRefund(yr);
-                  const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
-                  const hasWage = matchingWageDataList.length > 0;
-                  const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  return sum + (isActive ? combined.finalRefund : 0);
-                }, 0).toLocaleString()}원
-              </td>
-            </tr>
-
             {/* Row: 적용 부양가족 수 / 소득공제 */}
             <tr style={{ backgroundColor: '#f0fdf4' }}>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '14px' }}>👨‍&zwj;👩&zwj;👧&zwj;👦</span>
+                  <span style={{ fontSize: '14px' }}>👨&zwj;👩&zwj;👧&zwj;👦</span>
                   <span>적용 부양가족 수 / 인적공제</span>
                 </div>
               </td>
@@ -216,6 +211,33 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                   const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
                   const depRefund = matchingWageDataList.reduce((sumVal: number, yrData: any) => sumVal + (Number(yrData?.dependentRefundTotal) || 0), 0);
                   return sum + depRefund;
+                }, 0).toLocaleString()}원
+              </td>
+            </tr>
+
+            {/* Row: 최종 통합 경정청구 예상 환급금 (A + B + D) */}
+            <tr style={{ backgroundColor: '#fdf2f8', borderTop: '2px double #db2777' }}>
+              <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#db2777', backgroundColor: '#fce7f3' }}>
+                최종 통합 경정청구 예상 환급금 (E)
+              </td>
+              {targetYears.map(yr => {
+                const combined = getCombinedRefund(yr);
+                const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
+                const hasWage = matchingWageDataList.length > 0;
+                const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
+                return (
+                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#db2777', fontSize: '13px' }}>
+                    {isActive ? `${combined.finalRefund.toLocaleString()}원` : '-'}
+                  </td>
+                );
+              })}
+              <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fce7f3', color: '#db2777', fontSize: '13px' }}>
+                {targetYears.reduce((sum, yr) => {
+                  const combined = getCombinedRefund(yr);
+                  const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
+                  const hasWage = matchingWageDataList.length > 0;
+                  const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
+                  return sum + (isActive ? combined.finalRefund : 0);
                 }, 0).toLocaleString()}원
               </td>
             </tr>

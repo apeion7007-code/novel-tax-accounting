@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   BarChart3,
+  HeartHandshake,
 } from 'lucide-react';
 
 import { generateHometaxFile } from './utils/hometaxGenerator';
@@ -21,6 +22,7 @@ import { StaffManagementView } from './components/views/StaffManagementView';
 import { CustomerListView } from './components/views/CustomerListView';
 import { AuthView } from './components/views/AuthView';
 import { RegistrationView } from './components/views/RegistrationView';
+import { RentSupportView } from './components/views/RentSupportView';
 
 import { recalculateYearData } from './utils/taxCalculator';
 import {
@@ -89,8 +91,8 @@ function App() {
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
 
-  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View
-  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent'>('customer');
+  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, welfare = Welfare View
+  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'welfare'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
@@ -2339,6 +2341,13 @@ function App() {
                 직원 관리
               </button>
               <button
+                className={`sidebar-item ${currentView === 'welfare' ? 'active' : ''}`}
+                onClick={() => setCurrentView('welfare')}
+              >
+                <HeartHandshake size={18} />
+                청년월세 특별지원
+              </button>
+              <button
                 className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}
                 onClick={() => setCurrentView('password')}
               >
@@ -2489,6 +2498,10 @@ function App() {
                 handleSaveNewManager={handleSaveNewManager}
                 formatKoreanDateTime={formatKoreanDateTime}
               />
+            )}
+
+            {currentView === 'welfare' && (
+              <RentSupportView />
             )}
 
             {currentView === 'password' && (

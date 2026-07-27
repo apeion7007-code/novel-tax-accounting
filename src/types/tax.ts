@@ -130,4 +130,13 @@ export interface RegistrationForm {
   remittanceDocUrl: string;
   familyDocFile: File | null;
   remittanceDocFile: File | null;
+  dependents?: {
+    name: string;
+    rrn: string;
+    relation?: string;
+    isBasic?: boolean;
+    isSenior?: boolean;
+    isDisabled?: boolean;
+    isChild?: boolean;
+  }[];
 }

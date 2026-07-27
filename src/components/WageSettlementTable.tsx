@@ -724,26 +724,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             </td>
           </tr>
 
-          {/* Row 9: 3.3% 총 환급 합계금액 */}
-          <tr style={{ backgroundColor: '#fef9c3' }}>
-            <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
-              총 환급 합계금액
-            </td>
-            {yearsList.map((yrData: any) => (
-              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#854d0e' }}>
-                {yrData.active ? `${Number(yrData.courtFee || 0).toLocaleString()}원` : '-'}
-              </td>
-            ))}
-            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fef08a', color: '#854d0e', fontSize: '13px' }}>
-              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.courtFee) || 0 : 0), 0).toLocaleString()}원
-            </td>
-          </tr>
-
           {/* Row: 적용 부양가족 수 / 소득공제 */}
           <tr style={{ backgroundColor: '#f0fdf4' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '14px' }}>👨‍👩‍👧‍👦</span>
+                <span style={{ fontSize: '14px' }}>👨‍&zwj;👩&zwj;👧&zwj;👦</span>
                 <span>적용 부양가족 수 / 인적공제</span>
               </div>
             </td>
@@ -776,6 +761,21 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             })}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '13px' }}>
               +{yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.dependentRefundTotal) || 0 : 0), 0).toLocaleString()}원
+            </td>
+          </tr>
+
+          {/* Row 9: 3.3% 총 환급 합계금액 */}
+          <tr style={{ backgroundColor: '#fef9c3' }}>
+            <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
+              총 환급 합계금액
+            </td>
+            {yearsList.map((yrData: any) => (
+              <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#854d0e' }}>
+                {yrData.active ? `${Number(yrData.courtFee || 0).toLocaleString()}원` : '-'}
+              </td>
+            ))}
+            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fef08a', color: '#854d0e', fontSize: '13px' }}>
+              {yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.courtFee) || 0 : 0), 0).toLocaleString()}원
             </td>
           </tr>
 

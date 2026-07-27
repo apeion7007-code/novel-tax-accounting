@@ -150,7 +150,7 @@ export const RentDeductionForm: React.FC<RentDeductionFormProps> = ({
             type="text" 
             className="form-control" 
             style={{ fontSize: '13px', height: '32px' }} 
-            value={regForm.monthlyRentFee || ''} 
+            value={regForm.monthlyRentFee ? Number(regForm.monthlyRentFee).toLocaleString() : ''} 
             onChange={(e) => {
               const val = e.target.value.replace(/[^0-9]/g, '');
               onChangeRentInfo('monthlyRentFee', val);

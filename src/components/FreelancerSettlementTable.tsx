@@ -22,6 +22,17 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
   handleFeeRateChange: _handleFeeRateChange,
   handleRemoveFreelancerYear
 }) => {
+  const formatInputVal = (val: any, active: boolean) => {
+    if (!active) return '';
+    if (val === undefined || val === null || val === '') return '';
+    const cleaned = String(val).replace(/[^0-9.-]/g, '');
+    if (cleaned === '') return '';
+    return Number(cleaned).toLocaleString();
+  };
+
+  const cleanInputVal = (val: string) => {
+    return val.replace(/[^0-9]/g, '');
+  };
   return (
     <div style={{ marginTop: '24px', marginBottom: '24px', border: '2px solid #0d9488', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
       {/* Header Banner */}
@@ -183,12 +194,13 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               {targetYears.map(yr => (
                 <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                   <input
-                    type="number"
+                    type="text"
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px', textAlign: 'right', fontWeight: 'bold' }}
-                    value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.totalIncome || '0' : ''}
+                    value={formatInputVal(regForm.freelancerYears?.[yr]?.totalIncome, regForm.freelancerYears?.[yr]?.active)}
                     onChange={(e) => {
-                      const income = Number(e.target.value) || 0;
+                      const raw = cleanInputVal(e.target.value);
+                      const income = Number(raw) || 0;
                       const tax3 = Math.round(income * 0.03);
                       const tax03 = Math.round(tax3 * 0.1);
                       const total33 = tax3 + tax03;
@@ -200,7 +212,7 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                           ...prev.freelancerYears,
                           [yr]: {
                             ...prev.freelancerYears?.[yr],
-                            totalIncome: String(income),
+                            totalIncome: raw,
                             withholdingTax3: String(tax3),
                             localTax03: String(tax03),
                             totalWithholding33: String(total33),
@@ -300,12 +312,12 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               {targetYears.map(yr => (
                 <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                   <input
-                    type="number"
+                    type="text"
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                    value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.refundExpectNational || '0' : ''}
+                    value={formatInputVal(regForm.freelancerYears?.[yr]?.refundExpectNational, regForm.freelancerYears?.[yr]?.active)}
                     onChange={(e) => {
-                      const val = e.target.value;
+                      const val = cleanInputVal(e.target.value);
                       const nat = Number(val) || 0;
                       const loc = Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0;
                       const court = nat + loc;
@@ -345,12 +357,12 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               {targetYears.map(yr => (
                 <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                   <input
-                    type="number"
+                    type="text"
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                    value={regForm.freelancerYears?.[yr]?.active ? regForm.freelancerYears?.[yr]?.refundExpectLocal || '0' : ''}
+                    value={formatInputVal(regForm.freelancerYears?.[yr]?.refundExpectLocal, regForm.freelancerYears?.[yr]?.active)}
                     onChange={(e) => {
-                      const val = e.target.value;
+                      const val = cleanInputVal(e.target.value);
                       const loc = Number(val) || 0;
                       const nat = Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0;
                       const court = nat + loc;

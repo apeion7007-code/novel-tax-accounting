@@ -461,6 +461,7 @@ function App() {
         const yearsMap: Record<string, any> = {};
         
         cYearRecords.forEach(y => {
+          if (!y.companyName) return; // Skip freelancer records for Wage Hometax file
           yearsMap[String(y.year)] = {
             active: true,
             workPlace: y.companyName || '',
@@ -1296,24 +1297,30 @@ function App() {
     const hasWage = matchingWageDataList.length > 0;
     const hasFree = freeData?.active;
 
-    if (!hasWage && !hasFree) return { refund: 0, fee: 0 };
+    if (!hasWage && !hasFree) {
+      return { wageFreeRefund: 0, rentRefund: 0, finalRefund: 0, fee: 0 };
+    }
     
     // Case 1: Only wage active
     if (hasWage && !hasFree) {
-      let refund = 0;
-      let fee = 0;
+      let wageFreeRefund = 0;
+      let rentRefund = 0;
       matchingWageDataList.forEach((yrData: any) => {
-        refund += (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
-        fee += Number(yrData.expectedFeeAmt) || 0;
+        wageFreeRefund += (Number(yrData.refundExpectNational) || 0) + (Number(yrData.refundExpectLocal) || 0);
+        rentRefund += (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? Number(yrData.rentRefundTotal) : 0) || 0;
       });
-      return { refund, fee };
+      const finalRefund = wageFreeRefund + rentRefund;
+      const fee = Math.round(finalRefund * (selectedFeeRate / 100));
+      return { wageFreeRefund, rentRefund, finalRefund, fee };
     }
 
     // Case 2: Only freelancer active
     if (!hasWage && hasFree) {
-      const refund = (Number(freeData.refundExpectNational) || 0) + (Number(freeData.refundExpectLocal) || 0);
-      const fee = Number(freeData.expectedFeeAmt) || 0;
-      return { refund, fee };
+      const wageFreeRefund = (Number(freeData.refundExpectNational) || 0) + (Number(freeData.refundExpectLocal) || 0);
+      const rentRefund = 0;
+      const finalRefund = wageFreeRefund;
+      const fee = Math.round(finalRefund * (selectedFeeRate / 100));
+      return { wageFreeRefund, rentRefund, finalRefund, fee };
     }
 
     // Case 3: Both active -> Combined tax calculation
@@ -1371,18 +1378,37 @@ function App() {
     const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
 
     const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
-    const combinedLocalTax = Math.round(combinedDecisionTax * 0.1);
+    
+    // Calculate rent deduction
+    let rentDeductionAmt = 0;
+    if (regForm.isMonthlyRent === '가' && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee) {
+      const firstWage = matchingWageDataList[0];
+      if (firstWage) {
+        const totalSalary = Number(firstWage.salaryTotal) || 0;
+        const rate = totalSalary <= 55000000 ? 0.17 : (totalSalary <= 80000000 ? 0.15 : 0);
+        const rentLimit = Math.min(Number(regForm.monthlyRentFee) * 12, 10000000);
+        rentDeductionAmt = Math.round(rentLimit * rate);
+      }
+    }
+
+    const finalDecisionTax = Math.max(0, combinedDecisionTax - rentDeductionAmt);
+    const finalLocalTax = Math.round(finalDecisionTax * 0.1);
 
     const freePaidTax = Number(freeData.withholdingTax3) || 0;
     const freePaidLocalTax = Number(freeData.localTax03) || 0;
 
     const refundNational = Math.max(0, (wagePaidTax + freePaidTax) - combinedDecisionTax);
-    const refundLocal = Math.max(0, (wagePaidLocalTax + freePaidLocalTax) - combinedLocalTax);
-    
-    const totalRefund = refundNational + refundLocal;
-    const expectedFee = Math.round(totalRefund * (selectedFeeRate / 100));
+    const refundLocal = Math.max(0, (wagePaidLocalTax + freePaidLocalTax) - Math.round(combinedDecisionTax * 0.1));
+    const wageFreeRefund = refundNational + refundLocal;
 
-    return { refund: totalRefund, fee: expectedFee };
+    const finalRefundNational = Math.max(0, (wagePaidTax + freePaidTax) - finalDecisionTax);
+    const finalRefundLocal = Math.max(0, (wagePaidLocalTax + freePaidLocalTax) - finalLocalTax);
+    const finalRefund = finalRefundNational + finalRefundLocal;
+
+    const rentRefund = Math.max(0, finalRefund - wageFreeRefund);
+    const fee = Math.round(finalRefund * (selectedFeeRate / 100));
+
+    return { wageFreeRefund, rentRefund, finalRefund, fee };
   };
 
   const handleAddYear = () => {
@@ -1563,6 +1589,64 @@ function App() {
     try {
       showToast(`PDF 분석을 시작합니다 (${file.name})...`, 'info');
       const text = await extractTextFromPdf(file);
+      
+      const isBusiness = text.includes('사업소득');
+      const isOther = text.includes('기타소득');
+      if (isBusiness || isOther) {
+        const parsed = parsePdfText(text);
+        const yr = parsed.year;
+        if (!yr || !/^\d{4}$/.test(yr)) {
+          showToast(`PDF 파일에서 귀속연도를 감지하지 못했습니다.`, 'error');
+          return;
+        }
+
+        setRegForm((prev: any) => {
+          const updatedFreelancer = { ...prev.freelancerYears };
+          const income = Number(parsed.salaryTotal) || 0;
+          const code = parsed.incomeTypeCode || '3.3%';
+          const isNonRefund = parsed.isNonRefundable || false;
+          
+          const taxRate = code === '3.3%' ? 0.03 : 0.20;
+          const tax3 = Math.round(income * taxRate);
+          const tax03 = Math.round(tax3 * 0.1);
+          
+          const refundNat = isNonRefund ? 0 : (Number(parsed.determinedIncomeTax) || tax3);
+          const refundLoc = isNonRefund ? 0 : (Number(parsed.determinedLocalTax) || tax03);
+          const courtFee = refundNat + refundLoc;
+          const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
+
+          updatedFreelancer[yr] = {
+            active: true,
+            isFileUploaded: true,
+            pdfFile: file,
+            workPlace: parsed.workPlace || '',
+            businessNumber: parsed.businessNumber || '',
+            totalIncome: String(income),
+            withholdingTax3: String(parsed.determinedIncomeTax || tax3),
+            localTax03: String(parsed.determinedLocalTax || tax03),
+            totalWithholding33: String(Number(parsed.determinedIncomeTax || tax3) + Number(parsed.determinedLocalTax || tax03)),
+            refundExpectNational: String(refundNat),
+            refundExpectLocal: String(refundLoc),
+            courtFee: String(courtFee),
+            expectedFeeAmt: String(feeAmt),
+            incomeTypeCode: code,
+            isNonRefundable: isNonRefund
+          };
+
+          const updatedBasic: any = {};
+          if (parsed.name) updatedBasic.name = parsed.name;
+          if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+
+          return {
+            ...prev,
+            ...updatedBasic,
+            freelancerYears: updatedFreelancer
+          };
+        });
+        showToast(`[${yr}년도] 프리랜서 소득 파일로 감지되어 프리랜서 테이블로 자동 업로드되었습니다.`, 'success');
+        return;
+      }
+
       const parsed = parsePdfText(text);
 
       const yr = parsed.year;
@@ -1608,8 +1692,10 @@ function App() {
         };
 
         const updatedBasic: any = {};
-        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
-        if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+        if (parsed.name) updatedBasic.name = parsed.name;
+        if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+        if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
+        if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
 
         if (parsed.workPeriod) {
           const start = parsed.workPeriod.split('~')[0].trim();
@@ -1685,7 +1771,82 @@ function App() {
       const isBusiness = text.includes('사업소득');
       const isOther = text.includes('기타소득');
       if (!isBusiness && !isOther) {
-        showToast(`프리랜서(사업소득/기타소득) 지급명세서 양식이 아닙니다. 근로소득 정산 테이블을 확인해주세요.`, 'info');
+        const originalDecisionTax = Number(parsed.determinedIncomeTax) || 0;
+        const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
+
+        setRegForm((prev: any) => {
+          const updatedYears = [...(prev.years || [])];
+          let targetIndex = updatedYears.findIndex(y => y.year === yr && !y.active && !y.isFileUploaded);
+          
+          const rawYrData = {
+            id: targetIndex !== -1 ? updatedYears[targetIndex].id : ('temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5)),
+            active: true,
+            isFileUploaded: true,
+            pdfFile: file,
+            year: yr,
+            workPeriod: parsed.workPeriod || (targetIndex !== -1 ? updatedYears[targetIndex].workPeriod : '') || '',
+            workPlace: parsed.workPlace || (targetIndex !== -1 ? updatedYears[targetIndex].workPlace : '') || '',
+            businessNumber: parsed.businessNumber || (targetIndex !== -1 ? updatedYears[targetIndex].businessNumber : '') || '',
+            birthDate: parsed.foreignerNumber ? parsed.foreignerNumber.substring(0, 6) : (targetIndex !== -1 ? updatedYears[targetIndex].birthDate : '') || '',
+            salaryTotal: parsed.salaryTotal || '0',
+            taxBase: parsed.decisionTax || parsed.taxBase || '0',
+            childReduction: parsed.childReduction || '0',
+            childDeduction: parsed.childDeduction || '0',
+            decisionTax: parsed.determinedIncomeTax || '0',
+            localTax: parsed.determinedLocalTax || '0',
+            taxRefundTotal: String(originalDecisionTax + originalLocalTax),
+            childReductionApply: 'Y',
+          };
+
+          const updatedBasic: any = {};
+          if (parsed.name) updatedBasic.name = parsed.name;
+          if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+          if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
+          if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
+
+          if (parsed.workPeriod) {
+            const start = parsed.workPeriod.split('~')[0].trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+              const currentAddress = prev.residentAddress || updatedBasic.residentAddress;
+              if (!currentAddress) {
+                updatedBasic.residentAddress = start;
+              } else if (start < currentAddress) {
+                updatedBasic.residentAddress = start;
+              }
+            }
+          }
+
+          const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
+          const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
+
+          const updatedRow = recalculateYearData(
+            rawYrData,
+            prev.dependentsCount,
+            prev.seniorCount,
+            prev.disabledCount,
+            prev.childCount,
+            selectedFeeRate,
+            newRrn,
+            newEmpDate,
+            prev
+          );
+
+          if (targetIndex !== -1) {
+            updatedYears[targetIndex] = updatedRow;
+          } else {
+            updatedYears.push(updatedRow);
+          }
+
+          updatedYears.sort((a, b) => Number(a.year) - Number(b.year));
+
+          return {
+            ...prev,
+            ...updatedBasic,
+            years: updatedYears
+          };
+        });
+
+        showToast(`[${yr}년도] 근로소득 파일로 감지되어 근로소득 테이블로 자동 업로드되었습니다.`, 'success');
         return;
       }
 
@@ -1706,8 +1867,8 @@ function App() {
         const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
         const updatedBasic: any = {};
-        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
-        if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+        if (parsed.name) updatedBasic.name = parsed.name;
+        if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
 
         updatedYears[yr] = {
           active: true,
@@ -1766,6 +1927,13 @@ function App() {
         return;
       }
 
+      const isBusiness = text.includes('사업소득');
+      const isOther = text.includes('기타소득');
+      if (isBusiness || isOther) {
+        showToast('이 파일은 프리랜서(3.3%) 소득 PDF 파일입니다. 근로소득으로 재분석할 수 없습니다.', 'error');
+        return;
+      }
+
       const parsed = parsePdfText(text, yr);
       const originalDecisionTax = Number(parsed.determinedIncomeTax) || 0;
       const originalLocalTax = Number(parsed.determinedLocalTax) || 0;
@@ -1782,6 +1950,7 @@ function App() {
           pdfFile: fileObj,
           fileURL: yrData.fileURL || yrData.pdfUrl || '',
           pdfUrl: yrData.fileURL || yrData.pdfUrl || '',
+          year: yr,
           workPeriod: parsed.workPeriod || updatedYears[idx]?.workPeriod || '',
           workPlace: parsed.workPlace || updatedYears[idx]?.workPlace || '',
           businessNumber: parsed.businessNumber || updatedYears[idx]?.businessNumber || '',
@@ -1872,8 +2041,8 @@ function App() {
             const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
             const updatedBasic: any = {};
-            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
-            if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+            if (parsed.name) updatedBasic.name = parsed.name;
+            if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
 
             updatedYears[yr] = {
               active: true,
@@ -1930,8 +2099,10 @@ function App() {
             };
 
             const updatedBasic: any = {};
-            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
-            if (parsed.foreignerNumber && !prev.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+            if (parsed.name) updatedBasic.name = parsed.name;
+            if (parsed.foreignerNumber) updatedBasic.foreignerNumber = parsed.foreignerNumber;
+            if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
+            if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
 
             if (parsed.workPeriod) {
               const start = parsed.workPeriod.split('~')[0].trim();
@@ -2220,6 +2391,7 @@ function App() {
       const loadedYearsSet = new Set<string>();
 
       for (const yr of yearRecords) {
+        if (!yr.companyName) continue; // Skip freelancer-only records for wage table
         const yrKey = String(yr.year);
         loadedYearsSet.add(yrKey);
 
@@ -2275,7 +2447,8 @@ function App() {
           expectedRefundLocal: localRef,
           courtFee: totalRef,
           isReductionEligible: (yr.isSmallBusiness || yr.isSmallBusinessDeduction) ? '여' : '부',
-          correctionFileUrl: yr.correction_file || yr.correction_file_url || ''
+          correctionFileUrl: yr.correction_file || yr.correction_file_url || '',
+          isRefundOverridden: true
         });
       }
 
@@ -2343,6 +2516,7 @@ function App() {
       };
 
       for (const yr of yearRecords) {
+        if (yr.companyName && !yr.freelancerActive) continue; // Skip pure wage records
         const yrKey = String(yr.year);
         if (yr.freelancerActive || yr.freelancerNetSalary > 0 || yr.freelancerCourtFee > 0 || yr.freelancerFileURL) {
           freelancerYearsObj[yrKey] = {
@@ -2511,8 +2685,8 @@ function App() {
 
   // Save complex registration form
   const handleSaveRegistration = async () => {
-    if (!regForm.name || !regForm.foreignerNumber) {
-      showToast('신청인 이름과 외국인 등록번호는 필수입니다.', 'error');
+    if (!regForm.name) {
+      showToast('신청인 이름은 필수입니다.', 'error');
       return;
     }
 
@@ -2698,25 +2872,24 @@ function App() {
       }
 
       // 2. Resolve Reduction Start & End Date
-      let reductionStart = regForm.taxReductionApplyDateStart || '';
-      let reductionEnd = regForm.taxReductionApplyDateEnd || '';
-      if (!reductionStart && regForm.residentAddress) {
+      let reductionStart = '';
+      let reductionEnd = '';
+      if (regForm.residentAddress) {
         const empParts = regForm.residentAddress.split('-');
         if (empParts.length === 3) {
-          const empDateObj = new Date(Number(empParts[0]), Number(empParts[1]) - 1, Number(empParts[2]));
-          const nextMonth = new Date(empDateObj.getFullYear(), empDateObj.getMonth() + 1, 1);
-          
-          const y = nextMonth.getFullYear();
-          const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
-          const d = '01';
-          reductionStart = `${y}-${m}-${d}`;
-          
-          const endMonth = new Date(y + 5, nextMonth.getMonth(), 0);
-          const ey = endMonth.getFullYear();
-          const em = String(endMonth.getMonth() + 1).padStart(2, '0');
-          const ed = String(endMonth.getDate()).padStart(2, '0');
+          const empYear = Number(empParts[0]);
+          const empMonth = Number(empParts[1]);
+          reductionStart = regForm.residentAddress; // 시작일은 취업일 그 자체
+          const endMonthDate = new Date(empYear + 5, empMonth, 0); // 5년 후 취업월의 말일
+          const ey = endMonthDate.getFullYear();
+          const em = String(endMonthDate.getMonth() + 1).padStart(2, '0');
+          const ed = String(endMonthDate.getDate()).padStart(2, '0');
           reductionEnd = `${ey}-${em}-${ed}`;
         }
+      }
+      if (!reductionStart) {
+        reductionStart = regForm.taxReductionApplyDateStart || '';
+        reductionEnd = regForm.taxReductionApplyDateEnd || '';
       }
 
       // 3. Resolve Company Details (Last/Recent Active Employer)
@@ -2880,7 +3053,7 @@ function App() {
           const combined = getCombinedRefund(yr);
           const wageRefund = matchingWageDataList.reduce((sum: number, y: any) => sum + Number(y.refundExpectNational || 0) + Number(y.refundExpectLocal || 0), 0);
           const wageFee = Math.round(wageRefund * (selectedFeeRate / 100));
-          const businessRefund = combined.refund - wageRefund;
+          const businessRefund = combined.wageFreeRefund - wageRefund;
           const businessFee = combined.fee - wageFee;
 
           if (wageRefund > 0) {
@@ -2903,10 +3076,10 @@ function App() {
           }
         } else if (hasFree) {
           const combined = getCombinedRefund(yr);
-          if (combined.refund > 0) {
-            totalRefundSum += combined.refund;
+          if (combined.wageFreeRefund > 0) {
+            totalRefundSum += combined.wageFreeRefund;
             totalFeeSum += combined.fee;
-            activeYearBreakdowns.push({ year: yr, type: 'free', refund: combined.refund, fee: combined.fee });
+            activeYearBreakdowns.push({ year: yr, type: 'free', refund: combined.wageFreeRefund, fee: combined.fee });
           }
         }
       });

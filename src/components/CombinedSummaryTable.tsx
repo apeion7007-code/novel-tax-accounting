@@ -6,7 +6,7 @@ interface CombinedSummaryTableProps {
   targetYears: string[];
   selectedFeeRate: number;
   handleFeeRateChange: (rate: number) => void;
-  getCombinedRefund: (yr: string) => { refund: number; fee: number };
+  getCombinedRefund: (yr: string) => { wageFreeRefund: number; rentRefund: number; finalRefund: number; fee: number };
 }
 
 export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
@@ -110,7 +110,7 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#1e40af', fontSize: '13px' }}>
-                    {isActive ? `${combined.refund.toLocaleString()}원` : '-'}
+                    {isActive ? `${combined.wageFreeRefund.toLocaleString()}원` : '-'}
                   </td>
                 );
               })}
@@ -118,7 +118,7 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 {targetYears.reduce((sum, yr) => {
                   const hasWage = (regForm.years || []).some((y: any) => String(y.year) === yr && y.active);
                   const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  return sum + (isActive ? getCombinedRefund(yr).refund : 0);
+                  return sum + (isActive ? getCombinedRefund(yr).wageFreeRefund : 0);
                 }, 0).toLocaleString()}원
               </td>
             </tr>
@@ -129,20 +129,18 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 월세 세액공제 예상 환급금 (D)
               </td>
               {targetYears.map(yr => {
+                const combined = getCombinedRefund(yr);
                 const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
                 const hasRent = regForm.isMonthlyRent === '가' && matchingWageDataList.length > 0;
-                const rentRef = matchingWageDataList.reduce((sum: number, yrData: any) => sum + (Number(yrData.rentRefundTotal) || 0), 0);
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#475569' }}>
-                    {hasRent ? `${rentRef.toLocaleString()}원` : '-'}
+                    {hasRent && combined.rentRefund > 0 ? `${combined.rentRefund.toLocaleString()}원` : '-'}
                   </td>
                 );
               })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f8fafc', color: '#475569' }}>
                 {targetYears.reduce((sum, yr) => {
-                  const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
-                  const rentRef = matchingWageDataList.reduce((sumVal: number, yrData: any) => sumVal + (Number(yrData.rentRefundTotal) || 0), 0);
-                  return sum + (regForm.isMonthlyRent === '가' ? rentRef : 0);
+                  return sum + (regForm.isMonthlyRent === '가' ? getCombinedRefund(yr).rentRefund : 0);
                 }, 0).toLocaleString()}원
               </td>
             </tr>
@@ -157,11 +155,9 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
                 const hasWage = matchingWageDataList.length > 0;
                 const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                const rentRef = regForm.isMonthlyRent === '가' ? matchingWageDataList.reduce((sum: number, yrData: any) => sum + (Number(yrData.rentRefundTotal) || 0), 0) : 0;
-                const finalTotalRefund = combined.refund + rentRef;
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#db2777', fontSize: '13px' }}>
-                    {isActive ? `${finalTotalRefund.toLocaleString()}원` : '-'}
+                    {isActive ? `${combined.finalRefund.toLocaleString()}원` : '-'}
                   </td>
                 );
               })}
@@ -171,8 +167,7 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                   const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
                   const hasWage = matchingWageDataList.length > 0;
                   const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  const rentRef = regForm.isMonthlyRent === '가' ? matchingWageDataList.reduce((sum: number, yrData: any) => sum + (Number(yrData.rentRefundTotal) || 0), 0) : 0;
-                  return sum + (isActive ? (combined.refund + rentRef) : 0);
+                  return sum + (isActive ? combined.finalRefund : 0);
                 }, 0).toLocaleString()}원
               </td>
             </tr>
@@ -255,15 +250,9 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 const combined = getCombinedRefund(yr);
                 const hasWage = (regForm.years || []).some((y: any) => String(y.year) === yr && y.active);
                 const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                const rentRef = regForm.isMonthlyRent === '가' ? (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active).reduce((sum: number, yrData: any) => sum + (Number(yrData.rentRefundTotal) || 0), 0) : 0;
-                
-                // 수수료 계산: (근로 + 사업 + 월세) 합산 금액 기준 수수료율 적용
-                const totalRefund = combined.refund + rentRef;
-                const expectedFee = Math.round(totalRefund * (selectedFeeRate / 100));
-
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#1e40af', fontWeight: 'bold' }}>
-                    {isActive ? `${expectedFee.toLocaleString()}원` : '-'}
+                    {isActive ? `${combined.fee.toLocaleString()}원` : '-'}
                   </td>
                 );
               })}
@@ -272,17 +261,14 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                   const combined = getCombinedRefund(yr);
                   const hasWage = (regForm.years || []).some((y: any) => String(y.year) === yr && y.active);
                   const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  const rentRef = regForm.isMonthlyRent === '가' ? (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active).reduce((sum: number, yrData: any) => sum + (Number(yrData.rentRefundTotal) || 0), 0) : 0;
-                  const totalRefund = combined.refund + rentRef;
-                  const expectedFee = Math.round(totalRefund * (selectedFeeRate / 100));
-                  return sum + (isActive ? expectedFee : 0);
+                  return sum + (isActive ? combined.fee : 0);
                 }, 0).toLocaleString()}원
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <MonthlyRentSummaryTable regForm={regForm} targetYears={targetYears} />
+      <MonthlyRentSummaryTable regForm={regForm} targetYears={targetYears} getCombinedRefund={getCombinedRefund} />
     </div>
   );
 };

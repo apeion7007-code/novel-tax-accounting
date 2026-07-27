@@ -144,8 +144,16 @@ export const recalculateYearData = (
   // 월세까지 포함한 최종 환급액
   const finalRefundNational = Math.max(0, originalDecisionTax - changedDecisionTax);
   const finalRefundLocal = Math.max(0, originalLocalTax - changedLocalTax);
-  const finalTotalCourtFee = finalRefundNational + finalRefundLocal;
-  const expectedFee = Math.round(finalTotalCourtFee * (feeRate / 100));
+
+  const isOverridden = Boolean(yrData.isRefundOverridden);
+  const finalRefundNatVal = isOverridden ? String(yrData.refundExpectNational || 0) : String(refundNational);
+  const finalRefundLocVal = isOverridden ? String(yrData.refundExpectLocal || 0) : String(refundLocal);
+  const finalTotalCourtFee = isOverridden
+    ? (Number(yrData.courtFee) || (Number(finalRefundNatVal) + Number(finalRefundLocVal)))
+    : (finalRefundNational + finalRefundLocal);
+  const expectedFee = isOverridden
+    ? (Number(yrData.expectedFeeAmt) || Math.round(finalTotalCourtFee * (feeRate / 100)))
+    : Math.round(finalTotalCourtFee * (feeRate / 100));
 
   // Calculate extra refund generated purely by dependent family deductions
   const remainingWithoutDeps = Math.max(0, calculatedTax - reductionAmt);
@@ -164,8 +172,8 @@ export const recalculateYearData = (
     decisionTaxApplyAmt: String(changedDecisionTax),
     localTaxApplyAmt: String(changedLocalTax),
     decisionTaxRefundAmt: String(changedDecisionTax + changedLocalTax),
-    refundExpectNational: String(refundNational),
-    refundExpectLocal: String(refundLocal),
+    refundExpectNational: finalRefundNatVal,
+    refundExpectLocal: finalRefundLocVal,
     rentRefundTotal: String(rentRefundTotal),
     rentRefundExpectNational: String(rentRefundNational),
     rentRefundExpectLocal: String(rentRefundLocal),

@@ -3,11 +3,13 @@ import React from 'react';
 interface MonthlyRentSummaryTableProps {
   regForm: any;
   targetYears: string[];
+  getCombinedRefund: (yr: string) => any;
 }
 
 export const MonthlyRentSummaryTable: React.FC<MonthlyRentSummaryTableProps> = ({
   regForm,
-  targetYears
+  targetYears,
+  getCombinedRefund
 }) => {
   if (regForm.isMonthlyRent !== '가') return null;
 
@@ -95,19 +97,7 @@ export const MonthlyRentSummaryTable: React.FC<MonthlyRentSummaryTableProps> = (
               월세 환급 예상액
             </td>
             {targetYears.map(yr => {
-              const currentYearData = (regForm.years || []).find((y: any) => String(y.year) === yr && y.active);
-              const totalSalary = Number(currentYearData?.salaryTotal) || 0;
-              const hasRent = currentYearData && regForm.isMonthlyRent === '가' && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee;
-              
-              let refund = 0;
-              if (hasRent) {
-                const rate = totalSalary <= 55000000 ? 0.17 : (totalSalary <= 80000000 ? 0.15 : 0);
-                const rentLimit = Math.min(Number(regForm.monthlyRentFee) * 12, 10000000);
-                const nationalRefund = Math.floor(rentLimit * rate);
-                const localRefund = Math.floor(nationalRefund * 0.1);
-                refund = nationalRefund + localRefund;
-              }
-
+              const refund = getCombinedRefund(yr).rentRefund;
               return (
                 <td key={yr} style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'right', fontWeight: 'bold', color: '#0369a1' }}>
                   {refund > 0 ? `+${refund.toLocaleString()}원` : '-'}
@@ -116,19 +106,7 @@ export const MonthlyRentSummaryTable: React.FC<MonthlyRentSummaryTableProps> = (
             })}
             <td style={{ border: '1px solid #e2e8f0', padding: '6px', textAlign: 'right', fontWeight: 'bold', backgroundColor: '#e0f2fe', color: '#0369a1' }}>
               {targetYears.reduce((sum, yr) => {
-                const currentYearData = (regForm.years || []).find((y: any) => String(y.year) === yr && y.active);
-                const totalSalary = Number(currentYearData?.salaryTotal) || 0;
-                const hasRent = currentYearData && regForm.isMonthlyRent === '가' && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee;
-                
-                let refund = 0;
-                if (hasRent) {
-                  const rate = totalSalary <= 55000000 ? 0.17 : (totalSalary <= 80000000 ? 0.15 : 0);
-                  const rentLimit = Math.min(Number(regForm.monthlyRentFee) * 12, 10000000);
-                  const nationalRefund = Math.floor(rentLimit * rate);
-                  const localRefund = Math.floor(nationalRefund * 0.1);
-                  refund = nationalRefund + localRefund;
-                }
-                return sum + refund;
+                return sum + getCombinedRefund(yr).rentRefund;
               }, 0).toLocaleString()}원
             </td>
           </tr>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet, Plus, X } from 'lucide-react';
-import { checkYouthEligibility } from '../utils/taxCalculator';
+import { checkYouthEligibility, recalculateYearData } from '../utils/taxCalculator';
 
 interface WageSettlementTableProps {
   regForm: any;
@@ -29,6 +29,18 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
 }) => {
   const yearsList = regForm.years || [];
 
+  const formatInputVal = (val: any, active: boolean) => {
+    if (!active) return '';
+    if (val === undefined || val === null || val === '') return '';
+    const cleaned = String(val).replace(/[^0-9.-]/g, '');
+    if (cleaned === '') return '';
+    return Number(cleaned).toLocaleString();
+  };
+
+  const cleanInputVal = (val: string) => {
+    return val.replace(/[^0-9]/g, '');
+  };
+
   // Helper to generate headers with repeated counts (e.g. 2024년도 (1), 2024년도 (2))
   const getYearLabel = (index: number, year: string) => {
     const sameYearsBefore = yearsList.slice(0, index).filter((y: any) => y.year === year).length;
@@ -44,9 +56,34 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
     setRegForm((prev: any) => {
       const updatedYears = (prev.years || []).map((y: any) => {
         if (y.id === id) {
-          const updatedRow = { ...y, [field]: value };
-          if (field === 'salaryTotal' || field === 'taxBase' || field === 'childReduction' || field === 'childDeduction' || field === 'decisionTax' || field === 'localTax') {
+          let updatedRow = { ...y, [field]: value };
+          if (['expectedFeeAmt', 'refundExpectNational', 'refundExpectLocal'].includes(field)) {
+            updatedRow.isRefundOverridden = true;
+          }
+          const isTaxField = [
+            'salaryTotal',
+            'taxBase',
+            'childReduction',
+            'childDeduction',
+            'decisionTax',
+            'localTax',
+            'childReductionApply',
+            'childReductionApplyAmt'
+          ].includes(field);
+
+          if (isTaxField) {
             updatedRow.active = true;
+            updatedRow = recalculateYearData(
+              updatedRow,
+              prev.dependentsCount,
+              prev.seniorCount,
+              prev.disabledCount,
+              prev.childCount,
+              selectedFeeRate,
+              prev.foreignerNumber,
+              prev.residentAddress,
+              prev
+            );
           }
           return updatedRow;
         }
@@ -287,11 +324,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.salaryTotal || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'salaryTotal', e.target.value)}
+                  value={formatInputVal(yrData.salaryTotal, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'salaryTotal', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -305,10 +342,10 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.salaryTotal || '0' : ''}
+                  value={formatInputVal(yrData.salaryTotal, yrData.active)}
                   placeholder="-"
                   readOnly
                 />
@@ -326,11 +363,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.taxBase || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'taxBase', e.target.value)}
+                  value={formatInputVal(yrData.taxBase, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'taxBase', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -347,11 +384,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.childReduction || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'childReduction', e.target.value)}
+                  value={formatInputVal(yrData.childReduction, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'childReduction', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -368,11 +405,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.childDeduction || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'childDeduction', e.target.value)}
+                  value={formatInputVal(yrData.childDeduction, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'childDeduction', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -388,11 +425,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.decisionTax || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTax', e.target.value)}
+                  value={formatInputVal(yrData.decisionTax, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTax', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -408,11 +445,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.localTax || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'localTax', e.target.value)}
+                  value={formatInputVal(yrData.localTax, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'localTax', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -428,11 +465,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.taxRefundTotal || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'taxRefundTotal', e.target.value)}
+                  value={formatInputVal(yrData.taxRefundTotal, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'taxRefundTotal', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -511,11 +548,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.childReductionApplyAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'childReductionApplyAmt', e.target.value)}
+                  value={formatInputVal(yrData.childReductionApplyAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'childReductionApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -532,11 +569,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.childDeductionApplyAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'childDeductionApplyAmt', e.target.value)}
+                  value={formatInputVal(yrData.childDeductionApplyAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'childDeductionApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -552,11 +589,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.decisionTaxApplyAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxApplyAmt', e.target.value)}
+                  value={formatInputVal(yrData.decisionTaxApplyAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -572,11 +609,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.localTaxApplyAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'localTaxApplyAmt', e.target.value)}
+                  value={formatInputVal(yrData.localTaxApplyAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'localTaxApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -592,11 +629,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
-                  value={yrData.active ? yrData.decisionTaxRefundAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxRefundAmt', e.target.value)}
+                  value={formatInputVal(yrData.decisionTaxRefundAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxRefundAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>
@@ -613,12 +650,12 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={yrData.active ? yrData.refundExpectNational || '0' : ''}
+                  value={formatInputVal(yrData.refundExpectNational, yrData.active)}
                   onChange={(e) => {
-                    const val = e.target.value;
+                    const val = cleanInputVal(e.target.value);
                     const local = Number(yrData.refundExpectLocal) || 0;
                     const newCourtFee = (Number(val) || 0) + local;
                     const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
@@ -630,6 +667,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                             refundExpectNational: val,
                             courtFee: String(newCourtFee),
                             expectedFeeAmt: String(newFee),
+                            isRefundOverridden: true,
                             active: true
                           };
                         }
@@ -651,12 +689,12 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={yrData.active ? yrData.refundExpectLocal || '0' : ''}
+                  value={formatInputVal(yrData.refundExpectLocal, yrData.active)}
                   onChange={(e) => {
-                    const val = e.target.value;
+                    const val = cleanInputVal(e.target.value);
                     const nat = Number(yrData.refundExpectNational) || 0;
                     const newCourtFee = nat + (Number(val) || 0);
                     const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
@@ -668,6 +706,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                             refundExpectLocal: val,
                             courtFee: String(newCourtFee),
                             expectedFeeAmt: String(newFee),
+                            isRefundOverridden: true,
                             active: true
                           };
                         }
@@ -768,11 +807,11 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             {yearsList.map((yrData: any) => (
               <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
                 <input
-                  type="number"
+                  type="text"
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                  value={yrData.active ? yrData.expectedFeeAmt || '0' : ''}
-                  onChange={(e) => updateYearField(yrData.id, 'expectedFeeAmt', e.target.value)}
+                  value={formatInputVal(yrData.expectedFeeAmt, yrData.active)}
+                  onChange={(e) => updateYearField(yrData.id, 'expectedFeeAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
                 />
               </td>

@@ -341,9 +341,13 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     }
 
     // 3. Process Wage Income Years (from array)
-    const processedWageYears = new Set<string>();
     for (const yrData of (regForm.years || [])) {
       const yr = String(yrData.year);
+      const parsedYear = parseInt(yr, 10);
+      if (isNaN(parsedYear) || !yrData.year || yr === 'undefined') {
+        console.warn(`[Safeguard] Skipping invalid year end record: id=${yrData.id}, yr=${yr}`);
+        continue;
+      }
       
       // If inactive, delete from DB (if exists) and skip to prevent saving empty placeholder columns
       if (!yrData.active) {
@@ -387,30 +391,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       const refNat = Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0;
       const refLoc = Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0;
 
-      // Merge freelancer data only into the first wage income row for this year
-      const isFirstRowForYear = !processedWageYears.has(yr);
-      processedWageYears.add(yr);
-
-      const mergedFreelancerPayload = (isFirstRowForYear && freelancerPayloadsMap[yr]) 
-        ? freelancerPayloadsMap[yr] 
-        : {
-            freelancerActive: false,
-            freelancerCompanyName: '',
-            freelancerCompanyRegNo: '',
-            freelancerNetSalary: 0,
-            freelancerDeterminedTax: 0,
-            freelancerLocalTax: 0,
-            freelancerRefundExpectNational: 0,
-            freelancerRefundExpectLocal: 0,
-            freelancerCourtFee: 0,
-            freelancerExpectedFeeAmt: 0,
-            freelancerIncomeTypeCode: '3.3%',
-            freelancerIsNonRefundable: false
-          };
-
+      // Wage rows do not contain freelancer data; set freelancer fields to defaults
       const yearPayload: Record<string, any> = {
         clientId: clientId,
-        year: parseInt(yr, 10),
+        year: parsedYear,
         companyName: yrData.workPlace || '',
         companyRegNo: yrData.businessNumber || yrData.companyRegNum || '',
         netSalary: totalSal,
@@ -429,7 +413,18 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         ...(workPeriodStart ? { workPeriodStart } : {}),
         ...(workPeriodEnd ? { workPeriodEnd } : {}),
         ...(fileURL ? { fileURL } : {}),
-        ...mergedFreelancerPayload
+        freelancerActive: false,
+        freelancerCompanyName: '',
+        freelancerCompanyRegNo: '',
+        freelancerNetSalary: 0,
+        freelancerDeterminedTax: 0,
+        freelancerLocalTax: 0,
+        freelancerRefundExpectNational: 0,
+        freelancerRefundExpectLocal: 0,
+        freelancerCourtFee: 0,
+        freelancerExpectedFeeAmt: 0,
+        freelancerIncomeTypeCode: '3.3%',
+        freelancerIsNonRefundable: false
       };
 
       let existingRecordId: any = null;
@@ -467,16 +462,17 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       }
     }
 
-    // 4. Standalone Freelancer data rows (no matching wage income years)
+    // 4. Standalone Freelancer data rows (saved in separate rows where companyName === '')
     for (const yr of targetYearsList) {
-      if (processedWageYears.has(yr)) continue; // Already merged
+      const parsedYear = parseInt(yr, 10);
+      if (isNaN(parsedYear)) continue;
 
       const freelancerPayload = freelancerPayloadsMap[yr];
       if (!freelancerPayload) continue;
 
       const yearPayload: Record<string, any> = {
         clientId: clientId,
-        year: parseInt(yr, 10),
+        year: parsedYear,
         companyName: '',
         companyRegNo: '',
         netSalary: 0,
@@ -499,7 +495,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         .from('YearEndData')
         .select('id')
         .eq('clientId', clientId)
-        .eq('year', parseInt(yr, 10))
+        .eq('year', parsedYear)
         .eq('companyName', '')
         .maybeSingle();
 

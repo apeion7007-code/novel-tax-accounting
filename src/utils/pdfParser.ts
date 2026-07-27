@@ -22,6 +22,8 @@ export interface ParsedPdfResult {
   determinedLocalTax: string;
   isNonRefundable?: boolean;
   incomeTypeCode?: string;
+  taxReductionApplyDateStart?: string;
+  taxReductionApplyDateEnd?: string;
 }
 
 export const extractTextFromPdf = async (file: File): Promise<string> => {
@@ -41,6 +43,70 @@ export const extractTextFromPdf = async (file: File): Promise<string> => {
 
 export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult => {
   const cleanText = text.replace(/\s+/g, ' ');
+
+  // Detect and parse "중소기업 취업자 소득세 감면 대상 명세서" PDF
+  if (cleanText.includes('중소기업 취업자 소득세 감면 대상 명세서') || cleanText.includes('중소기업취업자소득세감면대상명세서')) {
+    let parsedName = '';
+    let parsedForeignerNumber = '';
+    let parsedWorkPeriod = ''; // Employment Date
+    let parsedTaxReductionApplyDateStart = '';
+    let parsedTaxReductionApplyDateEnd = '';
+    let parsedWorkPlace = '';
+    let parsedBusinessNumber = '';
+
+    // Match row: Name, RRN, Employment Date, Type, Age, Military, Deducted Age, Start Date, End Date
+    const rowMatch = cleanText.match(/([가-힣A-Za-z0-9*\s]{2,20})\s+(\d{6}-[\d*]{7})\s+(\d{4}-\d{2}-\d{2})\s+([가-힣]{2,6})\s*(\d*)\s*([-\d가-힣]*)\s*([-\d가-힣]*)\s*(\d{4}-\d{2}-\d{2})\s*(\d{4}-\d{2}-\d{2})/);
+    
+    if (rowMatch) {
+      parsedName = rowMatch[1].trim();
+      parsedForeignerNumber = rowMatch[2].trim();
+      parsedWorkPeriod = rowMatch[3].trim();
+      parsedTaxReductionApplyDateStart = rowMatch[8].trim();
+      parsedTaxReductionApplyDateEnd = rowMatch[9].trim();
+    } else {
+      const dates = cleanText.match(/\d{4}-\d{2}-\d{2}/g) || [];
+      if (dates.length >= 3) {
+        parsedWorkPeriod = dates[0] || '';
+        parsedTaxReductionApplyDateStart = dates[1] || '';
+        parsedTaxReductionApplyDateEnd = dates[2] || '';
+      }
+      const rrnMatch = cleanText.replace(/\s/g, '').match(/(\d{6}-[\d*]{7})/);
+      if (rrnMatch) {
+        parsedForeignerNumber = rrnMatch[1];
+      }
+      const nameMatch = cleanText.match(/(?:성\s*명|소\s*득\s*자\s*성\s*명)\s*[:：]?\s*([가-힣A-Za-z0-9*\s]+?)(?=\s*주민|등록번호|$)/);
+      if (nameMatch) {
+        parsedName = nameMatch[1].trim();
+      }
+    }
+
+    const compMatch = cleanText.match(/(?:상\s*호|법인명)\s*[:：]\s*([가-힣A-Za-z0-9인주식회사㈜()\s]+?)(?=\s*사업자|사업자등록번호|$)/);
+    if (compMatch) {
+      parsedWorkPlace = compMatch[1].trim();
+    }
+    const bizMatch = cleanText.replace(/\s/g, '').match(/(?:사업자등록번호)[:：](\d{3}-\d{2}-\d{5})/);
+    if (bizMatch) {
+      parsedBusinessNumber = bizMatch[1];
+    }
+
+    return {
+      year: parsedWorkPeriod ? parsedWorkPeriod.substring(0, 4) : (targetYear || ''),
+      name: parsedName,
+      foreignerNumber: parsedForeignerNumber,
+      workPlace: parsedWorkPlace,
+      businessNumber: parsedBusinessNumber,
+      workPeriod: parsedWorkPeriod,
+      salaryTotal: '0',
+      taxBase: '0',
+      decisionTax: '0',
+      childReduction: '0',
+      childDeduction: '0',
+      determinedIncomeTax: '0',
+      determinedLocalTax: '0',
+      taxReductionApplyDateStart: parsedTaxReductionApplyDateStart,
+      taxReductionApplyDateEnd: parsedTaxReductionApplyDateEnd
+    };
+  }
 
   // Identify income type
   const isBusinessIncome = cleanText.includes('사업소득');
@@ -313,6 +379,8 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
     determinedIncomeTax,
     determinedLocalTax,
     isNonRefundable,
-    incomeTypeCode
+    incomeTypeCode,
+    taxReductionApplyDateStart: '',
+    taxReductionApplyDateEnd: ''
   };
 };

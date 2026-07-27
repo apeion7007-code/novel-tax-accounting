@@ -2265,7 +2265,7 @@ function App() {
 
         const isWageActive = Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL);
 
-        loadedYearsList.push({
+        const rawYrData = {
           id: String(yr.id),
           active: isWageActive,
           isFileUploaded: Boolean(yr.fileURL),
@@ -2302,8 +2302,55 @@ function App() {
           courtFee: totalRef,
           isReductionEligible: (yr.isSmallBusiness || yr.isSmallBusinessDeduction) ? '여' : '부',
           correctionFileUrl: yr.correction_file || yr.correction_file_url || '',
-          isRefundOverridden: true
-        });
+          isRefundOverridden: false
+        };
+
+        const tempRegForm = {
+          isMonthlyRent: clientDetails?.isMonthlyTenant || clientDetails?.isMonthlyRent ? '가' : '부',
+          rentAllHouseholdsNoHouse: clientDetails?.rentAllHouseholdsNoHouse || '부',
+          monthlyRentFee: clientDetails?.monthlyRentFee ? String(clientDetails.monthlyRentFee) : '',
+          dependentsCount: Number(clientDetails?.dependentsCount) || 0,
+          seniorCount: Number(clientDetails?.seniorCount) || 0,
+          disabledCount: Number(clientDetails?.disabledCount) || 0,
+          childCount: Number(clientDetails?.childCount) || 0
+        };
+
+        let calculatedYrData = recalculateYearData(
+          rawYrData,
+          Number(clientDetails?.dependentsCount) || 0,
+          Number(clientDetails?.seniorCount) || 0,
+          Number(clientDetails?.disabledCount) || 0,
+          Number(clientDetails?.childCount) || 0,
+          selectedFeeRate,
+          clientDetails?.regNum || '',
+          clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
+          tempRegForm
+        );
+
+        // Check if calculated refund matches database saved refund. If not, it's a manual override!
+        const calcNat = Number(calculatedYrData.refundExpectNational) || 0;
+        const calcLoc = Number(calculatedYrData.refundExpectLocal) || 0;
+        const savedNat = Number(totalRef) || 0;
+        const savedLoc = Number(localRef) || 0;
+
+        if (calcNat !== savedNat || calcLoc !== savedLoc) {
+          rawYrData.isRefundOverridden = true;
+          rawYrData.refundExpectNational = savedNat;
+          rawYrData.refundExpectLocal = savedLoc;
+          calculatedYrData = recalculateYearData(
+            rawYrData,
+            Number(clientDetails?.dependentsCount) || 0,
+            Number(clientDetails?.seniorCount) || 0,
+            Number(clientDetails?.disabledCount) || 0,
+            Number(clientDetails?.childCount) || 0,
+            selectedFeeRate,
+            clientDetails?.regNum || '',
+            clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
+            tempRegForm
+          );
+        }
+
+        loadedYearsList.push(calculatedYrData);
       }
 
       const defaultYears = ['2021', '2022', '2023', '2024', '2025'];

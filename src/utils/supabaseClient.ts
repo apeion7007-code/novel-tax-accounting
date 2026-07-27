@@ -336,13 +336,13 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         freelancerActive: true,
         freelancerCompanyName: freelancerData.workPlace || '',
         freelancerCompanyRegNo: freelancerData.businessNumber || '',
-        freelancerNetSalary: Number(freelancerData.totalIncome) || 0,
-        freelancerDeterminedTax: Number(freelancerData.withholdingTax3) || 0,
-        freelancerLocalTax: Number(freelancerData.localTax03) || 0,
-        freelancerRefundExpectNational: Number(freelancerData.refundExpectNational) || 0,
-        freelancerRefundExpectLocal: Number(freelancerData.refundExpectLocal) || 0,
-        freelancerCourtFee: Number(freelancerData.courtFee) || 0,
-        freelancerExpectedFeeAmt: Number(freelancerData.expectedFeeAmt) || 0,
+        freelancerNetSalary: cleanNum(freelancerData.totalIncome),
+        freelancerDeterminedTax: cleanNum(freelancerData.withholdingTax3),
+        freelancerLocalTax: cleanNum(freelancerData.localTax03),
+        freelancerRefundExpectNational: cleanNum(freelancerData.refundExpectNational),
+        freelancerRefundExpectLocal: cleanNum(freelancerData.refundExpectLocal),
+        freelancerCourtFee: cleanNum(freelancerData.courtFee),
+        freelancerExpectedFeeAmt: cleanNum(freelancerData.expectedFeeAmt),
         freelancerIncomeTypeCode: freelancerData.incomeTypeCode || '3.3%',
         freelancerIsNonRefundable: Boolean(freelancerData.isNonRefundable),
         ...(freelancerFileURL ? { freelancerFileURL } : (freelancerData.fileURL ? { freelancerFileURL: freelancerData.fileURL } : {}))
@@ -391,14 +391,14 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         if (parts[1]) workPeriodEnd = parts[1];
       }
 
-      const totalSal = Number(yrData.salaryTotal || yrData.totalSalary) || 0;
-      const calcTax = Number(yrData.taxBase) || 0;
-      const smallDed = Number(yrData.childReduction || yrData.appliedTaxReduction) || 0;
-      const origTax = Number(yrData.decisionTax || yrData.originalDeterminedTax) || 0;
-      const recalcDetTax = Number(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax) || 0;
-      const recalcLocTax = Number(yrData.localTaxApplyAmt || yrData.recalcLocalTax) || 0;
-      const refNat = Number(yrData.refundExpectNational || yrData.expectedRefundNational) || 0;
-      const refLoc = Number(yrData.refundExpectLocal || yrData.expectedRefundLocal) || 0;
+      const totalSal = cleanNum(yrData.salaryTotal || yrData.totalSalary);
+      const calcTax = cleanNum(yrData.taxBase);
+      const smallDed = cleanNum(yrData.childReduction || yrData.appliedTaxReduction);
+      const origTax = cleanNum(yrData.decisionTax || yrData.originalDeterminedTax);
+      const recalcDetTax = cleanNum(yrData.decisionTaxApplyAmt || yrData.recalcDeterminedTax);
+      const recalcLocTax = cleanNum(yrData.localTaxApplyAmt || yrData.recalcLocalTax);
+      const refNat = cleanNum(yrData.refundExpectNational || yrData.expectedRefundNational);
+      const refLoc = cleanNum(yrData.refundExpectLocal || yrData.expectedRefundLocal);
 
       // Wage rows do not contain freelancer data; set freelancer fields to defaults
       const yearPayload: Record<string, any> = {

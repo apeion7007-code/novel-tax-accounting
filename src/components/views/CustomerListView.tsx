@@ -128,6 +128,19 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
     const warning: any[] = [];
 
     filteredCustomers.forEach(c => {
+      // Filter out completed, ineligible, or cancelled refund statuses (미 환급자만 추출)
+      const excludedStatuses = [
+        '♥경정청구완료', 
+        '♡국세수수료수납완료', 
+        '◆지방세수수료수납완료', 
+        '자격안됨', 
+        '◎자격안됨(확인완료)', 
+        '고객취소', 
+        '홈택스가입불가', 
+        '▲경정청구기각'
+      ];
+      if (excludedStatuses.includes(c.refundStatus)) return;
+
       if (!c.visaExpireDate) return;
       const expire = new Date(c.visaExpireDate);
       if (isNaN(expire.getTime())) return;
@@ -230,19 +243,19 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <span style={{ fontSize: '18px' }}>🚨</span>
-              <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '14px' }}>비자 만료 경보 대시보드</span>
+              <span style={{ fontWeight: 700, color: '#991b1b', fontSize: '14px' }}>비자 만료 경보 대시보드 (미환급자 대상)</span>
               
               <div style={{ display: 'flex', gap: '8px' }}>
                 {visaAlerts.urgent.length > 0 && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', border: '1px solid #fca5a5' }}>
                     <AlertTriangle size={12} color="#dc2626" />
-                    임박 (30일 이내) {visaAlerts.urgent.length}건
+                    미환급 임박 (30일 이내) {visaAlerts.urgent.length}건
                   </span>
                 )}
                 {visaAlerts.warning.length > 0 && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fef3c7', color: '#92400e', fontSize: '12px', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', border: '1px solid #fde68a' }}>
                     <Clock size={12} color="#d97706" />
-                    예정 (90일 이내) {visaAlerts.warning.length}건
+                    미환급 예정 (90일 이내) {visaAlerts.warning.length}건
                   </span>
                 )}
               </div>
@@ -258,10 +271,10 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
               <div style={{ border: '1px solid #fee2e2', borderRadius: '8px', padding: '14px', backgroundColor: '#fffafb' }}>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 'bold', color: '#991b1b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#ef4444', borderRadius: '50%' }}></span>
-                  임박 고객 리스트 (30일 이내)
+                  미환급 임박 고객 리스트 (30일 이내)
                 </h4>
                 {visaAlerts.urgent.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>임박 고객이 없습니다.</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>임박한 미환급 고객이 없습니다.</p>
                 ) : (
                   <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {visaAlerts.urgent.map(item => (
@@ -270,6 +283,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                           <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{item.customer.name}</span>
                           <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{item.customer.visa}</span>
                           <span style={{ fontSize: '11px', color: '#ef4444', marginLeft: '8px', fontWeight: 'bold' }}>({item.customer.nationality})</span>
+                          <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '6px', padding: '1px 4px', border: '1px dashed #cbd5e1', borderRadius: '3px' }}>{item.customer.refundStatus}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 700 }}>D-{item.days} ({item.dateStr})</span>
@@ -291,10 +305,10 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
               <div style={{ border: '1px solid #fef3c7', borderRadius: '8px', padding: '14px', backgroundColor: '#fffdf9' }}>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: 'bold', color: '#92400e', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ display: 'inline-block', width: '6px', height: '6px', backgroundColor: '#f59e0b', borderRadius: '50%' }}></span>
-                  만료 예정 고객 리스트 (90일 이내)
+                  미환급 만료 예정 고객 리스트 (90일 이내)
                 </h4>
                 {visaAlerts.warning.length === 0 ? (
-                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>만료 예정 고객이 없습니다.</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', textAlign: 'center', padding: '16px 0' }}>만료 예정인 미환급 고객이 없습니다.</p>
                 ) : (
                   <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {visaAlerts.warning.map(item => (
@@ -303,6 +317,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                           <span style={{ fontWeight: 'bold', fontSize: '13px', color: '#0f172a' }}>{item.customer.name}</span>
                           <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '6px', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>{item.customer.visa}</span>
                           <span style={{ fontSize: '11px', color: '#d97706', marginLeft: '8px', fontWeight: 'bold' }}>({item.customer.nationality})</span>
+                          <span style={{ fontSize: '10px', color: '#64748b', marginLeft: '6px', padding: '1px 4px', border: '1px dashed #cbd5e1', borderRadius: '3px' }}>{item.customer.refundStatus}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <span style={{ fontSize: '12px', color: '#b45309', fontWeight: 700 }}>D-{item.days} ({item.dateStr})</span>

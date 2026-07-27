@@ -64,6 +64,28 @@ export const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsO
   return { isEligible, age };
 };
 
+// 월세 세액공제 계산 엔진
+export const calculateRentDeduction = (yrData: any, formObj: any) => {
+  if (!formObj || formObj.isMonthlyRent !== '가' || formObj.rentAllHouseholdsNoHouse !== '가') {
+    return 0;
+  }
+  
+  const totalSalary = Number(yrData.salaryTotal) || 0;
+  // 연봉 요건: 총급여 8,000만 원 이하
+  if (totalSalary <= 0 || totalSalary > 80000000) {
+    return 0;
+  }
+
+  // 공제율 설정: 총급여 5,500만 원 이하 17% / 8,000만 원 이하 15%
+  const rate = totalSalary <= 55000000 ? 0.17 : 0.15;
+  const monthlyRent = Number(formObj.monthlyRentFee) || 0;
+  const annualPaid = monthlyRent * 12;
+  // 공제대상 한도: 연간 최대 1,000만 원
+  const limitAmount = Math.min(annualPaid, 10000000);
+  
+  return Math.round(limitAmount * rate);
+};
+
 // Pure tax calculator formula engine
 export const recalculateYearData = (
   yrData: any, 
@@ -73,7 +95,8 @@ export const recalculateYearData = (
   chCount: number, 
   feeRate: number,
   rrn: string,
-  empDate: string
+  empDate: string,
+  formObj?: any
 ) => {
   if (!yrData || (!yrData.active && !yrData.isFileUploaded)) return yrData;
 
@@ -95,16 +118,34 @@ export const recalculateYearData = (
   // 자녀 세액공제 (인당 15만 원)
   const extraChildTaxCredit = chCount * 150000;
 
+
   const remainingTaxAfterReduction = Math.max(0, calculatedTax - reductionAmt - extraTaxReductionFromDeduction);
   const changedChildDeduction = calculatedTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / calculatedTax)) : 0;
 
-  const changedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+  // 월세 차감 전 결정세액 (부양가족 공제 등까지만 차감)
+  const changedDecisionTaxWithoutRent = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+
+  // 월세 세액공제 계산
+  const rentDeductionAmt = calculateRentDeduction(yrData, formObj);
+
+  // 월세 차감 후 최종 결정세액
+  const changedDecisionTax = Math.max(0, changedDecisionTaxWithoutRent - rentDeductionAmt);
   const changedLocalTax = Math.round(changedDecisionTax * 0.1);
 
-  const refundNational = Math.max(0, originalDecisionTax - changedDecisionTax);
-  const refundLocal = Math.max(0, originalLocalTax - changedLocalTax);
-  const totalCourtFee = refundNational + refundLocal;
-  const expectedFee = Math.round(totalCourtFee * (feeRate / 100));
+  // 순수 월세로 인한 국세/지방세 환급액 계산 (월세 적용 전 결정세액 - 적용 후 결정세액)
+  const rentRefundNational = Math.max(0, changedDecisionTaxWithoutRent - changedDecisionTax);
+  const rentRefundLocal = Math.max(0, Math.round(changedDecisionTaxWithoutRent * 0.1) - changedLocalTax);
+  const rentRefundTotal = rentRefundNational + rentRefundLocal;
+
+  // 월세를 제외한 순수 근로소득 환급금
+  const refundNational = Math.max(0, originalDecisionTax - changedDecisionTaxWithoutRent);
+  const refundLocal = Math.max(0, originalLocalTax - Math.round(changedDecisionTaxWithoutRent * 0.1));
+  
+  // 월세까지 포함한 최종 환급액
+  const finalRefundNational = Math.max(0, originalDecisionTax - changedDecisionTax);
+  const finalRefundLocal = Math.max(0, originalLocalTax - changedLocalTax);
+  const finalTotalCourtFee = finalRefundNational + finalRefundLocal;
+  const expectedFee = Math.round(finalTotalCourtFee * (feeRate / 100));
 
   // Calculate extra refund generated purely by dependent family deductions
   const remainingWithoutDeps = Math.max(0, calculatedTax - reductionAmt);
@@ -114,7 +155,7 @@ export const recalculateYearData = (
   const refundLocalWithoutDeps = Math.max(0, originalLocalTax - Math.round(decisionTaxWithoutDeps * 0.1));
   const totalRefundWithoutDeps = refundNationalWithoutDeps + refundLocalWithoutDeps;
 
-  const dependentRefundTotal = Math.max(0, totalCourtFee - totalRefundWithoutDeps);
+  const dependentRefundTotal = Math.max(0, finalTotalCourtFee - totalRefundWithoutDeps - rentRefundTotal);
 
   return {
     ...yrData,
@@ -125,7 +166,10 @@ export const recalculateYearData = (
     decisionTaxRefundAmt: String(changedDecisionTax + changedLocalTax),
     refundExpectNational: String(refundNational),
     refundExpectLocal: String(refundLocal),
-    courtFee: String(totalCourtFee),
+    rentRefundTotal: String(rentRefundTotal),
+    rentRefundExpectNational: String(rentRefundNational),
+    rentRefundExpectLocal: String(rentRefundLocal),
+    courtFee: String(finalTotalCourtFee),
     expectedFeeAmt: String(expectedFee),
     dependentRefundTotal: String(dependentRefundTotal)
   };

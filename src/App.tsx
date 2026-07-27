@@ -24,6 +24,8 @@ import { ChangePasswordView } from './components/views/ChangePasswordView';
 import { StaffManagementView } from './components/views/StaffManagementView';
 import { CustomerListView } from './components/views/CustomerListView';
 import { CustomerBasicInfoForm } from './components/views/CustomerBasicInfoForm';
+import { generateConsolidatedExcel } from './utils/excelGenerator';
+import { recalculateYearData } from './utils/taxCalculator';
 import {
   supabase,
   fetchInitialClientsFromSupabase,
@@ -81,71 +83,7 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-// Helper to determine youth tax reduction eligibility based on RRN and Employment Date
-export const checkYouthEligibility = (rrnStr: string, empDateStr: string, yearsObj?: any) => {
-  const rrn = rrnStr ? rrnStr.replace(/-/g, '').trim() : '';
-  let employmentDateStr = empDateStr ? empDateStr.trim() : '';
-
-  if (!employmentDateStr && yearsObj) {
-    const periods = Object.values(yearsObj || {})
-      .map((y: any) => y.workPeriod)
-      .filter((wp: string) => wp && wp.includes('~'))
-      .map((wp: string) => wp.split('~')[0].trim())
-      .filter((d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d))
-      .sort();
-    if (periods.length > 0) {
-      employmentDateStr = periods[0];
-    }
-  }
-
-  if (!employmentDateStr) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    employmentDateStr = `${yyyy}-${mm}-${dd}`;
-  }
-
-  if (!rrn || rrn.length < 7) {
-    return { isEligible: true, age: null }; // Default to true if RRN is not fully entered
-  }
-
-  const yy = rrn.substring(0, 2);
-  const mm = rrn.substring(2, 4);
-  const dd = rrn.substring(4, 6);
-  const genderDigit = rrn.charAt(6);
-
-  let century = '19';
-  if (genderDigit === '1' || genderDigit === '2' || genderDigit === '5' || genderDigit === '6') {
-    century = '19';
-  } else if (genderDigit === '3' || genderDigit === '4' || genderDigit === '7' || genderDigit === '8') {
-    century = '20';
-  } else if (genderDigit === '9' || genderDigit === '0') {
-    century = '18';
-  } else {
-    century = Number(yy) > 26 ? '19' : '20';
-  }
-
-  const birthYear = parseInt(`${century}${yy}`, 10);
-  const birthMonth = parseInt(mm, 10);
-  const birthDay = parseInt(dd, 10);
-
-  const empParts = employmentDateStr.split('-');
-  if (empParts.length !== 3) {
-    return { isEligible: true, age: null };
-  }
-  const empYear = parseInt(empParts[0], 10);
-  const empMonth = parseInt(empParts[1], 10);
-  const empDay = parseInt(empParts[2], 10);
-
-  let age = empYear - birthYear;
-  if (empMonth < birthMonth || (empMonth === birthMonth && empDay < birthDay)) {
-    age--;
-  }
-
-  const isEligible = age >= 15 && age <= 34;
-  return { isEligible, age };
-};
+// Youth tax reduction helper imported from taxCalculator.ts
 
 function App() {
   // Authentication State
@@ -917,6 +855,7 @@ function App() {
 
   // SmeModal States for company details
   const [smeModalOpen, setSmeModalOpen] = useState(false);
+  const [consolidatedModalOpen, setConsolidatedModalOpen] = useState(false);
 
   // New Customer detail data (matching the complex form layout from the screenshot)
   const [regForm, setRegForm] = useState({
@@ -936,6 +875,20 @@ function App() {
     residentAddress: '',
     visaExpiry: '',
     isMonthlyRent: '부',
+    landlordName: '',
+    landlordRegNum: '',
+    rentHousingType: '오피스텔',
+    rentHousingSize: '',
+    rentContractor: '본인',
+    rentHouseholder: '세대주',
+    rentAllHouseholdsNoHouse: '부',
+    monthlyRentFee: '',
+    rentLeaseStart: '',
+    rentLeaseEnd: '',
+    rentContractDocFile: null as File | null,
+    rentContractDocUrl: '',
+    rentReceiptDocFile: null as File | null,
+    rentReceiptDocUrl: '',
     refundBankName: 'KB국민은행',
     refundBank: '',
     refundStatus: '대기',
@@ -1009,6 +962,20 @@ function App() {
     else if (regForm.nationality === '네팔') setInvoiceLanguage('네팔어');
     else setInvoiceLanguage('한국어');
   }, [regForm.nationality]);
+
+  const onChangeRentInfo = (key: string, value: any) => {
+    setRegForm((prev: any) => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const onChangeRentFile = (key: string, file: File | null) => {
+    setRegForm((prev: any) => ({
+      ...prev,
+      [key]: file
+    }));
+  };
 
   // Real-time Youth Tax Reduction Calculation
   const youthTaxReductionInfo = useMemo(() => {
@@ -1096,7 +1063,7 @@ function App() {
     };
   }, [regForm.foreignerNumber, regForm.residentAddress, regForm.years]);
 
-  // Automatically recalculate yearly tax data when foreigner number, employment date, or fee rate changes
+  // Automatically recalculate yearly tax data when foreigner number, employment date, fee rate, or monthly rent details change
   useEffect(() => {
     setRegForm(prev => {
       let changed = false;
@@ -1110,7 +1077,8 @@ function App() {
             prev.childCount,
             selectedFeeRate,
             prev.foreignerNumber,
-            prev.residentAddress
+            prev.residentAddress,
+            prev
           );
 
           if (JSON.stringify(recalculated) !== JSON.stringify(yrData)) {
@@ -1129,7 +1097,14 @@ function App() {
       }
       return prev;
     });
-  }, [regForm.foreignerNumber, regForm.residentAddress, selectedFeeRate]);
+  }, [
+    regForm.foreignerNumber,
+    regForm.residentAddress,
+    selectedFeeRate,
+    regForm.isMonthlyRent,
+    regForm.rentAllHouseholdsNoHouse,
+    regForm.monthlyRentFee
+  ]);
 
   // Redirect regular managers away from dashboard if they somehow access it
   useEffect(() => {
@@ -1168,6 +1143,20 @@ function App() {
       residentAddress: '',
       visaExpiry: '',
       isMonthlyRent: '부',
+      landlordName: '',
+      landlordRegNum: '',
+      rentHousingType: '오피스텔',
+      rentHousingSize: '',
+      rentContractor: '본인',
+      rentHouseholder: '세대주',
+      rentAllHouseholdsNoHouse: '부',
+      monthlyRentFee: '',
+      rentLeaseStart: '',
+      rentLeaseEnd: '',
+      rentContractDocFile: null as File | null,
+      rentContractDocUrl: '',
+      rentReceiptDocFile: null as File | null,
+      rentReceiptDocUrl: '',
       refundBankName: 'KB국민은행',
       refundBank: '',
       refundStatus: '대기',
@@ -1226,73 +1215,7 @@ function App() {
     showToast('고객 등록 정보 및 정산 데이터가 전체 초기화되었습니다.', 'info');
   };
 
-  const recalculateYearData = (
-    yrData: any, 
-    depCount: number, 
-    senCount: number, 
-    disCount: number, 
-    chCount: number, 
-    feeRate: number,
-    rrn?: string,
-    empDate?: string
-  ) => {
-    if (!yrData || (!yrData.active && !yrData.isFileUploaded)) return yrData;
-
-    const rrnVal = rrn !== undefined ? rrn : regForm.foreignerNumber;
-    const empDateVal = empDate !== undefined ? empDate : regForm.residentAddress;
-    const eligibility = checkYouthEligibility(rrnVal, empDateVal);
-
-    const originalDecisionTax = Number(yrData.decisionTax) || 0;
-    const originalLocalTax = Number(yrData.localTax) || 0;
-    const calculatedTax = Number(yrData.taxBase) || 0;
-    const childDeduction = Number(yrData.childDeduction) || 0;
-
-    const isReductionApplied = eligibility.isEligible && yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
-    const reductionAmt = isReductionApplied ? Math.min(1500000, Math.round(calculatedTax * 0.9)) : 0;
-    
-    // 부양가족 소득공제 (인당 150만, 경로우대 +100만, 장애인 +200만)
-    const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
-    // 소득공제에 따른 세액 절감액 (기본 6% 적용)
-    const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
-
-    // 자녀 세액공제 (인당 15만 원)
-    const extraChildTaxCredit = chCount * 150000;
-
-    const remainingTaxAfterReduction = Math.max(0, calculatedTax - reductionAmt - extraTaxReductionFromDeduction);
-    const changedChildDeduction = calculatedTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / calculatedTax)) : 0;
-
-    const changedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
-    const changedLocalTax = Math.round(changedDecisionTax * 0.1);
-
-    const refundNational = Math.max(0, originalDecisionTax - changedDecisionTax);
-    const refundLocal = Math.max(0, originalLocalTax - changedLocalTax);
-    const totalCourtFee = refundNational + refundLocal;
-    const expectedFee = Math.round(totalCourtFee * (feeRate / 100));
-
-    // Calculate extra refund generated purely by dependent family deductions
-    const remainingWithoutDeps = Math.max(0, calculatedTax - reductionAmt);
-    const childDeductionWithoutDeps = calculatedTax > 0 ? Math.round(childDeduction * (remainingWithoutDeps / calculatedTax)) : 0;
-    const decisionTaxWithoutDeps = Math.max(0, remainingWithoutDeps - childDeductionWithoutDeps);
-    const refundNationalWithoutDeps = Math.max(0, originalDecisionTax - decisionTaxWithoutDeps);
-    const refundLocalWithoutDeps = Math.max(0, originalLocalTax - Math.round(decisionTaxWithoutDeps * 0.1));
-    const totalRefundWithoutDeps = refundNationalWithoutDeps + refundLocalWithoutDeps;
-
-    const dependentRefundTotal = Math.max(0, totalCourtFee - totalRefundWithoutDeps);
-
-    return {
-      ...yrData,
-      childReductionApplyAmt: String(reductionAmt),
-      childDeductionApplyAmt: String(changedChildDeduction + extraChildTaxCredit),
-      decisionTaxApplyAmt: String(changedDecisionTax),
-      localTaxApplyAmt: String(changedLocalTax),
-      decisionTaxRefundAmt: String(changedDecisionTax + changedLocalTax),
-      refundExpectNational: String(refundNational),
-      refundExpectLocal: String(refundLocal),
-      courtFee: String(totalCourtFee),
-      expectedFeeAmt: String(expectedFee),
-      dependentRefundTotal: String(dependentRefundTotal)
-    };
-  };
+  // Local recalculateYearData function removed; using imported version from taxCalculator.ts
 
   const updateDependentsCount = (key: 'dependentsCount' | 'seniorCount' | 'disabledCount' | 'childCount', delta: number) => {
     setRegForm(prev => {
@@ -1302,7 +1225,17 @@ function App() {
       const newChCount = key === 'childCount' ? Math.max(0, prev.childCount + delta) : prev.childCount;
 
       const updatedYears = (prev.years || []).map(yrData => {
-        return recalculateYearData(yrData, newDepCount, newSenCount, newDisCount, newChCount, selectedFeeRate);
+        return recalculateYearData(
+          yrData,
+          newDepCount,
+          newSenCount,
+          newDisCount,
+          newChCount,
+          selectedFeeRate,
+          prev.foreignerNumber,
+          prev.residentAddress,
+          prev
+        );
       });
 
       const updatedFreelancerYears = { ...prev.freelancerYears };
@@ -1340,7 +1273,17 @@ function App() {
     setSelectedFeeRate(rate);
     setRegForm(prev => {
       const updatedYears = (prev.years || []).map(yrData => {
-        return recalculateYearData(yrData, prev.dependentsCount, prev.seniorCount, prev.disabledCount, prev.childCount, rate);
+        return recalculateYearData(
+          yrData,
+          prev.dependentsCount,
+          prev.seniorCount,
+          prev.disabledCount,
+          prev.childCount,
+          rate,
+          prev.foreignerNumber,
+          prev.residentAddress,
+          prev
+        );
       });
       return { ...prev, years: updatedYears };
     });
@@ -1691,7 +1634,8 @@ function App() {
           prev.childCount, 
           selectedFeeRate,
           newRrn,
-          newEmpDate
+          newEmpDate,
+          prev
         );
 
         if (targetIndex !== -1) {
@@ -1858,7 +1802,10 @@ function App() {
           prev.seniorCount,
           prev.disabledCount,
           prev.childCount,
-          selectedFeeRate
+          selectedFeeRate,
+          prev.foreignerNumber,
+          prev.residentAddress,
+          prev
         );
 
         return {
@@ -2009,7 +1956,8 @@ function App() {
               prev.childCount, 
               selectedFeeRate,
               newRrn,
-              newEmpDate
+              newEmpDate,
+              prev
             );
 
             if (targetIndex !== -1) {
@@ -2451,6 +2399,18 @@ function App() {
         snsAddress: clientDetails?.facebookURL || '',
         customerGrade: clientDetails?.clientRank || '',
         greenContractDate: clientDetails?.recordFileDate ? clientDetails.recordFileDate.split('T')[0] : '',
+        landlordName: clientDetails?.landlordName || '',
+        landlordRegNum: clientDetails?.landlordRegNum || '',
+        rentHousingType: clientDetails?.rentHousingType || '오피스텔',
+        rentHousingSize: clientDetails?.rentHousingSize ? String(clientDetails.rentHousingSize) : '',
+        rentLeaseStart: clientDetails?.rentLeaseStart ? clientDetails.rentLeaseStart.split('T')[0] : '',
+        rentLeaseEnd: clientDetails?.rentLeaseEnd ? clientDetails.rentLeaseEnd.split('T')[0] : '',
+        monthlyRentFee: clientDetails?.monthlyRentFee ? String(clientDetails.monthlyRentFee) : '',
+        rentContractor: clientDetails?.rentContractor || '본인',
+        rentHouseholder: clientDetails?.rentHouseholder || '세대주',
+        rentAllHouseholdsNoHouse: clientDetails?.rentAllHouseholdsNoHouse || '부',
+        rentContractDocUrl: clientDetails?.rentContractDocUrl || '',
+        rentReceiptDocUrl: clientDetails?.rentReceiptDocUrl || '',
         dependentsCount: Number(clientDetails?.dependentsCount) || 0,
         seniorCount: Number(clientDetails?.seniorCount) || 0,
         disabledCount: Number(clientDetails?.disabledCount) || 0,
@@ -2674,6 +2634,26 @@ function App() {
       return;
     }
     setSmeModalOpen(true);
+  };
+
+  const handleDownloadConsolidatedSpecification = () => {
+    if (!regForm.name) {
+      showToast('고객을 먼저 로드하거나 등록해 주세요.', 'error');
+      return;
+    }
+    setConsolidatedModalOpen(true);
+  };
+
+  const triggerConsolidatedExcelDownload = async () => {
+    try {
+      await generateConsolidatedExcel(regForm, showToast);
+      setConsolidatedModalOpen(false);
+      showToast('통합 경정청구 명세서 엑셀 다운로드가 완료되었습니다.', 'success');
+      handleSaveConsultInfo();
+    } catch (err: any) {
+      console.error('Error generating consolidated Excel:', err);
+      showToast('엑셀 생성 실패: ' + err.message, 'error');
+    }
   };
 
   const triggerExcelDownload = async () => {
@@ -4263,6 +4243,8 @@ function App() {
                   bankList={bankList}
                   refundStatuses={refundStatuses}
                   submissionStatuses={submissionStatuses}
+                  onChangeRentInfo={onChangeRentInfo}
+                  onChangeRentFile={onChangeRentFile}
                 />
 
                 {/* Dependents & Additional Deductions Setting Panel */}
@@ -4469,8 +4451,8 @@ function App() {
                   getCombinedRefund={getCombinedRefund}
                 />
 
-                {/* SME Tax Reduction Specification Excel Download Button */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', marginBottom: '8px' }}>
+                {/* Excel Download Buttons (Single SME & Consolidated) */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px', marginBottom: '8px' }}>
                   <button
                     type="button"
                     onClick={handleDownloadSmeSpecification}
@@ -4498,6 +4480,35 @@ function App() {
                       <line x1="12" y1="15" x2="12" y2="3" />
                     </svg>
                     📄 중소기업 감면명세서 다운로드 (Excel)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadConsolidatedSpecification}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      color: '#ffffff',
+                      backgroundColor: '#0d9488',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(13, 148, 136, 0.25)',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#0f766e'; e.currentTarget.style.boxShadow = '0 4px 6px rgba(15, 118, 110, 0.35)'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#0d9488'; e.currentTarget.style.boxShadow = '0 2px 4px rgba(13, 148, 136, 0.25)'; }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    📄 통합 경정청구(사업소득,월세,부양가족 포함) 명세서 다운로드 (Excel)
                   </button>
                 </div>
 
@@ -4948,6 +4959,94 @@ function App() {
                 onClick={triggerExcelDownload}
               >
                 엑셀 다운로드
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ConsolidatedModal for entering/editing employer details dynamically */}
+      {consolidatedModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            padding: '24px',
+            width: '450px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
+            border: '1px solid #cbd5e1'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>
+              📄 통합 경정청구 명세서 정보 입력
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b', lineHeight: '1.4' }}>
+              통합 경정청구 세무서식 파일(경정청구서, 중소기업 감면, 월세액 공제)을 작성하기 위해 필요한 회사 기본 정보를 입력해 주세요.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>회사 주소</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={regForm.companyAddress}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyAddress: e.target.value }))}
+                  placeholder="예: 충청북도 음성군 금왕읍 대금로..."
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>회사 전화번호</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={regForm.companyPhone}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyPhone: e.target.value }))}
+                  placeholder="예: 010-3285-0337"
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>주업종코드</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  style={{ height: '36px', fontSize: '13px' }}
+                  value={regForm.companyIndustry}
+                  onChange={(e) => setRegForm(prev => ({ ...prev, companyIndustry: e.target.value }))}
+                  placeholder="예: 172902"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
+              <button
+                type="button"
+                className="btn-cancel"
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+                onClick={() => setConsolidatedModalOpen(false)}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                className="btn-submit"
+                style={{ padding: '8px 18px', fontSize: '13px', backgroundColor: '#10b981' }}
+                onClick={triggerConsolidatedExcelDownload}
+              >
+                통합 엑셀 다운로드
               </button>
             </div>
           </div>

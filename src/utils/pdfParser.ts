@@ -173,6 +173,30 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
     }
   }
 
+  // 3.3% 프리랜서 사업소득 데이터 Fallback 분석 (줄 정규식이 실패한 경우)
+  if (isBusinessIncome && salaryTotal === '0') {
+    // 1) 지급총액 / 연간합계 / 지급액 키워드 바로 뒤의 숫자 획득
+    const paymentMatch = cleanText.match(/(?:지\s*급\s*총\s*액|연\s*간\s*합\s*계|지\s*급\s*액)\s*(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15})/);
+    if (paymentMatch) {
+      salaryTotal = paymentMatch[1].replace(/,/g, '');
+      taxBase = salaryTotal;
+      decisionTax = salaryTotal;
+    }
+    
+    // 2) 소득세 및 지방소득세 키워드 뒤의 숫자 획득
+    const incomeTaxMatch = cleanText.match(/(?:소\s*득\s*세)\s*(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15})/);
+    if (incomeTaxMatch) {
+      determinedIncomeTax = incomeTaxMatch[1].replace(/,/g, '');
+    }
+    
+    const localTaxMatch = cleanText.match(/(?:지\s*방\s*소\s*득\s*세|지방소득세)\s*(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15})/);
+    if (localTaxMatch) {
+      determinedLocalTax = localTaxMatch[1].replace(/,/g, '');
+    } else if (determinedIncomeTax !== '0') {
+      determinedLocalTax = String(Math.round(Number(determinedIncomeTax) * 0.1));
+    }
+  }
+
   // Fallback to old parsing logic for salary and taxes if we didn't extract them via table rows
   if (salaryTotal === '0' && determinedIncomeTax === '0') {
     const getNumbersAfterKeyword = (keywordRegex: RegExp, count: number): string[] | null => {
@@ -214,12 +238,41 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
                             || getNumbersAfterKeyword(/근\s*로\s*소\s*득\s*세\s*액\s*공\s*제/i, 1);
     childDeduction = childDeductionNums ? childDeductionNums[0] : '0';
 
+
+    // 결정세액에서 소득세와 지방소득세를 정규식 및 순서 분석으로 직접 추출
+    let parsedIncomeTax = '0';
+    let parsedLocalTax = '0';
+
+    // 1) "지방소득세" 키워드 바로 뒤에 오는 숫자를 명시적 정규식으로 직접 획득 시도
+    const explicitLocalTaxMatch = cleanText.match(/(?:지\s*방\s*소\s*득\s*세|지방소득세)\s*(\d{1,3}(?:,\d{3})+|[1-9]\d{2,15})/);
+    if (explicitLocalTaxMatch) {
+      parsedLocalTax = explicitLocalTaxMatch[1].replace(/,/g, '');
+    }
+
+    // 2) 결정세액 라인 번호(72번 또는 73번) 기준 파싱 시도
     const detTaxNums = getNumbersAfterKeyword(/73\s*결\s*정\s*세\s*액/i, 2)
                     || getNumbersAfterKeyword(/72\s*결\s*정\s*세\s*액/i, 2)
                     || getNumbersAfterKeyword(/결\s*정\s*세\s*액/i, 2);
     
-    determinedIncomeTax = detTaxNums ? detTaxNums[0] : '0';
-    determinedLocalTax = detTaxNums ? detTaxNums[1] : String(Math.round(Number(determinedIncomeTax) * 0.1));
+    if (detTaxNums) {
+      parsedIncomeTax = detTaxNums[0] || '0';
+      // 명시적으로 지방소득세를 긁어오지 못했거나 깨진 경우, 두 번째 매칭된 숫자를 숫자 검증 후 사용
+      if (parsedLocalTax === '0' && detTaxNums[1]) {
+        const cleanedSecNum = detTaxNums[1].replace(/[^0-9]/g, '');
+        if (cleanedSecNum && !isNaN(Number(cleanedSecNum))) {
+          parsedLocalTax = cleanedSecNum;
+        }
+      }
+    }
+
+    determinedIncomeTax = parsedIncomeTax;
+    
+    // 최종 검증: 지방소득세가 아직도 0이거나 문자로 깨져있다면 국세 결정세액의 10%로 자동 보정하여 누락 방지
+    if (parsedLocalTax === '0' || isNaN(Number(parsedLocalTax)) || parsedLocalTax === '') {
+      determinedLocalTax = String(Math.round(Number(determinedIncomeTax) * 0.1));
+    } else {
+      determinedLocalTax = parsedLocalTax;
+    }
   }
 
   // Check for code checkbox selection

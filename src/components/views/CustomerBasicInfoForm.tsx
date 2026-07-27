@@ -1,4 +1,5 @@
 import React from 'react';
+import { RentDeductionForm } from './RentDeductionForm';
 
 interface CustomerBasicInfoFormProps {
   regForm: any;
@@ -8,6 +9,8 @@ interface CustomerBasicInfoFormProps {
   bankList: string[];
   refundStatuses: string[];
   submissionStatuses: string[];
+  onChangeRentInfo: (key: string, value: any) => void;
+  onChangeRentFile: (key: string, file: File | null) => void;
 }
 
 export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
@@ -17,7 +20,9 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
   visaTypes,
   bankList,
   refundStatuses,
-  submissionStatuses
+  submissionStatuses,
+  onChangeRentInfo,
+  onChangeRentFile
 }) => {
   return (
     <div style={{ overflowX: 'auto', marginBottom: '20px', border: '1px solid #cbd5e1' }}>
@@ -92,10 +97,10 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
             <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', fontSize: '13px', height: '32px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                  <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '가'} onChange={() => setRegForm((prev: any) => ({ ...prev, isMonthlyRent: '가' }))} /> 가
+                  <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '가'} onChange={() => onChangeRentInfo('isMonthlyRent', '가')} /> 가
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '2px', cursor: 'pointer' }}>
-                  <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent === '부'} onChange={() => setRegForm((prev: any) => ({ ...prev, isMonthlyRent: '부' }))} /> 부
+                  <input type="radio" name="isMonthlyRent" checked={regForm.isMonthlyRent !== '가'} onChange={() => onChangeRentInfo('isMonthlyRent', '부')} /> 부
                 </label>
               </div>
             </td>
@@ -195,6 +200,11 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
           </tr>
         </tbody>
       </table>
+      <RentDeductionForm 
+        regForm={regForm} 
+        onChangeRentInfo={onChangeRentInfo} 
+        onChangeRentFile={onChangeRentFile} 
+      />
     </div>
   );
 };

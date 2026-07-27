@@ -166,6 +166,21 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       isNewInsert = true;
     }
 
+    // 월세 계약서 및 영수증 파일 업로드 처리
+    let rentContractUrl = regForm.rentContractDocUrl || '';
+    if (regForm.rentContractDocFile) {
+      const path = `${clientId}/rent_contract_${Date.now()}_${regForm.rentContractDocFile.name}`;
+      const uploaded = await uploadPdfToSupabase(regForm.rentContractDocFile, path);
+      if (uploaded) rentContractUrl = uploaded;
+    }
+
+    let rentReceiptUrl = regForm.rentReceiptDocUrl || '';
+    if (regForm.rentReceiptDocFile) {
+      const path = `${clientId}/rent_receipt_${Date.now()}_${regForm.rentReceiptDocFile.name}`;
+      const uploaded = await uploadPdfToSupabase(regForm.rentReceiptDocFile, path);
+      if (uploaded) rentReceiptUrl = uploaded;
+    }
+
     const clientPayload: Record<string, any> = {
       name: regForm.name ? regForm.name.toUpperCase() : '',
       regNum: regForm.foreignerNumber || '',
@@ -174,6 +189,18 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       visa: regForm.visaType || 'E9',
       company: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '',
       isMonthlyTenant: regForm.isMonthlyRent === '가',
+      landlordName: regForm.landlordName || '',
+      landlordRegNum: regForm.landlordRegNum || '',
+      rentHousingType: regForm.rentHousingType || '오피스텔',
+      rentHousingSize: regForm.rentHousingSize ? Number(regForm.rentHousingSize) : null,
+      rentLeaseStart: safeToISOString(regForm.rentLeaseStart),
+      rentLeaseEnd: safeToISOString(regForm.rentLeaseEnd),
+      monthlyRentFee: regForm.monthlyRentFee ? Number(regForm.monthlyRentFee) : null,
+      rentContractor: regForm.rentContractor || '본인',
+      rentHouseholder: regForm.rentHouseholder || '세대주',
+      rentAllHouseholdsNoHouse: regForm.rentAllHouseholdsNoHouse || '부',
+      rentContractDocUrl: rentContractUrl,
+      rentReceiptDocUrl: rentReceiptUrl,
       phone: regForm.phone || '',
       phoneComp: regForm.telecom || 'SKT',
       bank: regForm.refundBankName || '',

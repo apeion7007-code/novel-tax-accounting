@@ -9,7 +9,6 @@ import {
   X,
   CheckCircle2,
   BarChart3,
-  Search,
 } from 'lucide-react';
 
 import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';
@@ -2400,13 +2399,7 @@ function App() {
                 직원 관리
               </button>
 
-              <button
-                className={`sidebar-item ${currentView === 'validator' ? 'active' : ''}`}
-                onClick={() => setCurrentView('validator')}
-              >
-                <Search size={18} />
-                전산매체 파일 검증
-              </button>
+
 
               <button
                 className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}

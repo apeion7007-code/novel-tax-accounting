@@ -190,14 +190,19 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                 <tbody>
                   {consultMemos.map((memo) => {
                     const resolvedManager = dbManagers.find(m => m.id === memo.managerId)?.name || memo.managerId || '관리자';
-                    const formattedDate = memo.createdAt
-                      ? new Date(memo.createdAt).toLocaleString('ko-KR', { 
+                    const rawDate = memo.createdAt;
+                    const utcString = (rawDate && !rawDate.endsWith('Z') && !rawDate.includes('+') && !/-\d{2}:\d{2}$/.test(rawDate)) 
+                      ? rawDate + 'Z' 
+                      : rawDate;
+                    const formattedDate = utcString
+                      ? new Date(utcString).toLocaleString('ko-KR', { 
                           year: '2-digit', 
                           month: 'numeric', 
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
-                          hour12: false
+                          hour12: false,
+                          timeZone: 'Asia/Seoul'
                         })
                       : '-';
                     return (

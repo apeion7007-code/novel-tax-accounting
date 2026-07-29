@@ -80,30 +80,48 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               <th colSpan={2} style={{ width: '220px', border: '1px solid #99f6e4', padding: '8px' }}>
                 연도별 정산 연도
               </th>
-              {targetYears.map(yr => (
-                <th key={yr} style={{ border: '1px solid #99f6e4', padding: '8px', width: '150px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <span>{yr}년도 (3.3%)</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFreelancerYear(yr)}
-                      style={{
-                        border: 'none',
-                        background: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        padding: 0,
-                        fontSize: '12px',
-                        display: 'flex',
-                        alignItems: 'center'
-                      }}
-                      title="연도 삭제"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                </th>
-              ))}
+              {targetYears.map(yr => {
+                const isNonRefund = regForm.freelancerYears?.[yr]?.isNonRefundable;
+                return (
+                  <th key={yr} style={{ border: '1px solid #99f6e4', padding: '8px', width: '150px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <span>{yr}년도 (3.3%)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveFreelancerYear(yr)}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: 0,
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center'
+                          }}
+                          title="연도 삭제"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                      {isNonRefund && (
+                        <span style={{ 
+                          fontSize: '10px', 
+                          backgroundColor: '#fee2e2', 
+                          color: '#ef4444', 
+                          padding: '1px 6px', 
+                          borderRadius: '10px', 
+                          border: '1px solid #fca5a5',
+                          fontWeight: 'bold'
+                        }}>
+                          ⚠️ 환급 불가
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
               <th style={{ width: '160px', border: '1px solid #99f6e4', padding: '8px', backgroundColor: '#99f6e4', color: '#0f766e' }}>
                 5개년 합계
               </th>
@@ -309,38 +327,50 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               <td style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
                 국세 환급금 (3.0%)
               </td>
-              {targetYears.map(yr => (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                    value={formatInputVal(regForm.freelancerYears?.[yr]?.refundExpectNational, regForm.freelancerYears?.[yr]?.active)}
-                    onChange={(e) => {
-                      const val = cleanInputVal(e.target.value);
-                      const nat = Number(val) || 0;
-                      const loc = Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0;
-                      const court = nat + loc;
-                      const feeAmt = Math.round(court * (selectedFeeRate / 100));
+              {targetYears.map(yr => {
+                const yrData = regForm.freelancerYears?.[yr];
+                const isNonRefund = yrData?.isNonRefundable;
+                return (
+                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      style={{ 
+                        height: '28px', 
+                        fontSize: '12px', 
+                        textAlign: 'right', 
+                        backgroundColor: isNonRefund ? '#fee2e2' : '#fffbeb',
+                        color: isNonRefund ? '#ef4444' : '#000000',
+                        fontWeight: isNonRefund ? 'bold' : 'normal'
+                      }}
+                      value={isNonRefund ? '0' : formatInputVal(yrData?.refundExpectNational, yrData?.active)}
+                      disabled={isNonRefund || !yrData?.active}
+                      onChange={(e) => {
+                        const val = cleanInputVal(e.target.value);
+                        const nat = Number(val) || 0;
+                        const loc = Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0;
+                        const court = nat + loc;
+                        const feeAmt = Math.round(court * (selectedFeeRate / 100));
 
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        freelancerYears: {
-                          ...prev.freelancerYears,
-                          [yr]: {
-                            ...prev.freelancerYears?.[yr],
-                            refundExpectNational: val,
-                            courtFee: String(court),
-                            expectedFeeAmt: String(feeAmt),
-                            active: true
+                        setRegForm((prev: any) => ({
+                          ...prev,
+                          freelancerYears: {
+                            ...prev.freelancerYears,
+                            [yr]: {
+                              ...prev.freelancerYears?.[yr],
+                              refundExpectNational: val,
+                              courtFee: String(court),
+                              expectedFeeAmt: String(feeAmt),
+                              active: true
+                            }
                           }
-                        }
-                      }));
-                    }}
-                    placeholder="0"
-                  />
-                </td>
-              ))}
+                        }));
+                      }}
+                      placeholder={isNonRefund ? "환급 제외" : "0"}
+                    />
+                  </td>
+                );
+              })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a', color: '#854d0e' }}>
                 {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0 : 0), 0).toLocaleString()}원
               </td>
@@ -354,38 +384,50 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               <td style={{ border: '1px solid #cbd5e1', padding: '6px', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>
                 지방세 환급금 (0.3%)
               </td>
-              {targetYears.map(yr => (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
-                    value={formatInputVal(regForm.freelancerYears?.[yr]?.refundExpectLocal, regForm.freelancerYears?.[yr]?.active)}
-                    onChange={(e) => {
-                      const val = cleanInputVal(e.target.value);
-                      const loc = Number(val) || 0;
-                      const nat = Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0;
-                      const court = nat + loc;
-                      const feeAmt = Math.round(court * (selectedFeeRate / 100));
+              {targetYears.map(yr => {
+                const yrData = regForm.freelancerYears?.[yr];
+                const isNonRefund = yrData?.isNonRefundable;
+                return (
+                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '2px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      style={{ 
+                        height: '28px', 
+                        fontSize: '12px', 
+                        textAlign: 'right', 
+                        backgroundColor: isNonRefund ? '#fee2e2' : '#fffbeb',
+                        color: isNonRefund ? '#ef4444' : '#000000',
+                        fontWeight: isNonRefund ? 'bold' : 'normal'
+                      }}
+                      value={isNonRefund ? '0' : formatInputVal(yrData?.refundExpectLocal, yrData?.active)}
+                      disabled={isNonRefund || !yrData?.active}
+                      onChange={(e) => {
+                        const val = cleanInputVal(e.target.value);
+                        const nat = Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0;
+                        const loc = Number(val) || 0;
+                        const court = nat + loc;
+                        const feeAmt = Math.round(court * (selectedFeeRate / 100));
 
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        freelancerYears: {
-                          ...prev.freelancerYears,
-                          [yr]: {
-                            ...prev.freelancerYears?.[yr],
-                            refundExpectLocal: val,
-                            courtFee: String(court),
-                            expectedFeeAmt: String(feeAmt),
-                            active: true
+                        setRegForm((prev: any) => ({
+                          ...prev,
+                          freelancerYears: {
+                            ...prev.freelancerYears,
+                            [yr]: {
+                              ...prev.freelancerYears?.[yr],
+                              refundExpectLocal: val,
+                              courtFee: String(court),
+                              expectedFeeAmt: String(feeAmt),
+                              active: true
+                            }
                           }
-                        }
-                      }));
-                    }}
-                    placeholder="0"
-                  />
-                </td>
-              ))}
+                        }));
+                      }}
+                      placeholder={isNonRefund ? "환급 제외" : "0"}
+                    />
+                  </td>
+                );
+              })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#fef08a', color: '#854d0e' }}>
                 {targetYears.reduce((sum, yr) => sum + (regForm.freelancerYears?.[yr]?.active ? Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0 : 0), 0).toLocaleString()}원
               </td>
@@ -406,18 +448,21 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
               </td>
             </tr>
 
-            {/* Row: 적용 부양가족 환급금 */}
+            {/* Row: 부양가족 인적공제 환급금 */}
             <tr style={{ backgroundColor: '#f0fdf4' }}>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#0f766e', backgroundColor: '#ccfbf1' }}>
-                적용 부양가족 환급금
+                부양가족 인적공제 환급금
               </td>
-              {targetYears.map(yr => (
-                <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#0f766e' }}>
-                  -
-                </td>
-              ))}
+              {targetYears.map(yr => {
+                const isActive = regForm.freelancerYears?.[yr]?.active;
+                return (
+                  <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#0f766e' }}>
+                    {isActive ? '0원' : '-'}
+                  </td>
+                );
+              })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#ccfbf1', color: '#0f766e' }}>
-                -
+                {targetYears.some(yr => regForm.freelancerYears?.[yr]?.active) ? '0원' : '-'}
               </td>
             </tr>
 

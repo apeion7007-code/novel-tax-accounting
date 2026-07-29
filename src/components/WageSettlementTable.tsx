@@ -764,6 +764,51 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             </td>
           </tr>
 
+          {/* Row: 중소기업 청년 감면 환급금 */}
+          <tr style={{ backgroundColor: '#f0f9ff' }}>
+            <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#0369a1', backgroundColor: '#e0f2fe' }}>
+              중소기업 청년 감면 환급금
+            </td>
+            {yearsList.map((yrData: any) => {
+              const nat = Number(yrData.refundExpectNational) || 0;
+              const loc = Number(yrData.refundExpectLocal) || 0;
+              const depRefund = Number(yrData.dependentRefundTotal) || 0;
+              const youthRefund = Math.max(0, nat + loc - depRefund);
+              return (
+                <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#0369a1' }}>
+                  {yrData.active ? `+${youthRefund.toLocaleString()}원` : '-'}
+                </td>
+              );
+            })}
+            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#e0f2fe', color: '#0369a1', fontSize: '13px' }}>
+              +{yearsList.reduce((sum: number, y: any) => {
+                const nat = Number(y.refundExpectNational) || 0;
+                const loc = Number(y.refundExpectLocal) || 0;
+                const depRefund = Number(y.dependentRefundTotal) || 0;
+                const youthRefund = Math.max(0, nat + loc - depRefund);
+                return sum + (y.active ? youthRefund : 0);
+              }, 0).toLocaleString()}원
+            </td>
+          </tr>
+
+          {/* Row: 월세 세액공제 환급금 */}
+          <tr style={{ backgroundColor: '#faf5ff' }}>
+            <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#6b21a8', backgroundColor: '#f3e8ff' }}>
+              월세 세액공제 환급금
+            </td>
+            {yearsList.map((yrData: any) => {
+              const rentRefund = Number(yrData.rentRefundTotal) || 0;
+              return (
+                <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#6b21a8' }}>
+                  {yrData.active ? `+${rentRefund.toLocaleString()}원` : '-'}
+                </td>
+              );
+            })}
+            <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#f3e8ff', color: '#6b21a8', fontSize: '13px' }}>
+              +{yearsList.reduce((sum: number, y: any) => sum + (y.active ? Number(y.rentRefundTotal) || 0 : 0), 0).toLocaleString()}원
+            </td>
+          </tr>
+
           {/* Row 9: 3.3% 총 환급 합계금액 */}
           <tr style={{ backgroundColor: '#fef9c3' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#854d0e', backgroundColor: '#fef08a' }}>

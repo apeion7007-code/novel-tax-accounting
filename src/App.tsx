@@ -66,6 +66,7 @@ export interface Customer {
   arcImageUrl?: string;
   signatureImageUrl?: string;
   visaExpireDate?: string;
+  isNextYearApply?: boolean;
 }
 
 // Define manager interface
@@ -96,6 +97,14 @@ function App() {
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
+  
+  // Tab control state
+  const [selectedTab, setSelectedTab] = useState<'all' | 'inProgress' | 'feeCompleted' | 'nextYear'>('all');
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTab]);
 
   // Customer List State
   const [customers, setCustomers] = useState<Customer[]>([
@@ -826,7 +835,8 @@ function App() {
               consentStatus: c.consentStatus || '대기',
               arcImageUrl: c.arcImageUrl || '',
               signatureImageUrl: c.signatureImageUrl || '',
-              visaExpireDate: c.visaExpireDate || ''
+              visaExpireDate: c.visaExpireDate || '',
+              isNextYearApply: c.isNextYearApply || false
             };
           });
 
@@ -876,7 +886,8 @@ function App() {
               consentStatus: c.consentStatus || '대기',
               arcImageUrl: c.arcImageUrl || '',
               signatureImageUrl: c.signatureImageUrl || '',
-              visaExpireDate: c.visaExpireDate || ''
+              visaExpireDate: c.visaExpireDate || '',
+              isNextYearApply: c.isNextYearApply || false
             };
           });
 
@@ -936,6 +947,7 @@ function App() {
     feePaymentStatus: '후불 22%',
     taxReductionApplyDateStart: '',
     taxReductionApplyDateEnd: '',
+    isNextYearApply: false,
 
     // Yearly calculations: 2021 ~ 2025
     years: [
@@ -1204,6 +1216,7 @@ function App() {
       feePaymentStatus: '후불 22%',
       taxReductionApplyDateStart: '',
       taxReductionApplyDateEnd: '',
+      isNextYearApply: false,
 
       years: [
         { id: 'temp_2021', year: '2021', active: false, workPeriod: '', workPlace: '', businessNumber: '', birthDate: '', salaryTotal: '0', taxBase: '0', childReduction: '0', childDeduction: '0', decisionTax: '0', localTax: '0', taxRefundTotal: '0', childReductionApply: '90%', childReductionApplyAmt: '0', childDeductionApplyAmt: '0', decisionTaxApplyAmt: '0', localTaxApplyAmt: '0', decisionTaxRefundAmt: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
@@ -1469,6 +1482,7 @@ function App() {
     '♡수수료요청',
     '♡국세수수료수납완료',
     '◆지방세수수료수납완료',
+    '♠지방세수수료수납완료',
     '◆수수료 연체'
   ];
   const visaTypes = [
@@ -1935,6 +1949,7 @@ function App() {
         consentStatus: clientDetails?.consentStatus || '대기',
         arcImageUrl: clientDetails?.arcImageUrl || '',
         signatureImageUrl: clientDetails?.signatureImageUrl || '',
+        isNextYearApply: clientDetails?.isNextYearApply || false,
         years: yearsObj,
         freelancerYears: freelancerYearsObj
       }));
@@ -2076,7 +2091,8 @@ function App() {
           consentStatus: regForm.consentStatus || '대기',
           arcImageUrl: regForm.arcImageUrl || '',
           signatureImageUrl: regForm.signatureImageUrl || '',
-          visaExpireDate: regForm.visaExpiry || ''
+          visaExpireDate: regForm.visaExpiry || '',
+          isNextYearApply: regForm.isNextYearApply
         };
 
         if (isUpdate) {
@@ -2223,6 +2239,47 @@ function App() {
     showToast('필터가 초기화되었습니다.', 'info');
   };
 
+  // 탭별 카운트 계산
+  const tabCounts = useMemo(() => {
+    let all = 0;
+    let inProgress = 0;
+    let feeCompleted = 0;
+    let nextYear = 0;
+
+    const excludedStatuses = [
+      '♥경정청구완료', 
+      '♡국세수수료수납완료', 
+      '◆지방세수수료수납완료', 
+      '♠지방세수수료수납완료', 
+      '자격안됨', 
+      '◎자격안됨(확인완료)', 
+      '고객취소', 
+      '홈택스가입불가', 
+      '▲경정청구기각'
+    ];
+
+    customers.forEach(c => {
+      const matchesManagerCountry = currentManagerCountry && currentManagerCountry !== 'ALL'
+        ? c.nationality === currentManagerCountry
+        : true;
+
+      if (!matchesManagerCountry) return;
+
+      all++;
+      if (!excludedStatuses.includes(c.refundStatus)) {
+        inProgress++;
+      }
+      if (c.refundStatus === '♡국세수수료수납완료' || c.refundStatus === '◆지방세수수료수납완료' || c.refundStatus === '♠지방세수수료수납완료') {
+        feeCompleted++;
+      }
+      if (c.isNextYearApply) {
+        nextYear++;
+      }
+    });
+
+    return { all, inProgress, feeCompleted, nextYear };
+  }, [customers, currentManagerCountry]);
+
   const filteredCustomers = customers.filter(c => {
     // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
     const matchesManagerCountry = currentManagerCountry && currentManagerCountry !== 'ALL'
@@ -2295,6 +2352,27 @@ function App() {
       ? c.monthlyRent === filterMonthlyRent
       : true;
 
+    // 탭 필터링
+    let matchesTab = true;
+    if (selectedTab === 'inProgress') {
+      const excludedStatuses = [
+        '♥경정청구완료', 
+        '♡국세수수료수납완료', 
+        '◆지방세수수료수납완료', 
+        '♠지방세수수료수납완료', 
+        '자격안됨', 
+        '◎자격안됨(확인완료)', 
+        '고객취소', 
+        '홈택스가입불가', 
+        '▲경정청구기각'
+      ];
+      matchesTab = !excludedStatuses.includes(c.refundStatus);
+    } else if (selectedTab === 'feeCompleted') {
+      matchesTab = c.refundStatus === '♡국세수수료수납완료' || c.refundStatus === '◆지방세수수료수납완료' || c.refundStatus === '♠지방세수수료수납완료';
+    } else if (selectedTab === 'nextYear') {
+      matchesTab = c.isNextYearApply === true;
+    }
+
     return matchesSearch &&
       matchesNationality &&
       matchesRefundStatus &&
@@ -2304,7 +2382,8 @@ function App() {
       matchesCompanyName &&
       matchesVisaType &&
       matchesBirthDate &&
-      matchesMonthlyRent;
+      matchesMonthlyRent &&
+      matchesTab;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage));
@@ -2467,6 +2546,12 @@ function App() {
                 selectedIds={selectedIds}
                 currentPage={currentPage}
                 setCurrentPage={setCurrentPage}
+                selectedTab={selectedTab}
+                setSelectedTab={setSelectedTab}
+                countAll={tabCounts.all}
+                countInProgress={tabCounts.inProgress}
+                countFeeCompleted={tabCounts.feeCompleted}
+                countNextYear={tabCounts.nextYear}
                 handleResetFilters={handleResetFilters}
                 handleResetAll={handleResetAll}
                 handleDeleteCustomers={handleDeleteCustomers}

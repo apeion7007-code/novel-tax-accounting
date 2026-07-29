@@ -98,6 +98,11 @@ export function usePdfHandlers(
           return;
         }
 
+        const isNonRefund = parsed.isNonRefundable || false;
+        if (isNonRefund) {
+          showToast(`⚠️ [${yr}년도] 환급 불가 대상 소득(기타소득 코드: ${parsed.incomeTypeCode || '62'})이 감지되어 환급액이 0원 처리되었습니다.`, 'error');
+        }
+
         setRegForm((prev: any) => {
           const updatedFreelancer = { ...prev.freelancerYears };
           const income = Number(parsed.salaryTotal) || 0;
@@ -348,6 +353,11 @@ export function usePdfHandlers(
         return;
       }
 
+      const isNonRefund = parsed.isNonRefundable || false;
+      if (isNonRefund) {
+        showToast(`⚠️ [${yr}년도] 환급 불가 대상 소득(기타소득 코드: ${parsed.incomeTypeCode || '62'})이 감지되어 환급액이 0원 처리되었습니다.`, 'error');
+      }
+
       setRegForm((prev: any) => {
         const updatedYears = { ...prev.freelancerYears };
         
@@ -522,6 +532,10 @@ export function usePdfHandlers(
         const isOther = text.includes('기타소득');
 
         if (isBusiness || isOther) {
+          const isNonRefund = parsed.isNonRefundable || false;
+          if (isNonRefund) {
+            showToast(`⚠️ [${yr}년도] 환급 불가 대상 소득(기타소득 코드: ${parsed.incomeTypeCode || '62'})이 감지되어 환급액이 0원 처리되었습니다.`, 'error');
+          }
           setRegForm((prev: any) => {
             const updatedYears = { ...prev.freelancerYears };
             

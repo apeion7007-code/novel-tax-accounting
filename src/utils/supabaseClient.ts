@@ -245,7 +245,8 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       rectificationRequestDate: safeToISOString(regForm.claimCompleteDate),
       additionalApplyDate: safeToISOString(regForm.claimRequestDate),
       feeMethod: regForm.feePaymentStatus || '후불 22%',
-      hireDate: safeToISOString(regForm.residentAddress)
+      hireDate: safeToISOString(regForm.residentAddress),
+      isNextYearApply: regForm.isNextYearApply || false
     };
 
     if (pdfFileObjects['familyDoc']) {

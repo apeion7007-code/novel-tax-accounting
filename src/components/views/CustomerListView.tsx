@@ -68,6 +68,14 @@ interface CustomerListViewProps {
   handleInlineCountryChange: (id: number, val: string) => void;
   handleInlineManagerChange: (id: number, val: string) => void;
   handleSaveRow: (id: number) => void;
+
+  // Tab controls
+  selectedTab: 'all' | 'inProgress' | 'feeCompleted' | 'nextYear';
+  setSelectedTab: (tab: 'all' | 'inProgress' | 'feeCompleted' | 'nextYear') => void;
+  countAll: number;
+  countInProgress: number;
+  countFeeCompleted: number;
+  countNextYear: number;
 }
 
 export const CustomerListView: React.FC<CustomerListViewProps> = ({
@@ -118,7 +126,13 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   handleSelectRow,
   handleInlineCountryChange,
   handleInlineManagerChange,
-  handleSaveRow
+  handleSaveRow,
+  selectedTab,
+  setSelectedTab,
+  countAll,
+  countInProgress,
+  countFeeCompleted,
+  countNextYear
 }) => {
   const [isVisaWidgetExpanded, setIsVisaWidgetExpanded] = React.useState<boolean>(false);
   const [isConsentOpen, setIsConsentOpen] = React.useState<boolean>(false);
@@ -135,6 +149,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
         '♥경정청구완료', 
         '♡국세수수료수납완료', 
         '◆지방세수수료수납완료', 
+        '♠지방세수수료수납완료', 
         '자격안됨', 
         '◎자격안됨(확인완료)', 
         '고객취소', 
@@ -288,6 +303,66 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
           </div>
         </div>
       </header>
+
+      {/* 📂 상태 그룹 탭 */}
+      <div className="status-tabs-container" style={{ 
+        display: 'flex', 
+        gap: '6px', 
+        padding: '0 24px', 
+        marginTop: '16px',
+        borderBottom: '2px solid #e2e8f0',
+        backgroundColor: '#ffffff'
+      }}>
+        {[
+          { id: 'all', label: '전체', count: countAll },
+          { id: 'inProgress', label: '⏳ 진행 중', count: countInProgress },
+          { id: 'feeCompleted', label: '💵 수납 완료', count: countFeeCompleted },
+          { id: 'nextYear', label: `📅 ${new Date().getFullYear() + 1}년 접수대상`, count: countNextYear }
+        ].map(tab => {
+          const isActive = selectedTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedTab(tab.id as any)}
+              style={{
+                padding: '12px 20px',
+                fontSize: '14px',
+                fontWeight: isActive ? '600' : '500',
+                color: isActive ? '#0084ff' : '#64748b',
+                border: 'none',
+                background: 'none',
+                borderBottom: isActive ? '3px solid #0084ff' : '3px solid transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.15s ease-in-out',
+                marginBottom: '-2px',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.color = '#1e293b';
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.color = '#64748b';
+              }}
+            >
+              <span>{tab.label}</span>
+              <span style={{ 
+                fontSize: '11px', 
+                backgroundColor: isActive ? '#e0f2fe' : '#f1f5f9', 
+                color: isActive ? '#0369a1' : '#475569', 
+                padding: '2px 8px', 
+                borderRadius: '10px',
+                fontWeight: '600',
+                transition: 'all 0.15s ease-in-out'
+              }}>
+                {tab.count.toLocaleString()}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* ⚠️ 비자 만료 경고 대시보드 위젯 */}
       {(visaAlerts.urgent.length > 0 || visaAlerts.warning.length > 0) && (
@@ -471,6 +546,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                         onClick={() => handleOpenCustomerRegistration(customer)}
                         title="클릭하여 고객등록 관리 화면 열기"
                       >
+                        {customer.isNextYearApply && <span style={{ color: '#eab308', marginRight: '4px' }} title={`${new Date().getFullYear() + 1}년 접수대상`}>⭐</span>}
                         {customer.name}
                       </td>
                       <td>{customer.birthDate}</td>

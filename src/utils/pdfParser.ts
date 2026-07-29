@@ -359,7 +359,10 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
     incomeTypeCode = '62';
   }
 
-  const NON_REFUNDABLE_CODES = ['63', '64', '68', '69', '77'];
+  const NON_REFUNDABLE_CODES = [
+    '60', '61', '62', '63', '64', '65', '68', '69',
+    '71', '72', '73', '74', '75', '76', '77', '78', '79', '80'
+  ];
   if (NON_REFUNDABLE_CODES.includes(incomeTypeCode)) {
     isNonRefundable = true;
   }

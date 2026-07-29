@@ -290,6 +290,27 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setRegForm((prev: any) => ({ ...prev, isNextYearApply: !prev.isNextYearApply }))}
+            style={{
+              padding: '6px 16px',
+              fontSize: '13px',
+              backgroundColor: regForm.isNextYearApply ? '#eab308' : '#ffffff',
+              color: regForm.isNextYearApply ? '#ffffff' : '#475569',
+              border: regForm.isNextYearApply ? '1px solid #ca8a04' : '1px solid #cbd5e1',
+              fontWeight: 'bold',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: regForm.isNextYearApply ? '0 2px 6px rgba(234,179,8,0.3)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>{regForm.isNextYearApply ? `⭐ ${new Date().getFullYear() + 1}년 접수대상 (지정됨)` : `☆ ${new Date().getFullYear() + 1}년 접수대상 지정`}</span>
+          </button>
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleResetAll}>전체 초기화</button>
           <button className="btn-submit" style={{ padding: '6px 16px', fontSize: '13px', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSaveRegistration}>{regForm.serial && regForm.serial > 0 ? '고객 업데이트' : '신규저장'}</button>
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>삭제</button>

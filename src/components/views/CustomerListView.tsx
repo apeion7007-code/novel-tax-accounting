@@ -27,6 +27,8 @@ interface CustomerListViewProps {
   setFilterCompanyName: (val: string) => void;
   filterBirthDate: string;
   setFilterBirthDate: (val: string) => void;
+  filterForeignerNumber: string;
+  setFilterForeignerNumber: (val: string) => void;
   filterRegDate: string;
   setFilterRegDate: (val: string) => void;
   filterBeforeDate: string;
@@ -96,6 +98,8 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   setFilterCompanyName,
   filterBirthDate,
   setFilterBirthDate,
+  filterForeignerNumber,
+  setFilterForeignerNumber,
   filterRegDate,
   setFilterRegDate,
   filterBeforeDate,
@@ -670,6 +674,10 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                 <input type="text" className="form-control" style={{ height: '36px', fontSize: '13px' }} placeholder="생년월일 (YYMMDD)" value={filterBirthDate} onChange={(e) => setFilterBirthDate(e.target.value)} />
               </div>
               <div className="form-group" style={{ margin: 0 }}>
+                <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>외국인등록번호</label>
+                <input type="text" className="form-control" style={{ height: '36px', fontSize: '13px' }} placeholder="외국인등록번호" value={filterForeignerNumber} onChange={(e) => setFilterForeignerNumber(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
                 <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>등록일</label>
                 <input type="date" className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterRegDate} onChange={(e) => setFilterRegDate(e.target.value)} />
               </div>
@@ -677,7 +685,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                 <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>특정일 이전 등록</label>
                 <input type="date" className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterBeforeDate} onChange={(e) => setFilterBeforeDate(e.target.value)} />
               </div>
-              <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+              <div className="form-group" style={{ margin: 0 }}>
                 <label style={{ fontWeight: 'bold', fontSize: '13px', color: '#475569', display: 'block', marginBottom: '4px' }}>월세거주 여부</label>
                 <select className="form-control" style={{ height: '36px', fontSize: '13px' }} value={filterMonthlyRent} onChange={(e) => setFilterMonthlyRent(e.target.value)}>
                   <option value="">전체</option>

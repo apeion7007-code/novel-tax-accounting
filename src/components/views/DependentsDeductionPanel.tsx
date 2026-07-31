@@ -103,7 +103,7 @@ export const DependentsDeductionPanel: React.FC<DependentsDeductionPanelProps> =
         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>공제 대상 자녀</div>
-            <div style={{ fontSize: '11px', color: '#64748b' }}>인당 15만 원 세액공제</div>
+            <div style={{ fontSize: '11px', color: '#64748b' }}>연도별 세액공제 차등 적용</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <button
@@ -117,6 +117,38 @@ export const DependentsDeductionPanel: React.FC<DependentsDeductionPanelProps> =
               onClick={() => updateDependentsCount('childCount', 1)}
               style={{ width: '26px', height: '26px', borderRadius: '4px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', fontWeight: 'bold', cursor: 'pointer' }}
             >+</button>
+          </div>
+        </div>
+      </div>
+
+      {/* 자녀 세액공제 상세 안내 카드 */}
+      <div style={{ 
+        marginTop: '12px', 
+        padding: '10px 14px', 
+        backgroundColor: '#f8fafc', 
+        borderRadius: '6px', 
+        border: '1px solid #cbd5e1',
+        fontSize: '12px', 
+        color: '#475569', 
+        lineHeight: '1.6' 
+      }}>
+        <div style={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}>📢 자녀 세액공제 적용 기준 안내</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div>
+            <strong style={{ color: '#0f766e' }}>📅 2021년 ~ 2023년 귀속:</strong>
+            <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyleType: 'disc' }}>
+              <li>자녀 1명 : 15만 원</li>
+              <li>자녀 2명 : 30만 원</li>
+              <li>자녀 3명 이상 : 30만 원 + (자녀수 - 2) × 30만 원</li>
+            </ul>
+          </div>
+          <div>
+            <strong style={{ color: '#0369a1' }}>📅 2024년 ~ 2025년 귀속 (세법 개정 적용):</strong>
+            <ul style={{ margin: '2px 0 0 16px', padding: 0, listStyleType: 'disc' }}>
+              <li>자녀 1명 : 25만 원</li>
+              <li>자녀 2명 : 55만 원</li>
+              <li>자녀 3명 이상 : 55만 원 + (자녀수 - 2) × 40만 원</li>
+            </ul>
           </div>
         </div>
       </div>

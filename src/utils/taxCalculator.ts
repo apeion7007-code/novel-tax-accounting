@@ -111,6 +111,11 @@ export const recalculateYearData = (
 
   const eligibility = checkYouthEligibility(rrn, empDate);
 
+  const finalDepCount = yrData.dependentsCount !== undefined && yrData.dependentsCount !== null ? Number(yrData.dependentsCount) : depCount;
+  const finalSenCount = yrData.seniorCount !== undefined && yrData.seniorCount !== null ? Number(yrData.seniorCount) : senCount;
+  const finalDisCount = yrData.disabledCount !== undefined && yrData.disabledCount !== null ? Number(yrData.disabledCount) : disCount;
+  const finalChCount = yrData.childCount !== undefined && yrData.childCount !== null ? Number(yrData.childCount) : chCount;
+
   const originalDecisionTax = cleanNum(yrData.decisionTax);
   const originalLocalTax = cleanNum(yrData.localTax) || Math.round(originalDecisionTax * 0.1);
   const calculatedTax = cleanNum(yrData.taxBase);
@@ -122,12 +127,31 @@ export const recalculateYearData = (
   const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(calculatedTax * 0.9)) : 0;
   
   // 부양가족 소득공제 (인당 150만, 경로우대 +100만, 장애인 +200만)
-  const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
+  const extraIncomeDeduction = (finalDepCount * 1500000) + (finalSenCount * 1000000) + (finalDisCount * 2000000);
   // 소득공제에 따른 세액 절감액 (기본 6% 적용)
   const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
 
-  // 자녀 세액공제 (인당 15만 원)
-  const extraChildTaxCredit = chCount * 150000;
+  // 자녀 세액공제 계산 (연도별 및 자녀 수에 따른 세법 기준 적용)
+  let extraChildTaxCredit = 0;
+  if (finalChCount > 0) {
+    if (yrNum >= 2024) {
+      if (finalChCount === 1) {
+        extraChildTaxCredit = 250000;
+      } else if (finalChCount === 2) {
+        extraChildTaxCredit = 550000;
+      } else {
+        extraChildTaxCredit = 550000 + (finalChCount - 2) * 400000;
+      }
+    } else {
+      if (finalChCount === 1) {
+        extraChildTaxCredit = 150000;
+      } else if (finalChCount === 2) {
+        extraChildTaxCredit = 300000;
+      } else {
+        extraChildTaxCredit = 300000 + (finalChCount - 2) * 300000;
+      }
+    }
+  }
 
 
   const remainingTaxAfterReduction = Math.max(0, calculatedTax - reductionAmt - extraTaxReductionFromDeduction);

@@ -198,6 +198,37 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
               </select>
             </td>
           </tr>
+
+          {/* Row 3 Header */}
+          <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>홈택스 아이디</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>홈택스 비밀번호</td>
+            <td colSpan={8} style={{ border: '1px solid #cbd5e1', padding: '6px' }}></td>
+          </tr>
+          {/* Row 3 Inputs */}
+          <tr>
+            <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '13px', height: '32px' }} 
+                value={regForm.hometaxId || ''} 
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, hometaxId: e.target.value }))} 
+                placeholder="홈택스 ID" 
+              />
+            </td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '13px', height: '32px' }} 
+                value={regForm.hometaxPw || ''} 
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, hometaxPw: e.target.value }))} 
+                placeholder="홈택스 비밀번호" 
+              />
+            </td>
+            <td colSpan={8} style={{ border: '1px solid #cbd5e1', padding: '4px' }}></td>
+          </tr>
         </tbody>
       </table>
       <RentDeductionForm 

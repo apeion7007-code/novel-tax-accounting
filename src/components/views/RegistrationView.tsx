@@ -14,6 +14,8 @@ interface RegistrationViewProps {
   selectedFeeRate: number;
   invoiceLanguage: string;
   setInvoiceLanguage: React.Dispatch<React.SetStateAction<string>>;
+  contractLanguage: string;
+  setContractLanguage: React.Dispatch<React.SetStateAction<string>>;
   nationalities: string[];
   visaTypes: string[];
   bankList: string[];
@@ -67,6 +69,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   selectedFeeRate,
   invoiceLanguage,
   setInvoiceLanguage,
+  contractLanguage,
+  setContractLanguage,
   nationalities,
   visaTypes,
   bankList,
@@ -453,6 +457,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         selectedFeeRate={selectedFeeRate}
         invoiceLanguage={invoiceLanguage}
         setInvoiceLanguage={setInvoiceLanguage}
+        contractLanguage={contractLanguage}
+        setContractLanguage={setContractLanguage}
         triggerKoreanInvoiceDownload={triggerKoreanInvoiceDownload}
       />
 

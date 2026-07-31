@@ -149,7 +149,7 @@ export function usePdfHandlers(
           };
 
           const updatedBasic: any = {};
-          if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+          if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
           if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
 
           return {
@@ -207,7 +207,7 @@ export function usePdfHandlers(
         };
 
         const updatedBasic: any = {};
-        if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
         if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
         if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
         if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
@@ -314,7 +314,7 @@ export function usePdfHandlers(
           };
 
           const updatedBasic: any = {};
-          if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+          if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
           if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
           if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
           if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
@@ -387,7 +387,7 @@ export function usePdfHandlers(
         const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
         const updatedBasic: any = {};
-        if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
         if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
 
         updatedYears[yr] = {
@@ -565,7 +565,7 @@ export function usePdfHandlers(
             const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
             const updatedBasic: any = {};
-            if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
             if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
 
             updatedYears[yr] = {
@@ -623,7 +623,7 @@ export function usePdfHandlers(
             };
 
             const updatedBasic: any = {};
-            if (parsed.name) updatedBasic.name = getBestFieldVal(prev.name, parsed.name);
+            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
             if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
             if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
             if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;

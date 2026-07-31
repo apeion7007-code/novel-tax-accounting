@@ -199,7 +199,27 @@ export const calculateCombinedRefund = (
 
   const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
   const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
-  const extraChildTaxCredit = chCount * 150000;
+  // 자녀 세액공제 계산 (연도별 및 자녀 수에 따른 세법 기준 적용)
+  let extraChildTaxCredit = 0;
+  if (chCount > 0) {
+    if (yrNum >= 2024) {
+      if (chCount === 1) {
+        extraChildTaxCredit = 250000;
+      } else if (chCount === 2) {
+        extraChildTaxCredit = 550000;
+      } else {
+        extraChildTaxCredit = 550000 + (chCount - 2) * 400000;
+      }
+    } else {
+      if (chCount === 1) {
+        extraChildTaxCredit = 150000;
+      } else if (chCount === 2) {
+        extraChildTaxCredit = 300000;
+      } else {
+        extraChildTaxCredit = 300000 + (chCount - 2) * 300000;
+      }
+    }
+  }
 
   const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
   

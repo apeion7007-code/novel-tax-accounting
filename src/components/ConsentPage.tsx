@@ -74,7 +74,194 @@ const CONSENT_TRANSLATIONS: Record<string, Record<string, string>> = {
     errorText: 'Client information not found or link has expired. Please contact your manager.',
     kakaotalkGuideTitle: 'Please open in an external browser to submit documents.',
     kakaotalkGuideText: 'Due to iPhone security policies, camera access is disabled inside KakaoTalk. Please tap the three dots (···) in the top-right corner or the menu button below, and select [Open in Safari] or [Open in Default Browser].'
+  },
+  '인도네시아어': {
+    title: 'Penyerahan Dokumen Persetujuan Kuasa Pajak',
+    subtitle: 'Silakan kirimkan informasi di bawah ini untuk memproses pengembalian pajak dengan aman.',
+    clientNameLabel: 'Nama Lengkap Pemohon',
+    arcLabel: 'Kartu Registrasi Orang Asing (Bagian Depan)',
+    arcHint: 'Silakan ambil foto dan unggah agar nama dan nomor registrasi terlihat jelas.',
+    sigLabel: 'Tanda Tangan (Menggunakan jari atau mouse)',
+    sigClear: 'Hapus & Ulangi',
+    submitBtn: 'Kirim Dokumen Persetujuan',
+    submitting: 'Mengirimkan...',
+    successTitle: 'Pengiriman Dokumen Berhasil',
+    successText: 'Terima kasih. Dokumen persetujuan pajak Anda telah berhasil dikirim. Admin akan segera memprosesnya.',
+    errorTitle: 'Kesalahan Informasi Pelanggan',
+    errorText: 'Informasi pelanggan tidak ditemukan atau tautan tidak valid. Silakan hubungi manajer Anda.',
+    kakaotalkGuideTitle: 'Silakan buka di browser eksternal untuk mengirim dokumen dengan aman.',
+    kakaotalkGuideText: 'Karena kebijakan keamanan iPhone, akses kamera tidak dapat dilakukan di dalam KakaoTalk. Silakan ketuk tiga titik (···) di sudut kanan atas atau tombol menu di bawah, dan pilih [Buka di Safari] [Buka di Browser Lain].'
+  },
+  '몽골어': {
+    title: 'Татварын итгэмжлэлийн зөвшөөрлийн бичиг илгээх',
+    subtitle: 'Татварын буцаан олголтыг найдвартай гүйцэтгэхийн тулд дараах мэдээллийг илгээнэ үү.',
+    clientNameLabel: 'Өргөдөл гаргагчийн овог нэр',
+    arcLabel: 'Гадаад иргэний үнэмლეх (Нүүрэн тал)',
+    arcHint: 'Овог нэр болон бүртгэлийн дугаар нь тод хаราгдахуйц зураг авч тавиулах уу.',
+    sigLabel: 'Гарын үсэг (Хуруу эсвэл хулганаар)',
+    sigClear: 'Арилгаад дахин зурах',
+    submitBtn: 'Зөвшөөрлийн бичиг илгээх',
+    submitting: 'Илгээж байна...',
+    successTitle: 'Бичиг баримт илгээгдлله',
+    successText: 'Баярлалаа. Таны татварын зөвшөөрлийн бичиг амжилттай илгээгдлээ. Администратор удахгүй боловсруулах болно.',
+    errorTitle: 'Үйлчлүүлэгчийн мэдээллийн алдаа',
+    errorText: 'Үйлчлүүлэгчийн мэдээлэл олдсонгүй эсвэл холбоос хүчингүй байна. Хариуцсан менежертэйгээ холбоо барина уу.',
+    kakaotalkGuideTitle: 'Баримт бичгийг аюулгүй илгээхийн тулд гадны хөтөчөөр нээнэ үү.',
+    kakaotalkGuideText: 'iPhone-ийн аюулгүй байдлын бодлогын улмаас KakaoTalk дотор камер ашиглах боломжгүй. Баруун дээд буланд байх гурван цэг (···) эсвэл доорх цэс товчийг дарж, [Safari-аар нээх] эсвэл [Бусад хөтөчөөр нээх]-ийг сонгоно уу.'
+  },
+  '캄보디아어': {
+    title: 'ការដាក់ស្នើឯកសារយល់ព្រមតំណាងពន្ធ',
+    subtitle: 'សូមផ្ញើព័ត៌មានខាងក្រោមដើម្បីដំណើរការការបង្វិលសងពន្ធដោយសុវត្ថិភាព។',
+    clientNameLabel: 'ឈ្មោះពេញរបស់អ្នកដាក់ពាក្យ',
+    arcLabel: 'កាតចុះឈ្មោះជនបរទេស (ផ្នែកខាងមុខ)',
+    arcHint: 'សូមថតរូប និងបង្ហោះ ដើម្បីឱ្យឈ្មោះ និងលេខចុះឈ្មោះមើលឃើញច្បាស់។',
+    sigLabel: 'ហត្ថលេខา (ដោយប្រើម្រាមដៃ ឬកណ្ដុរ)',
+    sigClear: 'លុបសរសេរឡើងវិញ',
+    submitBtn: 'ផ្ញើឯកសារយល់ព្រម',
+    submitting: 'កំពុងផ្ញើ...',
+    successTitle: 'ការដាក់ស្នើឯកសារបានជោគជ័យ',
+    successText: 'សូមអរគុណ។ ឯកសារយល់ព្រមពន្ធរបស់អ្នកត្រូវបានផ្ញើដោយជោគជ័យ។ អ្នកគ្រប់គ្រងនឹងដំណើរការវាភ្លាមៗ។',
+    errorTitle: 'កំហុសព័ត៌មានអតិថិជន',
+    errorText: 'រកមិនឃើញព័ត៌មានអតិថិជន ឬតំណភ្ជាប់មិនត្រឹមត្រូវ។ សូមទាក់ទងអ្នកគ្រប់គ្រងរបស់អ្នក។',
+    kakaotalkGuideTitle: 'សូមបើកក្នុងកម្មវិធីរុករកខាងក្រៅដើម្បីផ្ញើឯកសារដោយសុវត្ថិភាព។',
+    kakaotalkGuideText: 'ដោយសារគោลការណ៍សុវត្ថិភាពរបស់ iPhone ការចូលប្រើកាមេរ៉ាមិនអាចធ្វើបាននៅក្នុង KakaoTalk ឡើយ។ សូមប៉ះចំណុចបី (···) នៅជ្រុងខាងស្តាំខាងលើ ឬប៊ូតុងម៉ឺនុយខាងក្រោម ហើយជ្រើសរើស [បើកក្នុង Safari] ឬ [បើកក្នុងកម្មវិធីរុករកផ្សេងទៀត]។'
+  },
+  '네팔어': {
+    title: 'कर प्रतिनिधि स्वीकृति कागजात पेश',
+    subtitle: 'सुरक्षित कर फिर्ता प्रक्रियाको लागि कृपया निम्न जानकारी पेश गर्नुहोस्।',
+    clientNameLabel: 'आवेदकको पूरा नाम',
+    arcLabel: 'विदेशी दर्ता कार्ड (अगाडि)',
+    arcHint: 'कृपया नाम र दर्ता नम्बर स्पष्ट देखिने गरी फोटो खिचेर अपलोड गर्नुहोस्।',
+    sigLabel: 'हस्ताक्षर (औंला वा माउस प्रयोग गरेर)',
+    sigClear: 'मेटेर पुन: हस्ताक्षर गर्नुहोस्',
+    submitBtn: 'स्वीकृति कागजात पेश गर्नुहोस्',
+    submitting: 'पेश हुँदैछ...',
+    successTitle: 'कागजात पेश गरियो',
+    successText: 'धन्यवाद। तपाईंको कर स्वीकृति कागजात सफलतापूर्वक पेश गरिएको छ। प्रशासकले चाँडै प्रक्रिया अगाडि बढाउनेछ।',
+    errorTitle: 'ग्राहक विवरण त्रुटि',
+    errorText: 'ग्राहकको विवरण फेला परेन वा लिङ्क अमान्य छ। कृपया आफ्नो प्रबन्धकलाई सम्पर्क गर्नुहोस्।',
+    kakaotalkGuideTitle: 'कागजात सुरक्षित रूपमा पेश गर्न बाह्य ब्राउजरमा खोल्नुहोस्।',
+    kakaotalkGuideText: 'iPhone सुरक्षा नीतिका कारण KakaoTalk भित्र क्यामेरा पहुँच गर्न सकिँदैन। कृपया माथिल्लो दायाँ कुनामा रहेको तीनवटा थोप्ला (···) वा तलको मेनु बटनमा ट्याप गर्नुहोस्, र [Safari मा खोल्नुहोस्] वा [अन्य ब्राउजरमा खोल्नुहोस्] छनौट गर्नुहोस्।'
+  },
+  '방글라데시어': {
+    title: 'ট্যাক্স এজেন্ট অনুমোদন সম্মতিপত্র জমা',
+    subtitle: 'নিরাপদে কর ফেরত প্রক্রিয়া অনুমোদন করতে অনুগ্রহ করে নিচের তথ্যগুলো জমা দিন।',
+    clientNameLabel: 'আবেদনকারীর পুরো নাম',
+    arcLabel: 'বিদেশী নিবন্ধন কার্ড (সামনের অংশ)',
+    arcHint: 'অনুগ্রহ করে নাম এবং নিবন্ধন নম্বর স্পষ্ট দেখা যায় এমন একটি ছবি আপলোড করুন।',
+    sigLabel: 'স্বাক্ষর (আঙুল বা মাউস ব্যবহার করে)',
+    sigClear: 'মুছে আবার স্বাক্ষর করুন',
+    submitBtn: 'সম্মতিপত্র জমা দিন',
+    submitting: 'জমা দেওয়া হচ্ছে...',
+    successTitle: 'জমা দেওয়া সম্পন্ন হয়েছে',
+    successText: 'ধন্যবাদ। আপনার ট্যাক্স সম্মতিপত্র সফলভাবে জমা দেওয়া হয়েছে। প্রশাসক খুব শীঘ্রই এটি প্রক্রিয়া করবেন।',
+    errorTitle: 'গ্রাহকের তথ্যে ত্রুটি',
+    errorText: 'গ্রাহকের তথ্য পাওয়া যায়নি অথবা লিঙ্কটি অবৈধ। অনুগ্রহ করে আপনার ম্যানেজারের সাথে যোগাযোগ করুন।',
+    kakaotalkGuideTitle: 'নথিপত্র নিরাপদে জমা দিতে অনুগ্রহ করে বাইরের ব্রাউজার খুলুন।',
+    kakaotalkGuideText: 'iPhone নিরাপত্তা নীতির কারণে KakaoTalk-এর ভেতরে ক্যামেরা ব্যবহার করা যায় না। অনুগ্রহ করে ডানদিকের কোণায় থাকা তিনটি বিন্দু (···) অথবা নিচের মেনু বোতামে চাপ দিন এবং [Safari-এ খুলুন] বা [অন্য ব্রাউজারে খুলুন] নির্বাচন করুন।'
+  },
+  '우즈베크어': {
+    title: 'Soliq vakilligiga rozilik hujjatini topshirish',
+    subtitle: 'Soliqni xavfsiz qaytarish uchun quyidagi maʼlumotlarni yuboring.',
+    clientNameLabel: 'Ariza beruvchining toʻliq ismi',
+    arcLabel: 'Chet el fuqarosining guvohnomasi (Old tomoni)',
+    arcHint: 'Ism va roʻyxatdan oʻtish raqami aniq koʻrinadigan qilib suratga oling va yuklang.',
+    sigLabel: 'Imzo (Barmoq yoki sichqoncha yordamida)',
+    sigClear: 'Tozalash va qayta imzolash',
+    submitBtn: 'Rozilik hujjatini yuborish',
+    submitting: 'Yuborilmoqda...',
+    successTitle: 'Hujjat muvaffaqiyatli topshirildi',
+    successText: 'Rahmat. Sizning soliq roziligi hujjatingiz muvaffaqiyatli yuborildi. Administrator tez orada koʻrib chiqadi.',
+    errorTitle: 'Mijoz maʼlumotida xatolik',
+    errorText: 'Mijoz maʼlumotlari topilmadi yoki havola haqiqiy emas. Menejeringizga murojaat qiling.',
+    kakaotalkGuideTitle: 'Hujjatni xavfsiz yuborish uchun tashqi brauzerda oching.',
+    kakaotalkGuideText: 'iPhone xavfsizlik siyosati tufayli KakaoTalk ichida kameradan foydalanib boʻlmaydi. Yuqori oʻng burchakdagi uchta nuqta (···) yoki pastdagi menyu tugmasini bosib, [Safari-da ochish] yoki [Boshqa brauzerda ochish]-ni tanlang.'
+  },
+  '파키스탄어': {
+    title: 'ٹیکس ایجنٹ کی منظوری کا اقرار نامہ جمع کرانا',
+    subtitle: 'محفوظ طریقے سے ٹیکس ریفنڈ کے عمل کی منظوری کے لیے نیچے دی گئی معلومات فراہم کریں۔',
+    clientNameLabel: 'درخواست گزار کا پورا نام',
+    arcLabel: 'غیر ملکی رجسٹریشن کارڈ (سامنے کا حصہ)',
+    arcHint: 'براہ کرم ایسی تصویر اپ لوڈ کریں جس میں نام اور رجسٹریشن نمبر واضح طور پر نظر آئے۔',
+    sigLabel: 'دستخط (اور انگلی یا ماؤس کا استعمال کرتے ہوئے)',
+    sigClear: 'مٹائیں اور دوبارہ کریں',
+    submitBtn: 'اقرار نامہ جمع کریں',
+    submitting: 'جمع کیا جا رہا ہے...',
+    successTitle: 'جمع کرانا مکمل ہو گیا',
+    successText: 'شکریہ۔ آپ کا ٹیکس اقرار نامہ کامیابی کے ساتھ جمع ہو گیا ہے۔ ایڈمنسٹریٹر جلد ہی اس پر کارروائی کرے گا۔',
+    errorTitle: 'کسٹمر کی معلومات میں غلطی',
+    errorText: 'کسٹمر کی معلومات نہیں ملیں یا لنک ختم ہو گیا ہے۔ براہ کرم اپنے مینیجر سے رابطہ کریں۔',
+    kakaotalkGuideTitle: 'دستاویزات کو محفوظ طریقے سے جمع کرانے کے لیے بیرونی براؤزر کھولیں۔',
+    kakaotalkGuideText: 'iPhone سیکورٹی پالیسیوں کی وجہ سے KakaoTalk کے اندر کیمرے تک رسائی بند ہے۔ براہ کرم اوپر دائیں کونے میں تین نقطوں (···) یا نیچے مینیو بٹن پر کلک کریں، اور [Safari میں کھولیں] یا [دیگر براؤزر میں کھولیں] منتخب کریں۔'
+  },
+  '태국어': {
+    title: 'การส่งเอกสารยินยอมตัวแทนภาษี',
+    subtitle: 'กรุณาส่งข้อมูลด้านล่างเพื่อดำเนินการคืนภาษีอย่างปลอดภัย',
+    clientNameLabel: 'ชื่อ-นามสกุลของผู้สมัคร',
+    arcLabel: 'บัตรประจำตัวคนต่างด้าว (ด้านหน้า)',
+    arcHint: 'กรุณาถ่ายภาพและอัปโหลดให้เห็นชื่อและเลขทะเบียนต่างด้าวอย่างชัดเจน',
+    sigLabel: 'ลายเซ็น (ใช้นิ้วหรือเมาส์)',
+    sigClear: 'ล้างเพื่อเซ็นใหม่',
+    submitBtn: 'ส่งเอกสารยินยอม',
+    submitting: 'กำลังส่ง...',
+    successTitle: 'ส่งเอกสารเรียบร้อยแล้ว',
+    successText: 'ขอบคุณ เอกสารยินยอมภาษีของคุณได้รับการส่งเรียบร้อยแล้ว เจ้าหน้าที่จะดำเนินการโดยเร็วที่สุด',
+    errorTitle: 'ข้อมูลลูกค้าไม่ถูกต้อง',
+    errorText: 'ไม่พบข้อมูลลูกค้าหรือลิงก์ไม่ถูกต้อง กรุณาติดต่อผู้จัดการของคุณ',
+    kakaotalkGuideTitle: 'กรุณาเปิดในเบราว์เซอร์ภายนอกเพื่อส่งไฟล์อย่างปลอดภัย',
+    kakaotalkGuideText: 'เนื่องจากนโยบายความปลอดภัยของ iPhone ไม่สามารถใช้งานกล้องภายใน KakaoTalk ได้ กรุณาแตะปุ่มสามจุด (···) ที่มุมขวาบน หรือปุ่มเมนูด้านล่าง แล้วเลือก [เปิดใน Safari] หรือ [เปิดในเบราว์เซอร์อื่น]'
+  },
+  '필리핀어': {
+    title: 'Pagsumite ng Dokumento ng Pahintulot sa Tax Agent',
+    subtitle: 'Mangyaring isumite ang impormasyon sa ibaba upang maproseso nang ligtas ang iyong refund sa buwis.',
+    clientNameLabel: 'Buong Pangalan ng Aplikante',
+    arcLabel: 'Alien Registration Card (Harap)',
+    arcHint: 'Mangyaring kumuha ng larawan at i-upload kung saan malinaw na nakikita ang pangalan at numero ng pagpaparehistro.',
+    sigLabel: 'Lagda (Gamit ang daliri o mouse)',
+    sigClear: 'Burahin at ulitin',
+    submitBtn: 'Isumite ang Pahintulot',
+    submitting: 'Ipinapadala...',
+    successTitle: 'Matagumpay na Naisumite',
+    successText: 'Salamat. Matagumpay na naisumite ang iyong dokumento ng pahintulot sa buwis. Ipoproseso ito ng admin sa lalong madaling panahon.',
+    errorTitle: 'Maling Impormasyon ng Kliyente',
+    errorText: 'Hindi nahanap ang impormasyon ng kliyente o hindi valid ang link. Mangyaring makipag-ugnayan sa iyong manager.',
+    kakaotalkGuideTitle: 'Mangyaring buksan sa panlabas na browser upang ligtas na maisumite ang file.',
+    kakaotalkGuideText: 'Dahil sa patakaran sa seguridad ng iPhone, hindi magagamit ang camera sa loob ng KakaoTalk. Mangyaring i-tap ang tatlong tuldok (···) sa kanang itaas o ang button ng menu sa ibaba, at piliin ang [Buksan sa Safari] o [Buksan sa Ibang Browser].'
+  },
+  '스리랑카어': {
+    title: 'බදු නියෝජිත අනුමැති පත්‍රය ඉදිරිපත් කිරීම',
+    subtitle: 'බදු මුදල් ආරක්ෂිතව ආපසු ලබා ගැනීමට පහත තොරතුරු ඉදිරිපත් කරන්න.',
+    clientNameLabel: 'අයදුම්කරුගේ සම්පූර්ණ නම',
+    arcLabel: 'විදේශික ලියාපදිංචි කාඩ්පත (ඉදිරිපස)',
+    arcHint: 'නම සහ ලියාපදිංචි අංකය පැහැදිලිව පෙනෙන සේ ඡායාරූපයක් ගෙන උඩුගත කරන්න.',
+    sigLabel: 'අත්සන (ඇඟිල්ලෙන් හෝ මවුසයෙන්)',
+    sigClear: 'මකා නැවත අත්සන් කරන්න',
+    submitBtn: 'අනුමැති පත්‍රය ඉදිරිපත් කරන්න',
+    submitting: 'යොමු කරමින්...',
+    successTitle: 'ඉදිරිපත් කිරීම සාර්ථකයි',
+    successText: 'ස්තූතියි. බදු අනුමැති පත්‍රය සාර්ථකව යොමු කර ඇත. පරිපාලක විසින් ඉක්මนින් එය සලකා බලනු ඇත.',
+    errorTitle: 'පාරිභෝගික තොරතුරු දෝෂයකි',
+    errorText: 'පාරිභෝගිකයාගේ තොරතුරු සොයාගත නොහැක හෝ සබැඳිය වලංගු නොවේ. කරුණาකර ඔබේ කළමනාකරු අමතන්න.',
+    kakaotalkGuideTitle: 'ලිපිගොනු ආරක්ෂිතව යොමු කිරීම සඳහා බාහිර බ්‍රවුසරයකින් විවෘත කරන්න.',
+    kakaotalkGuideText: 'iPhone ආරක්ෂණ ප්‍රතිපත්ති හේතුවෙන් KakaoTalk තුළ කැමරාව භාවිත කළ නොහැක. කරුණาකර ඉහළ දකුණු කෙළවරේ ඇති තිත් තුන (···) හෝ පහළ ඇති මෙනු බොත්තම තට්ටු කර, [Safari මඟින් විවෘත කරන්න] හෝ [වෙනත් බ්‍රවුසරයකින් විවෘත කරන්න] තෝරන්න.'
   }
+};
+
+const CONSENT_LANG_CODES: Record<string, string> = {
+  '한국어': 'KO',
+  '베트남어': 'VN',
+  '인도네시아어': 'ID',
+  '몽골어': 'MN',
+  '미얀마어': 'MM',
+  '캄보디아어': 'KH',
+  '네팔어': 'NP',
+  '방글라เด시어': 'BD',
+  '우즈베크어': 'UZ',
+  '파키스탄어': 'PK',
+  '태국어': 'TH',
+  '필리핀어': 'PH',
+  '스리랑카어': 'LK',
+  '영어': 'EN'
 };
 
 export function ConsentPage({ token, onBackToLogin }: ConsentPageProps) {
@@ -125,13 +312,20 @@ export function ConsentPage({ token, onBackToLogin }: ConsentPageProps) {
       if (data) {
         setClient(data);
         // Auto-select language based on country
-        if (data.country === '베트남') {
-          setSelectedLanguage('베트남어');
-        } else if (data.country === '미얀마') {
-          setSelectedLanguage('미얀마어');
-        } else if (data.country && data.country !== '대한민국' && data.country !== '한국') {
-          setSelectedLanguage('영어');
-        }
+        if (data.country === '베트남') setSelectedLanguage('베트남어');
+        else if (data.country === '인도네시아') setSelectedLanguage('인도네시아어');
+        else if (data.country === '몽골') setSelectedLanguage('몽골어');
+        else if (data.country === '미얀마') setSelectedLanguage('미얀마어');
+        else if (data.country === '캄보디아') setSelectedLanguage('캄보디아어');
+        else if (data.country === '네팔') setSelectedLanguage('네팔어');
+        else if (data.country === '방글라데시') setSelectedLanguage('방글라데시어');
+        else if (data.country === '우즈베키스탄') setSelectedLanguage('우즈베크어');
+        else if (data.country === '파키스탄') setSelectedLanguage('파키스탄어');
+        else if (data.country === '태국') setSelectedLanguage('태국어');
+        else if (data.country === '필리핀') setSelectedLanguage('필리핀어');
+        else if (data.country === '스리랑카') setSelectedLanguage('스리랑카어');
+        else if (data.country && data.country !== '대한민국' && data.country !== '한국') setSelectedLanguage('영어');
+        else setSelectedLanguage('한국어');
       }
       setLoading(false);
     }
@@ -304,7 +498,7 @@ export function ConsentPage({ token, onBackToLogin }: ConsentPageProps) {
                   transition: 'all 0.2s'
                 }}
               >
-                {lang === '한국어' ? 'KO' : lang === '베트남어' ? 'VN' : lang === '미얀마어' ? 'MM' : 'EN'}
+                {CONSENT_LANG_CODES[lang] || lang}
               </button>
             ))}
           </div>
@@ -390,7 +584,7 @@ export function ConsentPage({ token, onBackToLogin }: ConsentPageProps) {
                 cursor: 'pointer'
               }}
             >
-              {lang}
+              {CONSENT_LANG_CODES[lang] || lang}
             </button>
           ))}
         </div>

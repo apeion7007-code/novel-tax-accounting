@@ -171,23 +171,47 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
             <tr style={{ backgroundColor: '#f0fdf4' }}>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '14px' }}>👨&zwj;👩&zwj;👧&zwj;👦</span>
+                  <span style={{ fontSize: '14px' }}>👨‍&zwj;👩&zwj;👧&zwj;👦</span>
                   <span>적용 부양가족 수 / 인적공제</span>
                 </div>
               </td>
               {targetYears.map(yr => {
-                const totalDeps = (regForm.dependentsCount || 0) + (regForm.seniorCount || 0) + (regForm.disabledCount || 0) + (regForm.childCount || 0);
-                const totalDeductionVal = ((regForm.dependentsCount || 0) * 150) + ((regForm.seniorCount || 0) * 100) + ((regForm.disabledCount || 0) * 200);
+                const yrData = (regForm.years || []).find((y: any) => String(y.year) === String(yr));
+                const dep = yrData?.dependentsCount !== undefined && yrData?.dependentsCount !== null ? Number(yrData.dependentsCount) : (regForm.dependentsCount || 0);
+                const sen = yrData?.seniorCount !== undefined && yrData?.seniorCount !== null ? Number(yrData.seniorCount) : (regForm.seniorCount || 0);
+                const dis = yrData?.disabledCount !== undefined && yrData?.disabledCount !== null ? Number(yrData.disabledCount) : (regForm.disabledCount || 0);
+                const ch = yrData?.childCount !== undefined && yrData?.childCount !== null ? Number(yrData.childCount) : (regForm.childCount || 0);
+                const totalDeps = dep + sen + dis + ch;
+                const totalDeductionVal = (dep * 150) + (sen * 100) + (dis * 200);
+
+                // 자녀 세액공제 계산
+                const yrNum = Number(yr) || 0;
+                let childCreditVal = 0;
+                if (ch > 0) {
+                  if (yrNum >= 2024) {
+                    if (ch === 1) childCreditVal = 25;
+                    else if (ch === 2) childCreditVal = 55;
+                    else childCreditVal = 55 + (ch - 2) * 40;
+                  } else {
+                    if (ch === 1) childCreditVal = 15;
+                    else if (ch === 2) childCreditVal = 30;
+                    else childCreditVal = 30 + (ch - 2) * 30;
+                  }
+                }
+
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center', fontWeight: 'bold', color: '#15803d', backgroundColor: '#f0fdf4' }}>
-                    {totalDeps > 0 ? `${totalDeps}명 (+${totalDeductionVal}만 원 공제)` : '본인 기본공제'}
+                    {totalDeps > 0 ? (
+                      <span>
+                        {totalDeps}명 (+{totalDeductionVal}만 원 공제
+                        {childCreditVal > 0 && ` / 자녀세액: +${childCreditVal}만 원`})
+                      </span>
+                    ) : '본인 기본공제'}
                   </td>
                 );
               })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', padding: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '12px' }}>
-                {((regForm.dependentsCount || 0) + (regForm.seniorCount || 0) + (regForm.disabledCount || 0) + (regForm.childCount || 0)) > 0 
-                  ? `부양가족 총 ${(regForm.dependentsCount || 0) + (regForm.seniorCount || 0) + (regForm.disabledCount || 0) + (regForm.childCount || 0)}명 반영` 
-                  : '본인 공제 반영'}
+                {(regForm.years || []).some((y: any) => ((y.dependentsCount !== undefined ? y.dependentsCount : regForm.dependentsCount) + (y.seniorCount !== undefined ? y.seniorCount : regForm.seniorCount) + (y.disabledCount !== undefined ? y.disabledCount : regForm.disabledCount) + (y.childCount !== undefined ? y.childCount : regForm.childCount)) > 0) ? '부양가족 공제 반영' : '본인 공제 반영'}
               </td>
             </tr>
 

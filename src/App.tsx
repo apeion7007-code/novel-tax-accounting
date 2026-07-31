@@ -13,6 +13,7 @@ import {
 
 import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';
 import { ConsentPage } from './components/ConsentPage';
+import { ContractPage } from './components/ContractPage';
 import { HometaxExcelSyncModal } from './components/modals/HometaxExcelSyncModal';
 
 import { DashboardView } from './components/views/DashboardView';
@@ -92,8 +93,8 @@ function App() {
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
 
-  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View
-  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator'>('customer');
+  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View
+  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
@@ -291,6 +292,7 @@ function App() {
   const [filterCompanyName, setFilterCompanyName] = useState<string>('');
   const [filterVisaType, setFilterVisaType] = useState<string>('');
   const [filterBirthDate, setFilterBirthDate] = useState<string>('');
+  const [filterForeignerNumber, setFilterForeignerNumber] = useState<string>('');
   const [filterRegDate, setFilterRegDate] = useState<string>('');
   const [filterMonthlyRent, setFilterMonthlyRent] = useState<string>('');
 
@@ -710,6 +712,13 @@ function App() {
         return;
       }
 
+      if (viewParam === 'contract' && tokenParam) {
+        setConsentToken(tokenParam);
+        setCurrentView('contract');
+        setIsSessionChecking(false);
+        return;
+      }
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
@@ -999,15 +1008,70 @@ function App() {
   const [targetYears, setTargetYears] = useState<string[]>(['2021', '2022', '2023', '2024', '2025']);
   const [selectedFeeRate, setSelectedFeeRate] = useState<number>(22);
   const [invoiceLanguage, setInvoiceLanguage] = useState<string>('한국어');
+  const [contractLanguage, setContractLanguage] = useState<string>('한국어');
+
   useEffect(() => {
+    // Invoice Language Auto-Mapping
     if (regForm.nationality === '베트남') setInvoiceLanguage('베트남어');
     else if (regForm.nationality === '인도네시아') setInvoiceLanguage('인도네시아어');
     else if (regForm.nationality === '몽골') setInvoiceLanguage('몽골어');
     else if (regForm.nationality === '미얀마') setInvoiceLanguage('미얀마어');
     else if (regForm.nationality === '캄보디아') setInvoiceLanguage('캄보디아어');
     else if (regForm.nationality === '네팔') setInvoiceLanguage('네팔어');
+    else if (regForm.nationality === '방글라데시') setInvoiceLanguage('방글라데시어');
+    else if (regForm.nationality === '우즈베키스탄') setInvoiceLanguage('우즈베크어');
+    else if (regForm.nationality === '파키스탄') setInvoiceLanguage('파키스탄어');
+    else if (regForm.nationality === '태국') setInvoiceLanguage('태국어');
+    else if (regForm.nationality === '필리핀') setInvoiceLanguage('필리핀어');
+    else if (regForm.nationality === '스리랑카') setInvoiceLanguage('스리랑카어');
     else setInvoiceLanguage('한국어');
-  }, [regForm.nationality]);
+
+    // Contract Language Auto-Mapping (Prioritize Manager Country, fallback to Customer Nationality)
+    const managerOrCustCountry = (currentManagerCountry && currentManagerCountry !== 'ALL') 
+      ? currentManagerCountry 
+      : regForm.nationality;
+
+    if (managerOrCustCountry === '베트남') setContractLanguage('베트남어');
+    else if (managerOrCustCountry === '인도네시아') setContractLanguage('인도네시아어');
+    else if (managerOrCustCountry === '몽골') setContractLanguage('몽골어');
+    else if (managerOrCustCountry === '미얀마') setContractLanguage('미얀마어');
+    else if (managerOrCustCountry === '캄보디아') setContractLanguage('캄보디아어');
+    else if (managerOrCustCountry === '네팔') setContractLanguage('네팔어');
+    else if (managerOrCustCountry === '방글라데시') setContractLanguage('방글라데시어');
+    else if (managerOrCustCountry === '우즈베키스탄') setContractLanguage('우즈베크어');
+    else if (managerOrCustCountry === '파키스탄') setContractLanguage('파키스탄어');
+    else if (managerOrCustCountry === '태국') setContractLanguage('태국어');
+    else if (managerOrCustCountry === '필리핀') setContractLanguage('필리핀어');
+    else if (managerOrCustCountry === '스리랑카') setContractLanguage('스리랑카어');
+    else setContractLanguage((currentManagerCountry && currentManagerCountry !== 'ALL') ? '영어' : '한국어');
+  }, [regForm.nationality, currentManagerCountry]);
+
+  // Synchronize fee rate when feePaymentStatus changes
+  useEffect(() => {
+    const status = regForm.feePaymentStatus || '후불 22%';
+    if (status.includes('선불') && status.includes('후불')) {
+      const match = status.replace(/\s/g, '').match(/선불(\d+)%?,후불(\d+)%?/);
+      if (match) {
+        setSelectedFeeRate(Number(match[1]) + Number(match[2]));
+      } else {
+        setSelectedFeeRate(20);
+      }
+    } else if (status.includes('선불')) {
+      const match = status.match(/(\d+)/);
+      if (match) {
+        setSelectedFeeRate(Number(match[1]));
+      } else {
+        setSelectedFeeRate(17);
+      }
+    } else {
+      const match = status.match(/(\d+)/);
+      if (match) {
+        setSelectedFeeRate(Number(match[1]));
+      } else {
+        setSelectedFeeRate(22);
+      }
+    }
+  }, [regForm.feePaymentStatus]);
 
   const onChangeRentInfo = (key: string, value: any) => {
     setRegForm((prev: any) => ({
@@ -1624,7 +1688,7 @@ function App() {
 
   const handleOpenCustomerRegistration = async (customer: Customer) => {
     try {
-      showToast(`${customer.name} 님의 상세 정보를 불러오는 중입니다...`, 'info');
+      showToast(`${customer.name || '고객'} 님의 상세 정보를 불러오는 중입니다...`, 'info');
 
       // Query Client records using multiple matching strategies to handle duplicate/legacy entries in Supabase
       let clientRecords: any[] = [];
@@ -1747,7 +1811,11 @@ function App() {
           rentRefundTotal,
           rentRefundExpectNational,
           rentRefundExpectLocal,
-          dependentRefundTotal
+          dependentRefundTotal,
+          dependentsCount: yr.dependentsCount !== null && yr.dependentsCount !== undefined ? Number(yr.dependentsCount) : undefined,
+          seniorCount: yr.seniorCount !== null && yr.seniorCount !== undefined ? Number(yr.seniorCount) : undefined,
+          disabledCount: yr.disabledCount !== null && yr.disabledCount !== undefined ? Number(yr.disabledCount) : undefined,
+          childCount: yr.childCount !== null && yr.childCount !== undefined ? Number(yr.childCount) : undefined
         };
 
         const tempRegForm = {
@@ -1760,12 +1828,17 @@ function App() {
           childCount: Number(clientDetails?.childCount) || 0
         };
 
+        const yrDep = rawYrData.dependentsCount !== undefined ? rawYrData.dependentsCount : (Number(clientDetails?.dependentsCount) || 0);
+        const yrSen = rawYrData.seniorCount !== undefined ? rawYrData.seniorCount : (Number(clientDetails?.seniorCount) || 0);
+        const yrDis = rawYrData.disabledCount !== undefined ? rawYrData.disabledCount : (Number(clientDetails?.disabledCount) || 0);
+        const yrChild = rawYrData.childCount !== undefined ? rawYrData.childCount : (Number(clientDetails?.childCount) || 0);
+
         let calculatedYrData = recalculateYearData(
           rawYrData,
-          Number(clientDetails?.dependentsCount) || 0,
-          Number(clientDetails?.seniorCount) || 0,
-          Number(clientDetails?.disabledCount) || 0,
-          Number(clientDetails?.childCount) || 0,
+          yrDep,
+          yrSen,
+          yrDis,
+          yrChild,
           selectedFeeRate,
           clientDetails?.regNum || '',
           clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
@@ -1784,10 +1857,10 @@ function App() {
           rawYrData.refundExpectLocal = savedLoc;
           calculatedYrData = recalculateYearData(
             rawYrData,
-            Number(clientDetails?.dependentsCount) || 0,
-            Number(clientDetails?.seniorCount) || 0,
-            Number(clientDetails?.disabledCount) || 0,
-            Number(clientDetails?.childCount) || 0,
+            yrDep,
+            yrSen,
+            yrDis,
+            yrChild,
             selectedFeeRate,
             clientDetails?.regNum || '',
             clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
@@ -1968,6 +2041,36 @@ function App() {
       setCurrentView('registration');
     }
   };
+
+  // Restore view state from URL query parameters on initial load or login
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const serial = params.get('serial');
+    if (view === 'registration' && serial) {
+      const serialNum = Number(serial);
+      if (serialNum) {
+        handleOpenCustomerRegistration({ id: serialNum } as any);
+      }
+    }
+  }, [isLoggedIn]);
+
+  // Synchronize view state to URL query parameters
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const params = new URLSearchParams(window.location.search);
+    if (currentView === 'registration' && regForm.serial) {
+      params.set('view', 'registration');
+      params.set('serial', String(regForm.serial));
+    } else {
+      params.delete('view');
+      params.delete('serial');
+    }
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+    window.history.replaceState({}, document.title, newUrl);
+  }, [currentView, regForm.serial, isLoggedIn]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) setSelectedIds(filteredCustomers.map(c => c.id));
@@ -2153,7 +2256,7 @@ function App() {
       showToast(`Supabase 저장 예외: ${err.message || err}`, 'error');
     }
 
-    setCurrentView('customer'); // Return to list view
+    // setCurrentView('customer'); // Return to list view
   };
 
   
@@ -2234,6 +2337,7 @@ function App() {
     setFilterCompanyName('');
     setFilterVisaType('');
     setFilterBirthDate('');
+    setFilterForeignerNumber('');
     setFilterRegDate('');
     setFilterMonthlyRent('');
     showToast('필터가 초기화되었습니다.', 'info');
@@ -2291,7 +2395,8 @@ function App() {
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(c.id).includes(searchQuery);
+      String(c.id).includes(searchQuery) ||
+      (c.birthDate && c.birthDate.replace(/-/g, '').includes(searchQuery.replace(/-/g, '')));
     
     const matchesNationality = selectedNationality ? c.nationality === selectedNationality : true;
     const matchesRefundStatus = selectedRefundStatus ? c.refundStatus === selectedRefundStatus : true;
@@ -2348,6 +2453,10 @@ function App() {
       ? c.birthDate.replace(/-/g, '').includes(filterBirthDate.replace(/-/g, ''))
       : true;
 
+    const matchesForeignerNumber = filterForeignerNumber
+      ? c.birthDate && c.birthDate.replace(/-/g, '').includes(filterForeignerNumber.replace(/-/g, ''))
+      : true;
+
     const matchesMonthlyRent = filterMonthlyRent
       ? c.monthlyRent === filterMonthlyRent
       : true;
@@ -2382,6 +2491,7 @@ function App() {
       matchesCompanyName &&
       matchesVisaType &&
       matchesBirthDate &&
+      matchesForeignerNumber &&
       matchesMonthlyRent &&
       matchesTab;
   });
@@ -2416,6 +2526,13 @@ function App() {
         }} />
       )}
 
+      {currentView === 'contract' && (
+        <ContractPage token={consentToken || ''} onBackToLogin={() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setCurrentView('customer');
+        }} />
+      )}
+
       {isSessionChecking && (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100vw', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '15px', fontWeight: 'bold', flexDirection: 'column', gap: '16px', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
           <div style={{
@@ -2437,7 +2554,7 @@ function App() {
         </div>
       )}
 
-      {!isLoggedIn && !isSessionChecking && currentView !== 'consent' && (
+      {!isLoggedIn && !isSessionChecking && currentView !== 'consent' && currentView !== 'contract' && (
         <AuthView
           setIsLoggedIn={setIsLoggedIn}
           setCurrentManager={setCurrentManager}
@@ -2447,7 +2564,7 @@ function App() {
         />
       )}
 
-      {isLoggedIn && currentView !== 'consent' && (
+      {isLoggedIn && currentView !== 'consent' && currentView !== 'contract' && (
         <div className="app-container notranslate" translate="no">
           {/* Sidebar */}
           <aside className="sidebar">
@@ -2526,6 +2643,8 @@ function App() {
                 setFilterCompanyName={setFilterCompanyName}
                 filterBirthDate={filterBirthDate}
                 setFilterBirthDate={setFilterBirthDate}
+                filterForeignerNumber={filterForeignerNumber}
+                setFilterForeignerNumber={setFilterForeignerNumber}
                 filterRegDate={filterRegDate}
                 setFilterRegDate={setFilterRegDate}
                 filterBeforeDate={filterBeforeDate}
@@ -2574,6 +2693,8 @@ function App() {
                 selectedFeeRate={selectedFeeRate}
                 invoiceLanguage={invoiceLanguage}
                 setInvoiceLanguage={setInvoiceLanguage}
+                contractLanguage={contractLanguage}
+                setContractLanguage={setContractLanguage}
                 nationalities={nationalities}
                 visaTypes={visaTypes}
                 bankList={bankList}

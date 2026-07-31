@@ -246,7 +246,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       additionalApplyDate: safeToISOString(regForm.claimRequestDate),
       feeMethod: regForm.feePaymentStatus || '후불 22%',
       hireDate: safeToISOString(regForm.residentAddress),
-      isNextYearApply: regForm.isNextYearApply || false
+      isNextYearApply: regForm.isNextYearApply || false,
+      contractStatus: regForm.contractStatus || '대기',
+      contractSignatureUrl: regForm.contractSignatureUrl || '',
+      contractConsentDate: regForm.contractConsentDate ? safeToISOString(regForm.contractConsentDate) : null
     };
 
     if (pdfFileObjects['familyDoc']) {
@@ -438,7 +441,11 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         rentRefundTotal: cleanNum(yrData.rentRefundTotal),
         rentRefundExpectNational: cleanNum(yrData.rentRefundExpectNational),
         rentRefundExpectLocal: cleanNum(yrData.rentRefundExpectLocal),
-        dependentRefundTotal: cleanNum(yrData.dependentRefundTotal)
+        dependentRefundTotal: cleanNum(yrData.dependentRefundTotal),
+        dependentsCount: yrData.dependentsCount !== undefined && yrData.dependentsCount !== null ? Number(yrData.dependentsCount) : null,
+        seniorCount: yrData.seniorCount !== undefined && yrData.seniorCount !== null ? Number(yrData.seniorCount) : null,
+        disabledCount: yrData.disabledCount !== undefined && yrData.disabledCount !== null ? Number(yrData.disabledCount) : null,
+        childCount: yrData.childCount !== undefined && yrData.childCount !== null ? Number(yrData.childCount) : null
       };
 
       let existingRecordId: any = null;
@@ -765,7 +772,7 @@ export async function fetchClientByConsentToken(token: string) {
   try {
     const { data, error } = await supabase
       .from('Client')
-      .select('id, name, regNum, country, phone, consentStatus')
+      .select('id, name, regNum, country, phone, consentStatus, contractStatus, contractSignatureUrl, contractConsentDate, company, visa, bank, bankAccount, feeRate, feeMethod, isMonthlyTenant, rentAllHouseholdsNoHouse, monthlyRentFee, dependentsCount, seniorCount, disabledCount, childCount')
       .eq('id', token)
       .maybeSingle();
 
@@ -894,6 +901,67 @@ export async function bulkUpdateConsentStatusByRegNums(regNums: string[]) {
     return { success: true, count: matchedIds.length };
   } catch (e: any) {
     console.error('bulkUpdateConsentStatusByRegNums error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Upload Contract signature image to Supabase Storage, and update contractStatus to '계약완료'
+ */
+export async function updateClientContract(
+  clientId: string,
+  signatureBase64: string | null
+) {
+  try {
+    const bucketName = 'novel_pdf';
+    let contractSignatureUrl: string | null = null;
+
+    // 1. Upload Signature image (converted from Base64 Data URL to Blob)
+    if (signatureBase64 && signatureBase64.includes('data:image')) {
+      const sigPath = `contracts/signatures/${clientId}_${Date.now()}_contract_sig.png`;
+      
+      // Convert base64 data URL to Blob
+      const parts = signatureBase64.split(',');
+      const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const byteString = atob(parts[1]);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const sigBlob = new Blob([ab], { type: mime });
+
+      const { error: sigUploadErr } = await supabase.storage
+        .from(bucketName)
+        .upload(sigPath, sigBlob, { upsert: true });
+
+      if (sigUploadErr) {
+        throw new Error(`Contract signature upload failed: ${sigUploadErr.message}`);
+      }
+      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(sigPath);
+      contractSignatureUrl = publicUrlData.publicUrl;
+    }
+
+    // 2. Update Client database record
+    const updatePayload: any = {
+      contractStatus: '계약완료',
+      contractConsentDate: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (contractSignatureUrl) updatePayload.contractSignatureUrl = contractSignatureUrl;
+
+    const { error: dbErr } = await supabase
+      .from('Client')
+      .update(updatePayload)
+      .eq('id', clientId);
+
+    if (dbErr) {
+      throw new Error(`Database update failed: ${dbErr.message}`);
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    console.error('updateClientContract error:', e);
     return { success: false, error: e.message };
   }
 }

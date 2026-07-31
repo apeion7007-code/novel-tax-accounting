@@ -27,6 +27,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
   handleRemoveYear,
   handleFeeRateChange
 }) => {
+  const [editingDependentsId, setEditingDependentsId] = React.useState<string | null>(null);
   const yearsList = regForm.years || [];
 
   const formatInputVal = (val: any, active: boolean) => {
@@ -68,17 +69,21 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             'decisionTax',
             'localTax',
             'childReductionApply',
-            'childReductionApplyAmt'
+            'childReductionApplyAmt',
+            'dependentsCount',
+            'seniorCount',
+            'disabledCount',
+            'childCount'
           ].includes(field);
 
           if (isTaxField) {
             updatedRow.active = true;
             updatedRow = recalculateYearData(
               updatedRow,
-              prev.dependentsCount,
-              prev.seniorCount,
-              prev.disabledCount,
-              prev.childCount,
+              updatedRow.dependentsCount !== undefined && updatedRow.dependentsCount !== null ? Number(updatedRow.dependentsCount) : prev.dependentsCount,
+              updatedRow.seniorCount !== undefined && updatedRow.seniorCount !== null ? Number(updatedRow.seniorCount) : prev.seniorCount,
+              updatedRow.disabledCount !== undefined && updatedRow.disabledCount !== null ? Number(updatedRow.disabledCount) : prev.disabledCount,
+              updatedRow.childCount !== undefined && updatedRow.childCount !== null ? Number(updatedRow.childCount) : prev.childCount,
               selectedFeeRate,
               prev.foreignerNumber,
               prev.residentAddress,
@@ -94,7 +99,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
   };
 
   return (
-    <div className="table-scroll-container" style={{ marginBottom: '20px', border: '1px solid #cbd5e1' }}>
+    <>
+      <div className="table-scroll-container" style={{ marginBottom: '20px', border: '1px solid #cbd5e1' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', minWidth: '1100px' }}>
         <thead>
           {/* Year columns header */}
@@ -131,6 +137,33 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                 <th key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                     <span>{yearLabel}</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingDependentsId(yrData.id)}
+                      style={{
+                        border: 'none',
+                        background: '#e0f2fe',
+                        color: '#0284c7',
+                        borderRadius: '4px',
+                        padding: '2px 6px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '2px',
+                        marginLeft: '4px'
+                      }}
+                      title="연도별 부양가족 개별 설정"
+                    >
+                      👥 {(() => {
+                        const hasOverride = yrData.dependentsCount !== undefined && yrData.dependentsCount !== null;
+                        if (hasOverride) {
+                          return `${yrData.dependentsCount}명`;
+                        }
+                        return '기본';
+                      })()}
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleRemoveYear(yrData.id, yearLabel)}
@@ -724,7 +757,7 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
             </td>
           </tr>
 
-          {/* Row: 적용 부양가족 수 / 소득공제 */}
+          {/* Row 9: 적용 부양가족 수 / 소득공제 */}
           <tr style={{ backgroundColor: '#f0fdf4' }}>
             <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', color: '#15803d', backgroundColor: '#dcfce7' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
@@ -733,16 +766,41 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
               </div>
             </td>
             {yearsList.map((yrData: any) => {
-              const totalDeps = regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount;
-              const totalDeductionVal = (regForm.dependentsCount * 150) + (regForm.seniorCount * 100) + (regForm.disabledCount * 200);
+              const dep = yrData.dependentsCount !== undefined && yrData.dependentsCount !== null ? Number(yrData.dependentsCount) : regForm.dependentsCount;
+              const sen = yrData.seniorCount !== undefined && yrData.seniorCount !== null ? Number(yrData.seniorCount) : regForm.seniorCount;
+              const dis = yrData.disabledCount !== undefined && yrData.disabledCount !== null ? Number(yrData.disabledCount) : regForm.disabledCount;
+              const ch = yrData.childCount !== undefined && yrData.childCount !== null ? Number(yrData.childCount) : regForm.childCount;
+              const totalDeps = dep + sen + dis + ch;
+              const totalDeductionVal = (dep * 150) + (sen * 100) + (dis * 200);
+              
+              // 자녀 세액공제 계산
+              const yrNum = Number(yrData.year) || 0;
+              let childCreditVal = 0;
+              if (ch > 0) {
+                if (yrNum >= 2024) {
+                  if (ch === 1) childCreditVal = 25;
+                  else if (ch === 2) childCreditVal = 55;
+                  else childCreditVal = 55 + (ch - 2) * 40;
+                } else {
+                  if (ch === 1) childCreditVal = 15;
+                  else if (ch === 2) childCreditVal = 30;
+                  else childCreditVal = 30 + (ch - 2) * 30;
+                }
+              }
+
               return (
                 <td key={yrData.id} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'center', fontSize: '11px', color: '#15803d', fontWeight: 'bold', backgroundColor: '#f0fdf4' }}>
-                  {totalDeps > 0 ? `${totalDeps}명 (+${totalDeductionVal}만 원 공제)` : '본인 기본공제'}
+                  {totalDeps > 0 ? (
+                    <span>
+                      {totalDeps}명 (+{totalDeductionVal}만 원 공제
+                      {childCreditVal > 0 && ` / 자녀세액: +${childCreditVal}만 원`})
+                    </span>
+                  ) : '본인 기본공제'}
                 </td>
               );
             })}
             <td style={{ border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold', padding: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontSize: '12px' }}>
-              {(regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount) > 0 ? `부양가족 총 ${regForm.dependentsCount + regForm.seniorCount + regForm.disabledCount + regForm.childCount}명 반영` : '본인 공제 반영'}
+              {yearsList.some((y: any) => ((y.dependentsCount !== undefined ? y.dependentsCount : regForm.dependentsCount) + (y.seniorCount !== undefined ? y.seniorCount : regForm.seniorCount) + (y.disabledCount !== undefined ? y.disabledCount : regForm.disabledCount) + (y.childCount !== undefined ? y.childCount : regForm.childCount)) > 0) ? '부양가족 공제 반영' : '본인 공제 반영'}
             </td>
           </tr>
 
@@ -899,5 +957,200 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
         </tbody>
       </table>
     </div>
+
+      {editingDependentsId && (() => {
+        const targetYr = yearsList.find((y: any) => y.id === editingDependentsId);
+        if (!targetYr) return null;
+        
+        const depVal = targetYr.dependentsCount !== undefined && targetYr.dependentsCount !== null ? targetYr.dependentsCount : '';
+        const senVal = targetYr.seniorCount !== undefined && targetYr.seniorCount !== null ? targetYr.seniorCount : '';
+        const disVal = targetYr.disabledCount !== undefined && targetYr.disabledCount !== null ? targetYr.disabledCount : '';
+        const chVal = targetYr.childCount !== undefined && targetYr.childCount !== null ? targetYr.childCount : '';
+
+        return (
+          <div 
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 9999,
+            }}
+            onClick={() => setEditingDependentsId(null)}
+          >
+            <div 
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                width: '400px',
+                maxWidth: '90%',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div 
+                style={{
+                  backgroundColor: '#0284c7',
+                  color: '#ffffff',
+                  padding: '14px 16px',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>{targetYr.year}년도 부양가족 개별 설정</span>
+                <button 
+                  onClick={() => setEditingDependentsId(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ padding: '20px', fontSize: '13px', color: '#334155' }}>
+                <div style={{ backgroundColor: '#f0f9ff', padding: '10px', borderRadius: '6px', border: '1px solid #bae6fd', marginBottom: '16px', fontSize: '12px', color: '#0369a1', lineHeight: '1.5' }}>
+                  💡 <strong>알림:</strong> 여기에 직접 값을 입력하면 해당 연도에만 개별 적용됩니다. 값을 비워두면 고객 기본 부양가족 설정 값(기본값)이 사용됩니다.
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold' }}>부양가족 수</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder={`기본: ${regForm.dependentsCount || 0}`}
+                        style={{ width: '80px', height: '28px', textAlign: 'center', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        value={depVal}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? undefined : Number(e.target.value);
+                          updateYearField(targetYr.id, 'dependentsCount', val);
+                        }}
+                      />
+                      <span>명</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold' }}>경로우대 (70세 이상)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder={`기본: ${regForm.seniorCount || 0}`}
+                        style={{ width: '80px', height: '28px', textAlign: 'center', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        value={senVal}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? undefined : Number(e.target.value);
+                          updateYearField(targetYr.id, 'seniorCount', val);
+                        }}
+                      />
+                      <span>명</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold' }}>장애인 부양가족</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder={`기본: ${regForm.disabledCount || 0}`}
+                        style={{ width: '80px', height: '28px', textAlign: 'center', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        value={disVal}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? undefined : Number(e.target.value);
+                          updateYearField(targetYr.id, 'disabledCount', val);
+                        }}
+                      />
+                      <span>명</span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold' }}>공제 대상 자녀수</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input 
+                        type="number" 
+                        min="0"
+                        placeholder={`기본: ${regForm.childCount || 0}`}
+                        style={{ width: '80px', height: '28px', textAlign: 'center', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        value={chVal}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? undefined : Number(e.target.value);
+                          updateYearField(targetYr.id, 'childCount', val);
+                        }}
+                      />
+                      <span>명</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div 
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: '#f1f5f9',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <button 
+                  onClick={() => {
+                    updateYearField(targetYr.id, 'dependentsCount', undefined);
+                    updateYearField(targetYr.id, 'seniorCount', undefined);
+                    updateYearField(targetYr.id, 'disabledCount', undefined);
+                    updateYearField(targetYr.id, 'childCount', undefined);
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    backgroundColor: '#ef4444',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  초기화 (기본값 사용)
+                </button>
+                <button 
+                  onClick={() => setEditingDependentsId(null)}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    backgroundColor: '#1e293b',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  적용 및 닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 };

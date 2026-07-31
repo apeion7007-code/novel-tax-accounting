@@ -14,6 +14,8 @@ interface CustomerConsultationFormProps {
   selectedFeeRate: number;
   invoiceLanguage: string;
   setInvoiceLanguage: React.Dispatch<React.SetStateAction<string>>;
+  contractLanguage: string;
+  setContractLanguage: React.Dispatch<React.SetStateAction<string>>;
   triggerKoreanInvoiceDownload: () => Promise<void>;
 }
 
@@ -29,8 +31,13 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   selectedFeeRate,
   invoiceLanguage,
   setInvoiceLanguage,
+  contractLanguage,
+  setContractLanguage,
   triggerKoreanInvoiceDownload
 }) => {
+  const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
+  const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
+
   const handleRegisterConsultMemo = async () => {
     if (!regForm.clientId) {
       showToast('상담 메모를 등록할 고객이 선택되지 않았습니다. 고객을 먼저 등록하거나 상세 정보를 불러와주세요.', 'error');
@@ -101,10 +108,142 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', marginTop: '20px' }}>
       
-      {/* Left Column: 고객 상담 정보 관리 */}
-      <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', backgroundColor: '#f8fafc' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-          <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>고객 상담 정보 관리</span>
+      {/* Left Column: 계약서 관리 + 고객 상담 정보 관리 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        
+        {/* 📋 세무 경정 청구 표준계약서 관리 위젯 */}
+        <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', backgroundColor: '#ffffff' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>📋 세무 경정 청구 표준계약서 관리</span>
+            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 'normal' }}>
+              * 비대면 모바일 전자계약 수집
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>계약서 상태</label>
+              <select
+                className="form-control"
+                style={{ fontSize: '13px', height: '32px', padding: '2px 8px' }}
+                value={regForm.contractStatus || '대기'}
+                onChange={async (e) => {
+                  const newStatus = e.target.value;
+                  setRegForm((prev: any) => ({ ...prev, contractStatus: newStatus }));
+                  if (regForm.clientId) {
+                    try {
+                      const { error } = await supabase
+                        .from('Client')
+                        .update({ contractStatus: newStatus, updatedAt: new Date().toISOString() })
+                        .eq('id', regForm.clientId);
+                      if (error) throw error;
+                      showToast('계약서 상태가 변경되었습니다.', 'success');
+                      setCustomers((prevCustomers: any[]) => prevCustomers.map(c => 
+                        c.uuid === regForm.clientId ? { ...c, contractStatus: newStatus } : c
+                      ));
+                    } catch (err: any) {
+                      showToast(`계약서 상태 업데이트 실패: ${err.message}`, 'error');
+                    }
+                  }
+                }}
+              >
+                <option value="대기">대기</option>
+                <option value="계약완료">계약완료</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>서명 확인</label>
+              {regForm.contractSignatureUrl ? (
+                <button
+                  type="button"
+                  style={{
+                    width: '100%',
+                    height: '32px',
+                    fontSize: '12px',
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px'
+                  }}
+                  onClick={() => setShowContractSignature(true)}
+                >
+                  ✍️ 서명 보기
+                </button>
+              ) : (
+                <div style={{ height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#94a3b8', border: '1px solid #e2e8f0', borderRadius: '6px', backgroundColor: '#f8fafc' }}>
+                  등록된 서명 없음
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#475569', display: 'block', marginBottom: '4px' }}>계약서 발급 언어</label>
+            <select
+              className="form-control"
+              style={{ fontSize: '13px', height: '32px', padding: '2px 8px', width: '100%' }}
+              value={contractLanguage}
+              onChange={(e) => setContractLanguage(e.target.value)}
+            >
+              <option value="한국어">🇰🇷 한국어 (Korean)</option>
+              <option value="베트남어">🇻🇳 베트남어 (Vietnamese)</option>
+              <option value="인도네시아어">🇮🇩 인도네시아어 (Indonesian)</option>
+              <option value="몽골어">🇲🇳 몽골어 (Mongolian)</option>
+              <option value="미얀마어">🇲🇲 미얀마어 (Burmese)</option>
+              <option value="캄보디아어">🇰🇭 캄보디아어 (Khmer)</option>
+              <option value="네팔어">🇳🇵 네팔어 (Nepali)</option>
+              <option value="방글라데시어">🇧🇩 방글라데시어 (Bengali)</option>
+              <option value="우즈베크어">🇺🇿 우즈베크어 (Uzbek)</option>
+              <option value="파키스탄어">🇵🇰 파키스탄어 (Urdu)</option>
+              <option value="태국어">🇹🇭 태국어 (Thai)</option>
+              <option value="필리핀어">🇵🇭 필리핀어 (Tagalog)</option>
+              <option value="스리랑카어">🇱🇰 스리랑카어 (Sinhala)</option>
+              <option value="영어">🇺🇸 영어 (English)</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            style={{
+              width: '100%',
+              height: '34px',
+              fontSize: '12px',
+              backgroundColor: '#0284c7',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+            onClick={() => {
+              if (!regForm.clientId) {
+                showToast('고객을 먼저 저장해 주세요.', 'error');
+                return;
+              }
+              const contractLink = `${window.location.origin}${window.location.pathname}?view=contract&id=${regForm.clientId}&lang=${contractLanguage}`;
+              navigator.clipboard.writeText(contractLink);
+              showToast(`${regForm.name || '고객'}의 표준계약서 링크가 복사되었습니다.`, 'success');
+            }}
+          >
+            🔗 경정청구 표준계약서 공유 링크 복사
+          </button>
+        </div>
+
+        {/* 고객 상담 정보 관리 */}
+        <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', backgroundColor: '#f8fafc' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
+            <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>고객 상담 정보 관리</span>
           <div style={{ display: 'flex', gap: '4px' }}>
             <button className="btn-cancel" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setRegForm((prev: any) => ({ ...prev, snsName: '', snsAddress: '', hometaxId: '', hometaxPw: '', consultMemo: '' }))}>초기화</button>
             <button className="btn-submit" style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={handleSaveConsultInfo}>저장</button>
@@ -119,14 +258,6 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           <div>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>페이스북주소</label>
             <input type="text" className="form-control" style={{ height: '32px', fontSize: '13px' }} value={regForm.snsAddress || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, snsAddress: e.target.value }))} placeholder="프로필 주소 URL" />
-          </div>
-          <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>홈택스 아이디</label>
-            <input type="text" className="form-control" style={{ height: '32px', fontSize: '13px' }} value={regForm.hometaxId || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, hometaxId: e.target.value }))} />
-          </div>
-          <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>홈택스 비밀번호</label>
-            <input type="text" className="form-control" style={{ height: '32px', fontSize: '13px' }} value={regForm.hometaxPw || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, hometaxPw: e.target.value }))} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>고객 관리등급</label>
@@ -170,6 +301,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           </div>
         </div>
       </div>
+    </div>
 
       {/* Right Column: 상담처리 로그 + 수임동의 + 청구서 */}
       <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column' }}>
@@ -211,7 +343,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                         className="clickable-log-row"
                         style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
                         onClick={() => {
-                          alert(`[상담 메모 상세 보기]\n\n• 작성일시: ${formattedDate}\n• 담당 매니저: ${resolvedManager}\n\n-------------------------------\n\n${memo.content}`);
+                          setSelectedMemoDetail({ date: formattedDate, manager: resolvedManager, content: memo.content });
                         }}
                       >
                         <td style={{ padding: '10px 12px', whiteSpace: 'normal', wordBreak: 'break-all', verticalAlign: 'top' }}>
@@ -381,6 +513,13 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                 <option value="미얀마어">🇲🇲 미얀마어 (Burmese)</option>
                 <option value="캄보디아어">🇰🇭 캄보디아어 (Khmer)</option>
                 <option value="네팔어">🇳🇵 네팔어 (Nepali)</option>
+                <option value="방글라데시어">🇧🇩 방글라데시어 (Bengali)</option>
+                <option value="우즈베크어">🇺🇿 우즈베크어 (Uzbek)</option>
+                <option value="파키스탄어">🇵🇰 파키스탄어 (Urdu)</option>
+                <option value="태국어">🇹🇭 태국어 (Thai)</option>
+                <option value="필리핀어">🇵🇭 필리핀어 (Tagalog)</option>
+                <option value="스리랑카어">🇱🇰 스리랑카어 (Sinhala)</option>
+                <option value="영어">🇺🇸 영어 (English)</option>
               </select>
             </div>
             <div style={{ width: '85px' }}>
@@ -422,6 +561,206 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
         </div>
       </div>
       
+      {selectedMemoDetail && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setSelectedMemoDetail(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '8px',
+              width: '500px',
+              maxWidth: '90%',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              style={{
+                backgroundColor: '#1e293b',
+                color: '#ffffff',
+                padding: '14px 16px',
+                fontSize: '15px',
+                fontWeight: 'bold',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}
+            >
+              <span>상담 메모 상세 보기</span>
+              <button 
+                onClick={() => setSelectedMemoDetail(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '20px', fontSize: '14px', color: '#334155', lineHeight: '1.6' }}>
+              <div style={{ borderBottom: '1px dashed #e2e8f0', paddingBottom: '12px', marginBottom: '12px', fontSize: '13px', color: '#64748b' }}>
+                <div style={{ marginBottom: '4px' }}>• <strong>작성일시:</strong> {selectedMemoDetail.date}</div>
+                <div>• <strong>담당 매니저:</strong> {selectedMemoDetail.manager}</div>
+              </div>
+              <div 
+                style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  wordBreak: 'break-all', 
+                  maxHeight: '300px', 
+                  overflowY: 'auto',
+                  backgroundColor: '#f8fafc',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  userSelect: 'text'
+                }}
+              >
+                {selectedMemoDetail.content}
+              </div>
+            </div>
+            <div 
+              style={{
+                padding: '12px 16px',
+                backgroundColor: '#f1f5f9',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '8px'
+              }}
+            >
+              <button 
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(selectedMemoDetail.content);
+                    showToast('메모 내용이 클립보드에 복사되었습니다.', 'success');
+                  } catch (err) {
+                    showToast('복사에 실패했습니다.', 'error');
+                  }
+                }}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                메모 복사
+              </button>
+              <button 
+                onClick={() => setSelectedMemoDetail(null)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  backgroundColor: '#ffffff',
+                  color: '#1e293b',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✍️ 계약서 서명 이미지 보기 모달 */}
+      {showContractSignature && regForm.contractSignatureUrl && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000,
+            padding: '16px'
+          }}
+          onClick={() => setShowContractSignature(false)}
+        >
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#0f172a' }}>경정청구 표준계약서 서명</span>
+              <button 
+                onClick={() => setShowContractSignature(false)}
+                style={{ border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: '#64748b' }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+              <img 
+                src={regForm.contractSignatureUrl} 
+                alt="Client Signature" 
+                style={{ maxWidth: '100%', maxHeight: '200px', border: '1px solid #cbd5e1', borderRadius: '8px', backgroundColor: '#ffffff' }}
+              />
+            </div>
+            {regForm.contractConsentDate && (
+              <div style={{ padding: '8px 16px', fontSize: '11px', color: '#64748b', textAlign: 'center', borderTop: '1px solid #f1f5f9' }}>
+                체결 일시: {new Date(regForm.contractConsentDate).toLocaleString('ko-KR')}
+              </div>
+            )}
+            <div style={{ padding: '12px 16px', backgroundColor: '#f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setShowContractSignature(false)}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  backgroundColor: '#ffffff',
+                  color: '#1e293b',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold'
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -16,6 +16,26 @@ const getBestFieldVal = (existingVal: string, newVal: string) => {
   return cleanNew;
 };
 
+const shouldUpdateName = (prevName: string, newParsedName: string): boolean => {
+  const cleanPrev = (prevName || '').trim();
+  const cleanNew = (newParsedName || '').trim();
+  if (!cleanNew) return false;
+  if (!cleanPrev) return true;
+
+  // Protect English name from being overwritten by Korean name
+  const hasEnglish = /[a-zA-Z]/.test(cleanPrev);
+  const hasKorean = /[가-힣]/.test(cleanNew);
+  if (hasEnglish && hasKorean) {
+    return false;
+  }
+
+  if (cleanPrev.includes('*') && !cleanNew.includes('*')) {
+    return true;
+  }
+
+  return false;
+};
+
 export function usePdfHandlers(
   regForm: any,
   setRegForm: React.Dispatch<React.SetStateAction<any>>,
@@ -171,7 +191,7 @@ export function usePdfHandlers(
           };
 
           const updatedBasic: any = {};
-          if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+          if (shouldUpdateName(prev.name, parsed.name)) updatedBasic.name = parsed.name;
           if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
 
           return {
@@ -229,7 +249,7 @@ export function usePdfHandlers(
         };
 
         const updatedBasic: any = {};
-        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+        if (shouldUpdateName(prev.name, parsed.name)) updatedBasic.name = parsed.name;
         if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
         if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
         if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
@@ -343,7 +363,7 @@ export function usePdfHandlers(
           };
 
           const updatedBasic: any = {};
-          if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+          if (shouldUpdateName(prev.name, parsed.name)) updatedBasic.name = parsed.name;
           if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
           if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
           if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;
@@ -423,7 +443,7 @@ export function usePdfHandlers(
         const feeAmt = Math.round(courtFee * (selectedFeeRate / 100));
 
         const updatedBasic: any = {};
-        if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+        if (shouldUpdateName(prev.name, parsed.name)) updatedBasic.name = parsed.name;
         if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
 
         updatedYears[yr] = {
@@ -668,7 +688,7 @@ export function usePdfHandlers(
             };
 
             const updatedBasic: any = {};
-            if (parsed.name && !prev.name) updatedBasic.name = parsed.name;
+            if (shouldUpdateName(prev.name, parsed.name)) updatedBasic.name = parsed.name;
             if (parsed.foreignerNumber) updatedBasic.foreignerNumber = getBestFieldVal(prev.foreignerNumber, parsed.foreignerNumber);
             if (parsed.taxReductionApplyDateStart) updatedBasic.taxReductionApplyDateStart = parsed.taxReductionApplyDateStart;
             if (parsed.taxReductionApplyDateEnd) updatedBasic.taxReductionApplyDateEnd = parsed.taxReductionApplyDateEnd;

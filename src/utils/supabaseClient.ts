@@ -124,19 +124,22 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
   try {
     // 1. Map manager name to their actual UUID in the database to satisfy the foreign key constraint
     let dbManagerId: string | null = null;
+    let dbTeamId: number | null = null;
     try {
       const { data: managers } = await supabase
         .from('Manager')
-        .select('id, name');
+        .select('id, name, teamId');
       
       if (managers && regForm.managerName) {
         const match = managers.find(m => m.name && m.name.trim().toLowerCase() === regForm.managerName.trim().toLowerCase());
         if (match) {
           dbManagerId = match.id;
+          dbTeamId = match.teamId || null;
         } else {
           const partialMatch = managers.find(m => m.name && (m.name.includes(regForm.managerName) || regForm.managerName.includes(m.name)));
           if (partialMatch) {
             dbManagerId = partialMatch.id;
+            dbTeamId = partialMatch.teamId || null;
           }
         }
       }
@@ -146,6 +149,23 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
 
     if (!dbManagerId) {
       dbManagerId = 'a13ec999-31d8-4421-9628-4f0fe4a1e217'; // Default fallback to Boram's UUID
+      dbTeamId = 7; // Fallback to Myanmar team
+    }
+
+    // Resolve Team ID from Team table if not found from manager
+    if (!dbTeamId && regForm.nationality) {
+      try {
+        const { data: teams } = await supabase.from('Team').select('id, name');
+        if (teams) {
+          const countryClean = regForm.nationality.replace('팀', '').trim();
+          const found = teams.find(t => t.name && t.name.includes(countryClean));
+          if (found) {
+            dbTeamId = found.id;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to resolve team ID from country:', err);
+      }
     }
 
     let clientId: string | null = regForm.clientId || null;
@@ -153,14 +173,20 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     let isNewInsert = false;
 
     if (!clientId && regForm.foreignerNumber) {
-      const { data: existing } = await supabase
+      const { data: existingClients } = await supabase
         .from('Client')
-        .select('id')
-        .eq('regNum', regForm.foreignerNumber)
-        .maybeSingle();
+        .select('id, name')
+        .eq('regNum', regForm.foreignerNumber);
 
-      if (existing) {
-        clientId = existing.id;
+      if (existingClients && existingClients.length > 0) {
+        const cleanRegName = (regForm.name || '').replace(/\s/g, '').toLowerCase();
+        const match = existingClients.find(c => {
+          const cleanDbName = (c.name || '').replace(/\s/g, '').toLowerCase();
+          return cleanDbName === cleanRegName;
+        });
+        if (match) {
+          clientId = match.id;
+        }
       }
     }
 
@@ -195,6 +221,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       regNum: regForm.foreignerNumber || '',
       country: regForm.nationality || '인도네시아',
       managerId: dbManagerId,
+      teamId: dbTeamId,
       visa: regForm.visaType || 'E9',
       company: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '',
       isMonthlyTenant: regForm.isMonthlyRent === '가',

@@ -227,25 +227,30 @@ export function usePdfHandlers(
         const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
         const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-        const recalculated = recalculateYearData(
-          rawYrData, 
-          prev.dependentsCount, 
-          prev.seniorCount, 
-          prev.disabledCount, 
-          prev.childCount, 
-          selectedFeeRate,
-          newRrn,
-          newEmpDate,
-          prev
-        );
-
         if (targetIndex !== -1) {
-          updatedYears[targetIndex] = recalculated;
+          updatedYears[targetIndex] = rawYrData;
         } else {
-          updatedYears.push(recalculated);
+          updatedYears.push(rawYrData);
         }
 
-        updatedYears.sort((a, b) => {
+        const finalYears = updatedYears.map((yrData: any) => {
+          if (yrData && (yrData.active || yrData.isFileUploaded)) {
+            return recalculateYearData(
+              yrData,
+              prev.dependentsCount,
+              prev.seniorCount,
+              prev.disabledCount,
+              prev.childCount,
+              selectedFeeRate,
+              newRrn,
+              newEmpDate,
+              prev
+            );
+          }
+          return yrData;
+        });
+
+        finalYears.sort((a, b) => {
           const yrA = Number(a.year) || 0;
           const yrB = Number(b.year) || 0;
           if (yrA !== yrB) return yrA - yrB;
@@ -257,7 +262,7 @@ export function usePdfHandlers(
         return {
           ...prev,
           ...updatedBasic,
-          years: updatedYears
+          years: finalYears
         };
       });
 
@@ -334,30 +339,35 @@ export function usePdfHandlers(
           const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
           const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-          const updatedRow = recalculateYearData(
-            rawYrData,
-            prev.dependentsCount,
-            prev.seniorCount,
-            prev.disabledCount,
-            prev.childCount,
-            selectedFeeRate,
-            newRrn,
-            newEmpDate,
-            prev
-          );
-
           if (targetIndex !== -1) {
-            updatedYears[targetIndex] = updatedRow;
+            updatedYears[targetIndex] = rawYrData;
           } else {
-            updatedYears.push(updatedRow);
+            updatedYears.push(rawYrData);
           }
 
-          updatedYears.sort((a, b) => Number(a.year) - Number(b.year));
+          const finalYears = updatedYears.map((yrData: any) => {
+            if (yrData && (yrData.active || yrData.isFileUploaded)) {
+              return recalculateYearData(
+                yrData,
+                prev.dependentsCount,
+                prev.seniorCount,
+                prev.disabledCount,
+                prev.childCount,
+                selectedFeeRate,
+                newRrn,
+                newEmpDate,
+                prev
+              );
+            }
+            return yrData;
+          });
+
+          finalYears.sort((a, b) => Number(a.year) - Number(b.year));
 
           return {
             ...prev,
             ...updatedBasic,
-            years: updatedYears
+            years: finalYears
           };
         });
 
@@ -485,21 +495,28 @@ export function usePdfHandlers(
           childReductionApply: 'Y',
         };
 
-        updatedYears[idx] = recalculateYearData(
-          rawYrData,
-          prev.dependentsCount,
-          prev.seniorCount,
-          prev.disabledCount,
-          prev.childCount,
-          selectedFeeRate,
-          prev.foreignerNumber,
-          prev.residentAddress,
-          prev
-        );
+        updatedYears[idx] = rawYrData;
+
+        const finalYears = updatedYears.map((yrData: any) => {
+          if (yrData && (yrData.active || yrData.isFileUploaded)) {
+            return recalculateYearData(
+              yrData,
+              prev.dependentsCount,
+              prev.seniorCount,
+              prev.disabledCount,
+              prev.childCount,
+              selectedFeeRate,
+              prev.foreignerNumber,
+              prev.residentAddress,
+              prev
+            );
+          }
+          return yrData;
+        });
 
         return {
           ...prev,
-          years: updatedYears
+          years: finalYears
         };
       });
 
@@ -643,25 +660,30 @@ export function usePdfHandlers(
             const newRrn = updatedBasic.foreignerNumber || prev.foreignerNumber;
             const newEmpDate = updatedBasic.residentAddress || prev.residentAddress;
 
-            const recalculated = recalculateYearData(
-              rawYrData, 
-              prev.dependentsCount, 
-              prev.seniorCount, 
-              prev.disabledCount, 
-              prev.childCount, 
-              selectedFeeRate,
-              newRrn,
-              newEmpDate,
-              prev
-            );
-
             if (targetIndex !== -1) {
-              updatedYears[targetIndex] = recalculated;
+              updatedYears[targetIndex] = rawYrData;
             } else {
-              updatedYears.push(recalculated);
+              updatedYears.push(rawYrData);
             }
 
-            updatedYears.sort((a, b) => {
+            const finalYears = updatedYears.map((yrData: any) => {
+              if (yrData && (yrData.active || yrData.isFileUploaded)) {
+                return recalculateYearData(
+                  yrData,
+                  prev.dependentsCount,
+                  prev.seniorCount,
+                  prev.disabledCount,
+                  prev.childCount,
+                  selectedFeeRate,
+                  newRrn,
+                  newEmpDate,
+                  prev
+                );
+              }
+              return yrData;
+            });
+
+            finalYears.sort((a, b) => {
               const yrA = Number(a.year) || 0;
               const yrB = Number(b.year) || 0;
               if (yrA !== yrB) return yrA - yrB;
@@ -673,7 +695,7 @@ export function usePdfHandlers(
             return {
               ...prev,
               ...updatedBasic,
-              years: updatedYears
+              years: finalYears
             };
           });
         }

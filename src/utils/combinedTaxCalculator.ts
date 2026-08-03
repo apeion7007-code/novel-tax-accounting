@@ -187,8 +187,8 @@ export const calculateCombinedRefund = (
         }
       }
 
-      const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
-      const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
+       const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
+      const changedChildDeduction = childDeduction;
       const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
 
       let rentDeductionAmt = 0;
@@ -202,8 +202,8 @@ export const calculateCombinedRefund = (
       const finalDecisionTax = Math.max(0, combinedDecisionTax - rentDeductionAmt);
       const finalLocalTax = Math.round(finalDecisionTax * 0.1);
 
-      const refundNational = Math.max(0, wagePaidTax - combinedDecisionTax);
-      const refundLocal = Math.max(0, wagePaidLocalTax - Math.round(combinedDecisionTax * 0.1));
+      const refundNational = wagePaidTax - combinedDecisionTax;
+      const refundLocal = wagePaidLocalTax - Math.round(combinedDecisionTax * 0.1);
       const wageFreeRefund = refundNational + refundLocal;
 
       const finalRefundNational = (wagePaidTax - finalDecisionTax);

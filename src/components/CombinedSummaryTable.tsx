@@ -1,5 +1,6 @@
 import React from 'react';
 import { MonthlyRentSummaryTable } from './MonthlyRentSummaryTable';
+import { calculateCombinedRefund } from '../utils/combinedTaxCalculator';
 
 interface CombinedSummaryTableProps {
   regForm: any;
@@ -16,6 +17,18 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
   handleFeeRateChange,
   getCombinedRefund
 }) => {
+  const formatRefundValue = (amount: number, isActive: boolean) => {
+    if (!isActive) return '-';
+    if (amount < 0) {
+      return (
+        <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+          {Math.abs(amount).toLocaleString()}원 (납부)
+        </span>
+      );
+    }
+    return `${amount.toLocaleString()}원`;
+  };
+
   return (
     <div style={{ marginTop: '24px', marginBottom: '24px', border: '2px solid #2563eb', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
       {/* Header Banner */}
@@ -52,7 +65,7 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
             </tr>
           </thead>
           <tbody>
-            {/* Row 1: 근로소득 개별 환급금 */}
+            {/* Row 1: 근로소득 개별 예상 환급금 */}
             <tr>
               <td colSpan={2} style={{ border: '1px solid #cbd5e1', padding: '6px', fontWeight: 'bold', textAlign: 'center', backgroundColor: '#f8fafc' }}>
                 근로소득 예상 환급금 (A)
@@ -60,19 +73,42 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
               {targetYears.map(yr => {
                 const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
                 const hasWage = matchingWageDataList.length > 0;
-                const wageRef = matchingWageDataList.reduce((sum: number, yrData: any) => sum + (Number(yrData.refundExpectNational || 0) + Number(yrData.refundExpectLocal || 0)), 0);
+                
+                let wageRef = 0;
+                if (hasWage) {
+                  const tempRegForm = {
+                    ...regForm,
+                    freelancerYears: {
+                      ...regForm.freelancerYears,
+                      [yr]: { ...regForm.freelancerYears?.[yr], active: false }
+                    }
+                  };
+                  wageRef = calculateCombinedRefund(tempRegForm, yr, selectedFeeRate).wageFreeRefund;
+                }
+
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', color: '#475569' }}>
-                    {hasWage ? `${wageRef.toLocaleString()}원` : '-'}
+                    {hasWage ? formatRefundValue(wageRef, true) : '-'}
                   </td>
                 );
               })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '4px', backgroundColor: '#f8fafc', color: '#475569' }}>
-                {targetYears.reduce((sum, yr) => {
-                  const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
-                  const wageRef = matchingWageDataList.reduce((sumVal: number, yrData: any) => sumVal + (Number(yrData.refundExpectNational || 0) + Number(yrData.refundExpectLocal || 0)), 0);
-                  return sum + wageRef;
-                }, 0).toLocaleString()}원
+                {(() => {
+                  const total = targetYears.reduce((sum, yr) => {
+                    const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
+                    const hasWage = matchingWageDataList.length > 0;
+                    if (!hasWage) return sum;
+                    const tempRegForm = {
+                      ...regForm,
+                      freelancerYears: {
+                        ...regForm.freelancerYears,
+                        [yr]: { ...regForm.freelancerYears?.[yr], active: false }
+                      }
+                    };
+                    return sum + calculateCombinedRefund(tempRegForm, yr, selectedFeeRate).wageFreeRefund;
+                  }, 0);
+                  return formatRefundValue(total, true);
+                })()}
               </td>
             </tr>
 
@@ -132,16 +168,19 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#1e40af', fontSize: '13px' }}>
-                    {isActive ? `${combined.wageFreeRefund.toLocaleString()}원` : '-'}
+                    {isActive ? formatRefundValue(combined.wageFreeRefund, true) : '-'}
                   </td>
                 );
               })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#dbeafe', color: '#1e40af', fontSize: '13px' }}>
-                {targetYears.reduce((sum, yr) => {
-                  const hasWage = (regForm.years || []).some((y: any) => String(y.year) === yr && y.active);
-                  const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  return sum + (isActive ? getCombinedRefund(yr).wageFreeRefund : 0);
-                }, 0).toLocaleString()}원
+                {(() => {
+                  const total = targetYears.reduce((sum, yr) => {
+                    const hasWage = (regForm.years || []).some((y: any) => String(y.year) === yr && y.active);
+                    const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
+                    return sum + (isActive ? getCombinedRefund(yr).wageFreeRefund : 0);
+                  }, 0);
+                  return formatRefundValue(total, true);
+                })()}
               </td>
             </tr>
 
@@ -251,18 +290,21 @@ export const CombinedSummaryTable: React.FC<CombinedSummaryTableProps> = ({
                 const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
                 return (
                   <td key={yr} style={{ border: '1px solid #cbd5e1', padding: '4px', textAlign: 'right', fontWeight: 'bold', color: '#db2777', fontSize: '13px' }}>
-                    {isActive ? `${combined.finalRefund.toLocaleString()}원` : '-'}
+                    {isActive ? formatRefundValue(combined.finalRefund, true) : '-'}
                   </td>
                 );
               })}
               <td style={{ border: '1px solid #cbd5e1', textAlign: 'right', fontWeight: 'bold', padding: '6px', backgroundColor: '#fce7f3', color: '#db2777', fontSize: '13px' }}>
-                {targetYears.reduce((sum, yr) => {
-                  const combined = getCombinedRefund(yr);
-                  const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
-                  const hasWage = matchingWageDataList.length > 0;
-                  const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
-                  return sum + (isActive ? combined.finalRefund : 0);
-                }, 0).toLocaleString()}원
+                {(() => {
+                  const total = targetYears.reduce((sum, yr) => {
+                    const combined = getCombinedRefund(yr);
+                    const matchingWageDataList = (regForm.years || []).filter((y: any) => String(y.year) === yr && y.active);
+                    const hasWage = matchingWageDataList.length > 0;
+                    const isActive = hasWage || regForm.freelancerYears?.[yr]?.active;
+                    return sum + (isActive ? combined.finalRefund : 0);
+                  }, 0);
+                  return formatRefundValue(total, true);
+                })()}
               </td>
             </tr>
 

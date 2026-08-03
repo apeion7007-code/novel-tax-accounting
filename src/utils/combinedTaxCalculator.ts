@@ -60,18 +60,11 @@ export const calculateCombinedRefund = (
   
   // Case 1: Only wage active
   if (hasWage && !hasFree) {
-    let wageFreeRefund = 0;
-    let rentRefund = 0;
-    let totalOriginalCalcTax = 0;
-    let totalOriginalDecisionTax = 0;
-    let totalNewDecisionTax = 0;
-    let totalNationalRefund = 0;
-    let totalLocalRefund = 0;
-
-    matchingWageDataList.forEach((yrData: any) => {
+    if (matchingWageDataList.length === 1) {
+      const yrData = matchingWageDataList[0];
       const natRefund = cleanNum(yrData.refundExpectNational || yrData.expectedRefundNational);
       const locRefund = cleanNum(yrData.refundExpectLocal || yrData.expectedRefundLocal);
-      wageFreeRefund += natRefund + locRefund;
+      const wageFreeRefund = natRefund + locRefund;
       
       let yrRentRefund = Number(yrData.rentRefundTotal) || 0;
       let rentRefundNational = 0;
@@ -95,37 +88,139 @@ export const calculateCombinedRefund = (
         rentRefundLocal = cleanNum(yrData.rentRefundExpectLocal);
       }
       
-      rentRefund += (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? yrRentRefund : 0) || 0;
+      const rentRefund = (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? yrRentRefund : 0) || 0;
+      const finalRefund = wageFreeRefund + rentRefund;
+      const fee = finalRefund > 0 ? Math.round(finalRefund * (selectedFeeRate / 100)) : 0;
+      const originalTaxable = deriveTaxableIncome(cleanNum(yrData.taxBase));
+      const depCount = Number(regForm.dependentsCount) || 0;
+      const senCount = Number(regForm.seniorCount) || 0;
+      const disCount = Number(regForm.disabledCount) || 0;
+      const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
+      const combinedTaxable = Math.max(0, originalTaxable - extraIncomeDeduction);
 
-      totalOriginalCalcTax += cleanNum(yrData.taxBase);
-      totalOriginalDecisionTax += cleanNum(yrData.decisionTax || yrData.originalDeterminedTax);
-      totalNewDecisionTax += cleanNum(yrData.decisionTaxApplyAmt);
-      totalNationalRefund += natRefund + (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? rentRefundNational : 0);
-      totalLocalRefund += locRefund + (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? rentRefundLocal : 0);
-    });
-    const finalRefund = wageFreeRefund + rentRefund;
-    const fee = Math.round(finalRefund * (selectedFeeRate / 100));
-    const originalTaxable = deriveTaxableIncome(totalOriginalCalcTax);
-    const depCount = Number(regForm.dependentsCount) || 0;
-    const senCount = Number(regForm.seniorCount) || 0;
-    const disCount = Number(regForm.disabledCount) || 0;
-    const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
-    const combinedTaxable = Math.max(0, originalTaxable - extraIncomeDeduction);
+      return {
+        wageFreeRefund,
+        rentRefund,
+        finalRefund,
+        fee,
+        nationalRefund: natRefund + (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? rentRefundNational : 0),
+        localRefund: locRefund + (regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가' ? rentRefundLocal : 0),
+        combinedCalcTax: cleanNum(yrData.taxBase),
+        combinedDecisionTax: cleanNum(yrData.decisionTaxApplyAmt),
+        originalCalcTax: cleanNum(yrData.taxBase),
+        originalDecisionTax: cleanNum(yrData.decisionTax || yrData.originalDeterminedTax),
+        originalTaxable,
+        combinedTaxable
+      };
+    } else {
+      // Multiple wages -> Combined progressive calculation
+      let wageCalcTax = 0;
+      let wagePaidTax = 0;
+      let wagePaidLocalTax = 0;
+      let childDeduction = 0;
+      let childReductionApply = 'Y';
 
-    return {
-      wageFreeRefund,
-      rentRefund,
-      finalRefund,
-      fee,
-      nationalRefund: totalNationalRefund,
-      localRefund: totalLocalRefund,
-      combinedCalcTax: totalOriginalCalcTax,
-      combinedDecisionTax: totalNewDecisionTax,
-      originalCalcTax: totalOriginalCalcTax,
-      originalDecisionTax: totalOriginalDecisionTax,
-      originalTaxable,
-      combinedTaxable
-    };
+      matchingWageDataList.forEach((yrData: any) => {
+        const origDecTax = cleanNum(yrData.decisionTax || yrData.originalDeterminedTax);
+        wageCalcTax += cleanNum(yrData.taxBase);
+        wagePaidTax += origDecTax;
+        wagePaidLocalTax += cleanNum(yrData.localTax) || Math.round(origDecTax * 0.1);
+        childDeduction += cleanNum(yrData.childDeduction);
+        if (yrData.childReductionApply === 'N' || yrData.childReductionApply === '0') {
+          childReductionApply = 'N';
+        }
+      });
+
+      const wageTaxables = matchingWageDataList.map((y: any) => deriveTaxableIncome(cleanNum(y.taxBase)));
+      const originalTaxable = wageTaxables.reduce((a: number, b: number) => a + b, 0);
+
+      const depCount = Number(regForm.dependentsCount) || 0;
+      const senCount = Number(regForm.seniorCount) || 0;
+      const disCount = Number(regForm.disabledCount) || 0;
+      const chCount = Number(regForm.childCount) || 0;
+
+      const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
+      const combinedTaxable = Math.max(0, originalTaxable - extraIncomeDeduction);
+
+      let combinedCalcTax = 0;
+      if (combinedTaxable <= 14000000) {
+        combinedCalcTax = combinedTaxable * 0.06;
+      } else if (combinedTaxable <= 50000000) {
+        combinedCalcTax = combinedTaxable * 0.15 - 1260000;
+      } else {
+        combinedCalcTax = combinedTaxable * 0.24 - 5760000;
+      }
+      combinedCalcTax = Math.max(0, Math.round(combinedCalcTax));
+
+      const isReductionApplied = childReductionApply !== 'N' && childReductionApply !== '0';
+      const yrNum = Number(yr) || 0;
+      const limit = yrNum >= 2023 ? 2000000 : 1500000;
+      const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(combinedCalcTax * 0.9)) : 0;
+
+      const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
+
+      let extraChildTaxCredit = 0;
+      if (chCount > 0) {
+        if (yrNum >= 2024) {
+          if (chCount === 1) {
+            extraChildTaxCredit = 250000;
+          } else if (chCount === 2) {
+            extraChildTaxCredit = 550000;
+          } else {
+            extraChildTaxCredit = 550000 + (chCount - 2) * 400000;
+          }
+        } else {
+          if (chCount === 1) {
+            extraChildTaxCredit = 150000;
+          } else if (chCount === 2) {
+            extraChildTaxCredit = 300000;
+          } else {
+            extraChildTaxCredit = 300000 + (chCount - 2) * 300000;
+          }
+        }
+      }
+
+      const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
+      const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
+      const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+
+      let rentDeductionAmt = 0;
+      if ((regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가') && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee) {
+        const totalSalary = matchingWageDataList.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
+        const rate = totalSalary <= 55000000 ? 0.17 : (totalSalary <= 80000000 ? 0.15 : 0);
+        const rentLimit = Math.min(Number(regForm.monthlyRentFee) * 12, 10000000);
+        rentDeductionAmt = Math.round(rentLimit * rate);
+      }
+
+      const finalDecisionTax = Math.max(0, combinedDecisionTax - rentDeductionAmt);
+      const finalLocalTax = Math.round(finalDecisionTax * 0.1);
+
+      const refundNational = Math.max(0, wagePaidTax - combinedDecisionTax);
+      const refundLocal = Math.max(0, wagePaidLocalTax - Math.round(combinedDecisionTax * 0.1));
+      const wageFreeRefund = refundNational + refundLocal;
+
+      const finalRefundNational = (wagePaidTax - finalDecisionTax);
+      const finalRefundLocal = (wagePaidLocalTax - finalLocalTax);
+      const finalRefund = finalRefundNational + finalRefundLocal;
+
+      const rentRefund = Math.max(0, finalRefund - wageFreeRefund);
+      const fee = finalRefund > 0 ? Math.round(finalRefund * (selectedFeeRate / 100)) : 0;
+
+      return {
+        wageFreeRefund,
+        rentRefund,
+        finalRefund,
+        fee,
+        nationalRefund: finalRefundNational,
+        localRefund: finalRefundLocal,
+        combinedCalcTax: combinedCalcTax,
+        combinedDecisionTax: finalDecisionTax,
+        originalCalcTax: wageCalcTax,
+        originalDecisionTax: wagePaidTax,
+        originalTaxable: Math.round(originalTaxable),
+        combinedTaxable: Math.round(Math.max(0, combinedTaxable - extraIncomeDeduction))
+      };
+    }
   }
 
   // Case 2: Only freelancer active

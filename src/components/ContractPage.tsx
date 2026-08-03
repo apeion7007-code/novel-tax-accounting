@@ -630,7 +630,7 @@ dutiesText: '1۔ فریق دوم کسٹمر کی شناختی معلومات ا�
   }
 };
 
-export function ContractPage({ token, onBackToLogin }: ContractPageProps) {
+export function ContractPage({ token }: ContractPageProps) {
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -729,8 +729,8 @@ export function ContractPage({ token, onBackToLogin }: ContractPageProps) {
                   decisionTaxApplyAmt: String(y.changedDeterminedTax || 0),
                   refundExpectNational: String(y.totalTaxRefund || 0),
                   refundExpectLocal: String(y.localTaxRefund || 0),
-                  childDeduction: String(y.childDeduction || 0),
-                  childReductionApply: y.childReductionApply || 'Y',
+                  childDeduction: String((y as any).childDeduction || 0),
+                  childReductionApply: (y as any).childReductionApply || 'Y',
                   rentRefundExpectNational: String(y.rentRefundExpectNational || 0),
                   rentRefundExpectLocal: String(y.rentRefundExpectLocal || 0),
                   rentRefundTotal: String(y.rentRefundTotal || 0),

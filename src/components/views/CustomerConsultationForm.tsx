@@ -1,6 +1,7 @@
 import React from 'react';
 import { supabase } from '../../utils/supabaseClient';
 import { FileSpreadsheet } from 'lucide-react';
+import { calculateCombinedRefund } from '../../utils/combinedTaxCalculator';
 
 interface CustomerConsultationFormProps {
   regForm: any;
@@ -231,6 +232,21 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                 showToast('고객을 먼저 저장해 주세요.', 'error');
                 return;
               }
+
+              // Check if any year has a negative refund (tax payment due)
+              const years = regForm.years || [];
+              const targetYears = Array.from(new Set(years.filter((y: any) => y.active).map((y: any) => String(y.year))));
+              
+              const hasNegativeRefund = targetYears.some((yr: any) => {
+                const res = calculateCombinedRefund(regForm, yr, selectedFeeRate);
+                return res.finalRefund < 0;
+              });
+
+              if (hasNegativeRefund) {
+                const confirmProceed = window.confirm('⚠️ [경고] 합산 세액 계산 결과, 세금 납부(마이너스 환급)가 발생하는 연도가 존재합니다. 그래도 계약서 링크를 복사하시겠습니까?');
+                if (!confirmProceed) return;
+              }
+
               const contractLink = `${window.location.origin}${window.location.pathname}?view=contract&id=${regForm.clientId}&lang=${contractLanguage}`;
               navigator.clipboard.writeText(contractLink);
               showToast(`${regForm.name || '고객'}의 표준계약서 링크가 복사되었습니다.`, 'success');

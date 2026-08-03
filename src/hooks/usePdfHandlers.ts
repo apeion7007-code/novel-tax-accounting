@@ -1,6 +1,8 @@
 import React from 'react';
 import { extractTextFromPdf, parsePdfText } from '../utils/pdfParser';
 import { recalculateYearData } from '../utils/taxCalculator';
+import { calculateCombinedRefund } from '../utils/combinedTaxCalculator';
+
 const isMaskedVal = (val: string) => !val || val.includes('*');
 
 const getBestFieldVal = (existingVal: string, newVal: string) => {
@@ -21,6 +23,26 @@ export function usePdfHandlers(
   setTargetYears: React.Dispatch<React.SetStateAction<string[]>>,
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void
 ) {
+  const checkNegativeRefundsAndToast = (nextRegForm: any, successMsg: string) => {
+    const years = nextRegForm.years || [];
+    const targetYears = Array.from(new Set(years.filter((y: any) => y.active).map((y: any) => String(y.year))));
+    
+    const negativeRefunds: { year: string; amount: number }[] = [];
+    targetYears.forEach((yr: any) => {
+      const res = calculateCombinedRefund(nextRegForm, yr, selectedFeeRate);
+      if (res.finalRefund < 0) {
+        negativeRefunds.push({ year: yr, amount: res.finalRefund });
+      }
+    });
+
+    if (negativeRefunds.length > 0) {
+      const detailStr = negativeRefunds.map(item => `[${item.year}년: ${Math.abs(item.amount).toLocaleString()}원 납부]`).join(', ');
+      showToast(`⚠️ [경고] 합산 세액 계산 결과 세금 납부(토해냄)가 감지되었습니다. ${detailStr}`, 'error');
+    } else {
+      showToast(successMsg, 'success');
+    }
+  };
+
   const handleDownloadPdf = async (targetId: string, yrLabel: string) => {
     const yearData = (regForm.years || []).find((y: any) => y.id === targetId);
     const yr = yearData?.year || '';
@@ -259,14 +281,16 @@ export function usePdfHandlers(
           return dateA.localeCompare(dateB);
         });
 
-        return {
+        const nextState = {
           ...prev,
           ...updatedBasic,
           years: finalYears
         };
+        setTimeout(() => {
+          checkNegativeRefundsAndToast(nextState, `PDF 자동 분석 완료! [${yr}년도] 칸에 데이터가 자동으로 반영되었습니다.`);
+        }, 0);
+        return nextState;
       });
-
-      showToast(`PDF 자동 분석 완료! [${yr}년도] 칸에 데이터가 자동으로 반영되었습니다.`, 'success');
     } catch (err: any) {
       console.error(err);
       showToast(`PDF 분석 중 오류가 발생했습니다: ${err.message || err}`, 'error');
@@ -364,14 +388,16 @@ export function usePdfHandlers(
 
           finalYears.sort((a, b) => Number(a.year) - Number(b.year));
 
-          return {
+          const nextState = {
             ...prev,
             ...updatedBasic,
             years: finalYears
           };
+          setTimeout(() => {
+            checkNegativeRefundsAndToast(nextState, `[${yr}년도] 근로소득 파일로 감지되어 근로소득 테이블로 자동 업로드되었습니다.`);
+          }, 0);
+          return nextState;
         });
-
-        showToast(`[${yr}년도] 근로소득 파일로 감지되어 근로소득 테이블로 자동 업로드되었습니다.`, 'success');
         return;
       }
 
@@ -514,13 +540,15 @@ export function usePdfHandlers(
           return yrData;
         });
 
-        return {
+        const nextState = {
           ...prev,
           years: finalYears
         };
+        setTimeout(() => {
+          checkNegativeRefundsAndToast(nextState, `[${yrLabel}] PDF 원본 재분석 완료! 세액 및 환급금이 최신 로직으로 자동 교정되었습니다.`);
+        }, 0);
+        return nextState;
       });
-
-      showToast(`[${yrLabel}] PDF 원본 재분석 완료! 세액 및 환급금이 최신 로직으로 자동 교정되었습니다.`, 'success');
     } catch (err: any) {
       console.error('Reanalyze PDF Error:', err);
       showToast(`PDF 재분석 실패: ${err.message || err}`, 'error');
@@ -692,21 +720,23 @@ export function usePdfHandlers(
               return dateA.localeCompare(dateB);
             });
 
-            return {
+            const nextState = {
               ...prev,
               ...updatedBasic,
               years: finalYears
             };
+            if (i === files.length - 1) {
+              setTimeout(() => {
+                checkNegativeRefundsAndToast(nextState, `총 ${successCount}개 PDF 파일 분석 완료! (${detectedYears.join(', ')}년도 자동 분류되어 입력됨)`);
+              }, 0);
+            }
+            return nextState;
           });
         }
       } catch (err: any) {
         console.error(err);
         showToast(`파일 [${file.name}] 분석 중 오류가 발생했습니다.`, 'error');
       }
-    }
-
-    if (successCount > 0) {
-      showToast(`총 ${successCount}개 PDF 파일 분석 완료! (${detectedYears.join(', ')}년도 자동 분류되어 입력됨)`, 'success');
     }
   };
 

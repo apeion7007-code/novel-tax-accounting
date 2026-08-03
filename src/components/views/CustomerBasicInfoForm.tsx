@@ -30,10 +30,10 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
         <tbody>
           {/* Row 1 Header */}
           <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
-            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>신청인</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '13%' }}>신청인</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '11%' }}>외국인 등록번호</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '8%' }}>국적</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '13%' }}>전화번호</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '11%' }}>전화번호</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>비자 종류</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>
               {(() => {
@@ -43,7 +43,7 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
             </td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '9%' }}>비자만료일</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '7%' }}>월세여부</td>
-            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '18%' }}>환급금 입금계좌</td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '15%' }}>환급금 입금계좌</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px', width: '10%' }}>환급처리상태</td>
           </tr>
           {/* Row 1 Inputs */}

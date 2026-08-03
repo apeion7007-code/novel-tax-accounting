@@ -132,7 +132,14 @@ export const calculateCombinedRefund = (
       });
 
       const wageTaxables = matchingWageDataList.map((y: any) => deriveTaxableIncome(cleanNum(y.taxBase)));
-      const originalTaxable = wageTaxables.reduce((a: number, b: number) => a + b, 0);
+      let originalTaxable = wageTaxables.reduce((a: number, b: number) => a + b, 0);
+
+      const totalSalary = matchingWageDataList.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
+      const primaryJob = [...matchingWageDataList].sort((a, b) => cleanNum(b.salaryTotal) - cleanNum(a.salaryTotal))[0];
+      const primarySalary = primaryJob ? cleanNum(primaryJob.salaryTotal) : 0;
+      if (primarySalary > 0 && totalSalary > primarySalary) {
+        originalTaxable = originalTaxable * (totalSalary / primarySalary);
+      }
 
       const depCount = Number(regForm.dependentsCount) || 0;
       const senCount = Number(regForm.seniorCount) || 0;

@@ -279,15 +279,35 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       contractConsentDate: regForm.contractConsentDate ? safeToISOString(regForm.contractConsentDate) : null
     };
 
-    if (pdfFileObjects['familyDoc']) {
-      const familyUrl = await uploadPdfToSupabase(pdfFileObjects['familyDoc'], `family_docs/${regForm.foreignerNumber || 'client'}_family_${Date.now()}.pdf`);
-      if (familyUrl) clientPayload.familyDocUrl = familyUrl;
+    // 1. Upload new familyDoc files
+    const uploadedFamilyUrls: string[] = [];
+    if (Array.isArray(regForm.familyDocFile) && regForm.familyDocFile.length > 0) {
+      for (const file of regForm.familyDocFile) {
+        if (file) {
+          const path = `family_docs/${regForm.foreignerNumber || 'client'}_family_${Date.now()}_${file.name}`;
+          const url = await uploadPdfToSupabase(file, path);
+          if (url) {
+            uploadedFamilyUrls.push(url);
+          }
+        }
+      }
     }
+    clientPayload.familyDocUrl = [...(regForm.familyDocUrl || []), ...uploadedFamilyUrls].filter(Boolean);
 
-    if (pdfFileObjects['remittanceDoc']) {
-      const remitUrl = await uploadPdfToSupabase(pdfFileObjects['remittanceDoc'], `remittance_docs/${regForm.foreignerNumber || 'client'}_remittance_${Date.now()}.pdf`);
-      if (remitUrl) clientPayload.remittanceDocUrl = remitUrl;
+    // 2. Upload new remittanceDoc files
+    const uploadedRemitUrls: string[] = [];
+    if (Array.isArray(regForm.remittanceDocFile) && regForm.remittanceDocFile.length > 0) {
+      for (const file of regForm.remittanceDocFile) {
+        if (file) {
+          const path = `remittance_docs/${regForm.foreignerNumber || 'client'}_remittance_${Date.now()}_${file.name}`;
+          const url = await uploadPdfToSupabase(file, path);
+          if (url) {
+            uploadedRemitUrls.push(url);
+          }
+        }
+      }
     }
+    clientPayload.remittanceDocUrl = [...(regForm.remittanceDocUrl || []), ...uploadedRemitUrls].filter(Boolean);
 
     if (!isNewInsert) {
       const { error: updateErr } = await supabase.from('Client').update(clientPayload).eq('id', clientId);
@@ -559,7 +579,14 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       }
     }
 
-    return { success: true, clientId, serial: newClientSerial || regForm.serial || null, updatedYearIdsMap };
+    return { 
+      success: true, 
+      clientId, 
+      serial: newClientSerial || regForm.serial || null, 
+      updatedYearIdsMap,
+      familyDocUrl: clientPayload.familyDocUrl,
+      remittanceDocUrl: clientPayload.remittanceDocUrl
+    };
   } catch (err) {
     console.error('saveRegistrationToSupabase Exception:', err);
     return { success: false, error: err };

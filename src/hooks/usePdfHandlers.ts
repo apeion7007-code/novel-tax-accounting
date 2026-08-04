@@ -242,6 +242,7 @@ export function usePdfHandlers(
           taxBase: parsed.decisionTax || parsed.taxBase || '0',
           childReduction: parsed.childReduction || '0',
           childDeduction: parsed.childDeduction || '0',
+          stdTaxCredit: parsed.stdTaxCredit || '0',
           decisionTax: parsed.determinedIncomeTax || '0',
           localTax: parsed.determinedLocalTax || '0',
           taxRefundTotal: String(originalDecisionTax + originalLocalTax),

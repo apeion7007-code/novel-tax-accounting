@@ -267,14 +267,6 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', fontSize: '13px' }}>
-          <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>페이스북명</label>
-            <input type="text" className="form-control" style={{ height: '32px', fontSize: '13px' }} value={regForm.snsName || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, snsName: e.target.value }))} placeholder="SNS 닉네임" />
-          </div>
-          <div>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>페이스북주소</label>
-            <input type="text" className="form-control" style={{ height: '32px', fontSize: '13px' }} value={regForm.snsAddress || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, snsAddress: e.target.value }))} placeholder="프로필 주소 URL" />
-          </div>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>고객 관리등급</label>
             <select className="form-control" style={{ height: '32px', fontSize: '13px', padding: '2px' }} value={regForm.customerGrade || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, customerGrade: e.target.value }))}>
@@ -292,7 +284,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           </div>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>상담처리 메모</label>
-            <textarea className="form-control" style={{ height: '70px', fontSize: '13px', padding: '6px' }} value={regForm.consultMemo || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))} placeholder="상담 세부 정보를 기입하세요" />
+            <textarea className="form-control" style={{ height: '150px', fontSize: '13px', padding: '6px' }} value={regForm.consultMemo || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))} placeholder="상담 세부 정보를 기입하세요" />
           </div>
           
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
@@ -326,7 +318,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
         </div>
         <div style={{ flex: 1, minHeight: '200px', display: 'flex', flexDirection: 'column' }}>
           {consultMemos.length > 0 ? (
-            <div style={{ width: '100%', overflowY: 'auto', maxHeight: '180px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+            <div style={{ width: '100%', overflowY: 'auto', maxHeight: '280px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>

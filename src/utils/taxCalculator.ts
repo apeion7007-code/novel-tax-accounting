@@ -120,6 +120,9 @@ export const recalculateYearData = (
   const originalLocalTax = cleanNum(yrData.localTax) || Math.round(originalDecisionTax * 0.1);
   const calculatedTax = cleanNum(yrData.taxBase);
   const childDeduction = cleanNum(yrData.childDeduction);
+  const parsedStdTaxCredit = cleanNum(yrData.stdTaxCredit);
+  const calculatedTotalCredit = Math.max(0, calculatedTax - originalDecisionTax - cleanNum(yrData.childReduction));
+  const stdTaxCredit = parsedStdTaxCredit || Math.max(0, calculatedTotalCredit - childDeduction);
 
   const isReductionApplied = eligibility.isEligible && yrData.childReductionApply !== 'N' && yrData.childReductionApply !== '0';
   const yrNum = Number(yrData.year) || 0;
@@ -157,8 +160,8 @@ export const recalculateYearData = (
   const remainingTaxAfterReduction = Math.max(0, calculatedTax - reductionAmt - extraTaxReductionFromDeduction);
   const changedChildDeduction = calculatedTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / calculatedTax)) : 0;
 
-  // 월세 차감 전 결정세액 (부양가족 공제 등까지만 차감)
-  const changedDecisionTaxWithoutRent = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+  // 월세 차감 전 결정세액 (부양가족 공제 및 표준/기타 세액공제까지 차감)
+  const changedDecisionTaxWithoutRent = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit - stdTaxCredit);
 
   // 월세 세액공제 계산
   const rentDeductionAmt = calculateRentDeduction(yrData, formObj);
@@ -203,7 +206,7 @@ export const recalculateYearData = (
   return {
     ...yrData,
     childReductionApplyAmt: String(reductionAmt),
-    childDeductionApplyAmt: String(changedChildDeduction + extraChildTaxCredit),
+    childDeductionApplyAmt: String(changedChildDeduction + extraChildTaxCredit + stdTaxCredit),
     decisionTaxApplyAmt: String(changedDecisionTax),
     localTaxApplyAmt: String(changedLocalTax),
     decisionTaxRefundAmt: String(changedDecisionTax + changedLocalTax),

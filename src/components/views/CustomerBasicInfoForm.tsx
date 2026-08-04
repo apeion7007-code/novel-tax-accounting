@@ -203,7 +203,9 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
           <tr style={{ backgroundColor: '#bae6fd', color: '#0369a1', fontWeight: 'bold', fontSize: '13px', textAlign: 'center' }}>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>홈택스 아이디</td>
             <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>홈택스 비밀번호</td>
-            <td colSpan={8} style={{ border: '1px solid #cbd5e1', padding: '6px' }}></td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '6px' }}>페이스북명</td>
+            <td colSpan={3} style={{ border: '1px solid #cbd5e1', padding: '6px' }}>페이스북주소</td>
+            <td colSpan={4} style={{ border: '1px solid #cbd5e1', padding: '6px' }}></td>
           </tr>
           {/* Row 3 Inputs */}
           <tr>
@@ -227,7 +229,27 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
                 placeholder="홈택스 비밀번호" 
               />
             </td>
-            <td colSpan={8} style={{ border: '1px solid #cbd5e1', padding: '4px' }}></td>
+            <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '13px', height: '32px' }} 
+                value={regForm.snsName || ''} 
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, snsName: e.target.value }))} 
+                placeholder="SNS 닉네임" 
+              />
+            </td>
+            <td colSpan={3} style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '13px', height: '32px' }} 
+                value={regForm.snsAddress || ''} 
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, snsAddress: e.target.value }))} 
+                placeholder="프로필 주소 URL" 
+              />
+            </td>
+            <td colSpan={4} style={{ border: '1px solid #cbd5e1', padding: '4px' }}></td>
           </tr>
         </tbody>
       </table>

@@ -986,10 +986,10 @@ function App() {
     seniorCount: 0,
     disabledCount: 0,
     childCount: 0,
-    familyDocUrl: '',
-    remittanceDocUrl: '',
-    familyDocFile: null as File | null,
-    remittanceDocFile: null as File | null,
+    familyDocUrl: [] as string[],
+    remittanceDocUrl: [] as string[],
+    familyDocFile: [] as File[],
+    remittanceDocFile: [] as File[],
 
     // 3.3% Freelancer Income Years
     freelancerYears: {
@@ -1306,10 +1306,10 @@ function App() {
       seniorCount: 0,
       disabledCount: 0,
       childCount: 0,
-      familyDocUrl: '',
-      remittanceDocUrl: '',
-      familyDocFile: null,
-      remittanceDocFile: null,
+      familyDocUrl: [],
+      remittanceDocUrl: [],
+      familyDocFile: [],
+      remittanceDocFile: [],
       freelancerYears: {
         '2021': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
         '2022': { active: false, isFileUploaded: false, pdfFile: null, workPlace: '', businessNumber: '', totalIncome: '0', withholdingTax3: '0', localTax03: '0', totalWithholding33: '0', refundExpectNational: '0', refundExpectLocal: '0', courtFee: '0', expectedFeeAmt: '0' },
@@ -2008,10 +2008,14 @@ function App() {
         seniorCount: Number(clientDetails?.seniorCount) || 0,
         disabledCount: Number(clientDetails?.disabledCount) || 0,
         childCount: Number(clientDetails?.childCount) || 0,
-        familyDocUrl: clientDetails?.familyDocUrl || '',
-        remittanceDocUrl: clientDetails?.remittanceDocUrl || '',
-        familyDocFile: null,
-        remittanceDocFile: null,
+        familyDocUrl: Array.isArray(clientDetails?.familyDocUrl) 
+          ? clientDetails.familyDocUrl 
+          : (clientDetails?.familyDocUrl ? [clientDetails.familyDocUrl] : []),
+        remittanceDocUrl: Array.isArray(clientDetails?.remittanceDocUrl) 
+          ? clientDetails.remittanceDocUrl 
+          : (clientDetails?.remittanceDocUrl ? [clientDetails.remittanceDocUrl] : []),
+        familyDocFile: [] as File[],
+        remittanceDocFile: [] as File[],
         refundPerformance: String(clientDetails?.refund_performance || 0),
         refundPerformanceDate: clientDetails?.refund_performance_date ? clientDetails.refund_performance_date.split('T')[0] : '',
         feeReceivedPerformance: String(clientDetails?.fee_performance || 0),
@@ -2145,10 +2149,7 @@ function App() {
     const formattedDate = `${String(today.getFullYear()).slice(-2)}. ${today.getMonth() + 1}. ${today.getDate()}.`;
 
     // Gather uploaded PDF file objects dynamically mapping by each yrData's id
-    const pdfFiles: Record<string, File | null> = {
-      'familyDoc': regForm.familyDocFile || null,
-      'remittanceDoc': regForm.remittanceDocFile || null
-    };
+    const pdfFiles: Record<string, File | null> = {};
     (regForm.years || []).forEach((y: any) => {
       if (y.pdfFile) {
         pdfFiles[y.id] = y.pdfFile;
@@ -2217,7 +2218,11 @@ function App() {
             clientId: res.clientId || prev.clientId,
             serial: actualSerial,
             years: updatedYears,
-            deletedYearIds: []
+            deletedYearIds: [],
+            familyDocFile: [],
+            remittanceDocFile: [],
+            familyDocUrl: res.familyDocUrl || prev.familyDocUrl,
+            remittanceDocUrl: res.remittanceDocUrl || prev.remittanceDocUrl
           };
         });
 

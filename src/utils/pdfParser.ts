@@ -18,6 +18,7 @@ export interface ParsedPdfResult {
   decisionTax: string;
   childReduction: string;
   childDeduction: string;
+  stdTaxCredit?: string;
   determinedIncomeTax: string;
   determinedLocalTax: string;
   isNonRefundable?: boolean;
@@ -101,6 +102,7 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
       decisionTax: '0',
       childReduction: '0',
       childDeduction: '0',
+      stdTaxCredit: '0',
       determinedIncomeTax: '0',
       determinedLocalTax: '0',
       taxReductionApplyDateStart: parsedTaxReductionApplyDateStart,
@@ -207,6 +209,7 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
   let decisionTax = '0';
   let childReduction = '0';
   let childDeduction = '0';
+  let stdTaxCredit = '0';
   let determinedIncomeTax = '0';
   let determinedLocalTax = '0';
 
@@ -290,19 +293,25 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
                       || getNumbersAfterKeyword(/(?:㉖|26|23)\s*근\s*로\s*소\s*득\s*금\s*액/i, 1);
     taxBase = taxBaseNums ? taxBaseNums[0] : '0';
 
-    const calcTaxNums = getNumbersAfterKeyword(/50\s*산\s*출\s*세\s*액/i, 1)
+    const calcTaxNums = getNumbersAfterKeyword(/(?:49|50)\s*산\s*출\s*세\s*액/i, 1)
                       || getNumbersAfterKeyword(/산\s*출\s*세\s*액/i, 1)
                       || getNumbersAfterKeyword(/(?:㉛|31)\s*산\s*출\s*세\s*액/i, 1);
     decisionTax = calcTaxNums ? calcTaxNums[0] : '0';
 
-    const childReductionNums = getNumbersAfterKeyword(/53\s*(?:「\s*조\s*세\s*특\s*례\s*제\s*한\s*법\s*」\s*)?제\s*3\s*0\s*조/i, 1)
+    const childReductionNums = getNumbersAfterKeyword(/(?:52|53)\s*(?:「\s*조\s*세\s*특\s*례\s*제\s*한\s*법\s*」\s*)?제\s*3\s*0\s*조/i, 1)
                             || getNumbersAfterKeyword(/조\s*세\s*특\s*례\s*제\s*한\s*법\s*제\s*3\s*0\s*조/i, 1)
                             || getNumbersAfterKeyword(/중\s*소\s*기\s*업\s*(?:취\s*업\s*자)?\s*(?:소\s*득\s*세)?\s*감\s*면/i, 1);
     childReduction = childReductionNums ? childReductionNums[0] : '0';
 
-    const childDeductionNums = getNumbersAfterKeyword(/56\s*근\s*로\s*소\s*득/i, 1)
+    const childDeductionNums = getNumbersAfterKeyword(/(?:55|56)\s*(?:「\s*)?근\s*로\s*소\s*득/i, 1)
                             || getNumbersAfterKeyword(/근\s*로\s*소\s*득\s*세\s*액\s*공\s*제/i, 1);
     childDeduction = childDeductionNums ? childDeductionNums[0] : '0';
+
+    const totalTaxCreditNums = getNumbersAfterKeyword(/(?:71|72)\s*세\s*액\s*공\s*제\s*계/i, 1)
+                            || getNumbersAfterKeyword(/세\s*액\s*공\s*제\s*계/i, 1);
+    const totalTaxCredit = totalTaxCreditNums ? Number(totalTaxCreditNums[0]) : 0;
+    const stdTaxCreditVal = Math.max(0, totalTaxCredit - Number(childDeduction));
+    stdTaxCredit = String(stdTaxCreditVal);
 
 
     // 결정세액에서 소득세와 지방소득세를 정규식 및 순서 분석으로 직접 추출
@@ -379,6 +388,7 @@ export const parsePdfText = (text: string, targetYear?: string): ParsedPdfResult
     decisionTax,
     childReduction,
     childDeduction,
+    stdTaxCredit,
     determinedIncomeTax,
     determinedLocalTax,
     isNonRefundable,

@@ -18,6 +18,7 @@ export interface WageYearData {
   childReduction: string | number;
   appliedTaxReduction?: string | number;
   childDeduction?: string | number;
+  stdTaxCredit?: string | number;
   decisionTax: string | number;
   originalDeterminedTax?: string | number;
   localTax: string | number;
@@ -126,10 +127,10 @@ export interface RegistrationForm {
   seniorCount: number;
   disabledCount: number;
   childCount: number;
-  familyDocUrl: string;
-  remittanceDocUrl: string;
-  familyDocFile: File | null;
-  remittanceDocFile: File | null;
+  familyDocUrl: string[];
+  remittanceDocUrl: string[];
+  familyDocFile: File[];
+  remittanceDocFile: File[];
   dependents?: {
     name: string;
     rrn: string;

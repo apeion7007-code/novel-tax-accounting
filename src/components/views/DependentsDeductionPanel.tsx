@@ -13,6 +13,25 @@ export const DependentsDeductionPanel: React.FC<DependentsDeductionPanelProps> =
   updateDependentsCount,
   showToast
 }) => {
+  const handleDownloadFile = async (url: string, fileName: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      showToast(`${fileName} 파일 다운로드가 완료되었습니다.`, 'success');
+    } catch (err) {
+      console.error('Download error:', err);
+      window.open(url, '_blank');
+    }
+  };
+
   return (
     <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '14px 18px', marginBottom: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -154,55 +173,161 @@ export const DependentsDeductionPanel: React.FC<DependentsDeductionPanelProps> =
       </div>
 
       {/* File Upload Row for Family Proof Documents */}
-      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'flex', gap: '20px', alignItems: 'center' }}>
+      <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {/* 1. 가족관계증명서 */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>📁 가족관계증명서:</span>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.png,.jpeg"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setRegForm((prev: any) => ({ ...prev, familyDocFile: file }));
-              if (file) showToast(`가족관계증명서 (${file.name}) 파일이 첨부되었습니다.`, 'info');
-            }}
-            style={{ fontSize: '12px' }}
-          />
-          {regForm.familyDocUrl && (
-            <a
-              href={regForm.familyDocUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
-            >
-              [저장된 파일 보기]
-            </a>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>📁 가족관계증명서 (여러 개 가능):</span>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.png,.jpeg"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                if (files.length > 0) {
+                  setRegForm((prev: any) => ({
+                    ...prev,
+                    familyDocFile: [...(prev.familyDocFile || []), ...files]
+                  }));
+                  showToast(`${files.length}개의 가족관계증명서 파일이 첨부되었습니다.`, 'info');
+                }
+              }}
+              style={{ fontSize: '12px' }}
+            />
+          </div>
+          
+          {/* 업로드된 파일 & 대기 파일 목록 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+            {/* 이미 저장된 URL 리스트 */}
+            {Array.isArray(regForm.familyDocUrl) && regForm.familyDocUrl.map((url: string, index: number) => {
+              if (!url) return null;
+              const parts = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1)).split('_');
+              const fileName = parts.length > 3 ? parts.slice(3).join('_') : parts.join('_');
+              return (
+                <div key={`url-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <span style={{ color: '#059669' }}>💾 {fileName}</span>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>[보기]</a>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadFile(url, fileName)}
+                    style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                  >
+                    [다운로드]
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegForm((prev: any) => ({
+                        ...prev,
+                        familyDocUrl: prev.familyDocUrl.filter((_: any, idx: number) => idx !== index)
+                      }));
+                      showToast('가족관계증명서 파일이 삭제 목록에 추가되었습니다. (저장 시 적용)', 'info');
+                    }}
+                    style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 }}
+                  >
+                    지우기
+                  </button>
+                </div>
+              );
+            })}
+            
+            {/* 대기 중인 파일 객체 리스트 */}
+            {Array.isArray(regForm.familyDocFile) && regForm.familyDocFile.map((file: File, index: number) => (
+              <div key={`file-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
+                <span>📎 {file.name} (대기)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegForm((prev: any) => ({
+                      ...prev,
+                      familyDocFile: prev.familyDocFile.filter((_: any, idx: number) => idx !== index)
+                    }));
+                  }}
+                  style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 }}
+                >
+                  취소
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* 2. 외화 송금영수증 */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>💸 외화 송금영수증:</span>
-          <input
-            type="file"
-            accept=".pdf,.jpg,.png,.jpeg"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setRegForm((prev: any) => ({ ...prev, remittanceDocFile: file }));
-              if (file) showToast(`송금영수증 (${file.name}) 파일이 첨부되었습니다.`, 'info');
-            }}
-            style={{ fontSize: '12px' }}
-          />
-          {regForm.remittanceDocUrl && (
-            <a
-              href={regForm.remittanceDocUrl}
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontSize: '12px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'underline' }}
-            >
-              [저장된 파일 보기]
-            </a>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#1e293b', whiteSpace: 'nowrap' }}>💸 외화 송금영수증 (여러 개 가능):</span>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.png,.jpeg"
+              multiple
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                if (files.length > 0) {
+                  setRegForm((prev: any) => ({
+                    ...prev,
+                    remittanceDocFile: [...(prev.remittanceDocFile || []), ...files]
+                  }));
+                  showToast(`${files.length}개의 송금영수증 파일이 첨부되었습니다.`, 'info');
+                }
+              }}
+              style={{ fontSize: '12px' }}
+            />
+          </div>
+          
+          {/* 업로드된 파일 & 대기 파일 목록 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+            {/* 이미 저장된 URL 리스트 */}
+            {Array.isArray(regForm.remittanceDocUrl) && regForm.remittanceDocUrl.map((url: string, index: number) => {
+              if (!url) return null;
+              const parts = decodeURIComponent(url.substring(url.lastIndexOf('/') + 1)).split('_');
+              const fileName = parts.length > 3 ? parts.slice(3).join('_') : parts.join('_');
+              return (
+                <div key={`url-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <span style={{ color: '#059669' }}>💾 {fileName}</span>
+                  <a href={url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'underline' }}>[보기]</a>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadFile(url, fileName)}
+                    style={{ border: 'none', background: 'none', color: '#2563eb', fontSize: '12px', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                  >
+                    [다운로드]
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRegForm((prev: any) => ({
+                        ...prev,
+                        remittanceDocUrl: prev.remittanceDocUrl.filter((_: any, idx: number) => idx !== index)
+                      }));
+                      showToast('송금영수증 파일이 삭제 목록에 추가되었습니다. (저장 시 적용)', 'info');
+                    }}
+                    style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 }}
+                  >
+                    지우기
+                  </button>
+                </div>
+              );
+            })}
+            
+            {/* 대기 중인 파일 객체 리스트 */}
+            {Array.isArray(regForm.remittanceDocFile) && regForm.remittanceDocFile.map((file: File, index: number) => (
+              <div key={`file-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#475569' }}>
+                <span>📎 {file.name} (대기)</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegForm((prev: any) => ({
+                      ...prev,
+                      remittanceDocFile: prev.remittanceDocFile.filter((_: any, idx: number) => idx !== index)
+                    }));
+                  }}
+                  style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', padding: 0 }}
+                >
+                  취소
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

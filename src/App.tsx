@@ -2145,6 +2145,17 @@ function App() {
     }
 
     if (currentManagerCountry && currentManagerCountry !== 'ALL' && parsedCountry !== currentManagerCountry) {
+      if (parsedCountry === 'ALL') {
+        alert('⚠️ 귀하는 전체 고객 정보를 조회할 권한이 없습니다.');
+        const code = getCodeFromCountry(dbTeams, currentManagerCountry);
+        const params = new URLSearchParams(window.location.search);
+        const newSearch = params.toString();
+        const newUrl = `/${code}` + (newSearch ? '?' + newSearch : '');
+        window.history.replaceState({}, document.title, newUrl);
+        setPathCountry(currentManagerCountry);
+        return;
+      }
+
       const confirmAccess = window.confirm(`⚠️ 귀하는 [${currentManagerCountry}팀] 매니저입니다. 현재 [${parsedCountry}팀] 고객 정보를 열람/수정하시겠습니까?`);
       if (!confirmAccess) {
         const code = getCodeFromCountry(dbTeams, currentManagerCountry);

@@ -103,6 +103,7 @@ const DEFAULT_COUNTRY_CODES: Record<string, string> = {
   kz: '카자흐스탄',
   cn: '중국',
   kr: '한국',
+  ko: '고려인',
   all: 'ALL'
 };
 
@@ -2117,6 +2118,7 @@ function App() {
   // Restore view state from URL query parameters on initial load or login
   useEffect(() => {
     if (!isLoggedIn) return;
+    if (!currentManagerCountry) return;
 
     let parsedCountry = getCountryFromPath(dbTeams);
 

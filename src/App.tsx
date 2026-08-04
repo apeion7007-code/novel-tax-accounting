@@ -837,6 +837,10 @@ function App() {
         if (managerData) {
           if (managerData.isConfirmed) {
             setIsLoggedIn(true);
+            setCurrentManager({
+              ...managerData,
+              email: session.user.email
+            });
             setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
           } else {
             showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');

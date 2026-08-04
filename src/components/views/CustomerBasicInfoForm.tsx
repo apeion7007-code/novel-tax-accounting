@@ -70,7 +70,9 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
                   <option value="SKT">SKT</option>
                   <option value="KT">KT</option>
                   <option value="LGU+">LGU+</option>
-                  <option value="알뜰폰">알뜰폰</option>
+                  <option value="SKT 알뜰폰">SKT 알뜰폰</option>
+                  <option value="KT 알뜰폰">KT 알뜰폰</option>
+                  <option value="LGU+ 알뜰폰">LGU+ 알뜰폰</option>
                   <option value="기타">기타</option>
                 </select>
                 <input

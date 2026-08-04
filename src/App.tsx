@@ -85,13 +85,70 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-// Youth tax reduction helper imported from taxCalculator.ts
+// Dynamic Country Code mapping helpers
+const DEFAULT_COUNTRY_CODES: Record<string, string> = {
+  vi: '베트남',
+  mm: '미얀마',
+  np: '네팔',
+  kh: '캄보디아',
+  id: '인도네시아',
+  th: '태국',
+  ph: '필리핀',
+  lk: '스리랑카',
+  bd: '방글라데시',
+  uz: '우즈베키스탄',
+  pk: '파키스탄',
+  mn: '몽골',
+  kg: '키르기스스탄',
+  kz: '카자흐스탄',
+  cn: '중국',
+  kr: '한국',
+  all: 'ALL'
+};
+
+const getCountryFromPath = (dbTeams: any[]): string | null => {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  const code = parts[0]?.toLowerCase();
+  if (!code) return null;
+
+  if (dbTeams && dbTeams.length > 0) {
+    const matched = dbTeams.find(t => t.code && t.code.trim().toLowerCase() === code);
+    if (matched) {
+      return matched.name ? matched.name.replace(/팀$/, '').trim() : '';
+    }
+  }
+
+  return DEFAULT_COUNTRY_CODES[code] || null;
+};
+
+const getCodeFromCountry = (dbTeams: any[], country: string): string => {
+  if (!country) return 'all';
+  if (country === 'ALL') return 'all';
+
+  const cleanCountry = country.replace(/팀$/, '').trim();
+
+  if (dbTeams && dbTeams.length > 0) {
+    const matched = dbTeams.find(t => {
+      const cleanTeam = t.name ? t.name.replace(/팀$/, '').trim() : '';
+      return cleanTeam === cleanCountry;
+    });
+    if (matched && matched.code) {
+      return matched.code.trim().toLowerCase();
+    }
+  }
+
+  const entry = Object.entries(DEFAULT_COUNTRY_CODES).find(([_, value]) => value === cleanCountry);
+  return entry ? entry[0] : 'all';
+};
 
 function App() {
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
+  
+  // Country URL routing state
+  const [pathCountry, setPathCountry] = useState<string>('미얀마');
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract'>('customer');
@@ -620,8 +677,11 @@ function App() {
     const teamName = window.prompt('신규 생성할 팀 이름을 입력하세요 (예: 파키스탄, 베트남팀):');
     if (!teamName || !teamName.trim()) return;
 
+    const teamCode = window.prompt('해당 팀의 주소창용 영문 코드(2자리)를 입력하세요 (예: pk, vi):');
+    if (!teamCode || !teamCode.trim()) return;
+
     showToast('팀을 생성하는 중입니다...', 'info');
-    const res = await createTeamInSupabase(teamName.trim());
+    const res = await createTeamInSupabase(teamName.trim(), teamCode.trim());
     if (res.success) {
       showToast(`'${teamName}' 팀이 성공적으로 생성되었습니다.`, 'success');
       loadStaffData();
@@ -1719,6 +1779,14 @@ function App() {
       const clientDetails = clientRecords[0] || null;
       const clientIds = clientRecords.map(c => c.id).filter(Boolean);
 
+      const customerNat = clientDetails?.country || customer.nationality;
+      if (customerNat && currentManagerCountry && currentManagerCountry !== 'ALL' && customerNat !== currentManagerCountry) {
+        const confirmAccess = window.confirm(`⚠️ 이 고객은 [${customerNat}팀] 고객입니다. 귀하는 [${currentManagerCountry}팀] 매니저입니다. 계속해서 이 고객의 상세 정보를 조회/수정하시겠습니까?`);
+        if (!confirmAccess) {
+          return;
+        }
+      }
+
       let yearRecords: any[] = [];
       if (clientIds.length > 0) {
         const { data: yData } = await supabase
@@ -2049,6 +2117,35 @@ function App() {
   // Restore view state from URL query parameters on initial load or login
   useEffect(() => {
     if (!isLoggedIn) return;
+
+    let parsedCountry = getCountryFromPath(dbTeams);
+
+    if (!parsedCountry) {
+      const managerCountry = currentManagerCountry || '미얀마';
+      const code = getCodeFromCountry(dbTeams, managerCountry);
+      const params = new URLSearchParams(window.location.search);
+      const newSearch = params.toString();
+      const newUrl = `/${code}` + (newSearch ? '?' + newSearch : '');
+      window.history.replaceState({}, document.title, newUrl);
+      setPathCountry(managerCountry);
+      parsedCountry = managerCountry;
+    } else {
+      setPathCountry(parsedCountry);
+    }
+
+    if (currentManagerCountry && currentManagerCountry !== 'ALL' && parsedCountry !== currentManagerCountry) {
+      const confirmAccess = window.confirm(`⚠️ 귀하는 [${currentManagerCountry}팀] 매니저입니다. 현재 [${parsedCountry}팀] 고객 정보를 열람/수정하시겠습니까?`);
+      if (!confirmAccess) {
+        const code = getCodeFromCountry(dbTeams, currentManagerCountry);
+        const params = new URLSearchParams(window.location.search);
+        const newSearch = params.toString();
+        const newUrl = `/${code}` + (newSearch ? '?' + newSearch : '');
+        window.history.replaceState({}, document.title, newUrl);
+        setPathCountry(currentManagerCountry);
+        return;
+      }
+    }
+
     const params = new URLSearchParams(window.location.search);
     const view = params.get('view');
     const serial = params.get('serial');
@@ -2058,7 +2155,7 @@ function App() {
         handleOpenCustomerRegistration({ id: serialNum } as any);
       }
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, currentManagerCountry, dbTeams]);
 
   // Synchronize view state to URL query parameters
   useEffect(() => {
@@ -2072,9 +2169,13 @@ function App() {
       params.delete('serial');
     }
     const newSearch = params.toString();
-    const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '');
+    const activeCountry = (currentView === 'registration' && regForm.nationality)
+      ? regForm.nationality
+      : pathCountry;
+    const code = getCodeFromCountry(dbTeams, activeCountry);
+    const newUrl = `/${code}` + (newSearch ? '?' + newSearch : '');
     window.history.replaceState({}, document.title, newUrl);
-  }, [currentView, regForm.serial, isLoggedIn]);
+  }, [currentView, regForm.serial, regForm.nationality, isLoggedIn, pathCountry, dbTeams]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) setSelectedIds(filteredCustomers.map(c => c.id));
@@ -2142,6 +2243,13 @@ function App() {
     if (!regForm.name) {
       showToast('신청인 이름은 필수입니다.', 'error');
       return;
+    }
+
+    if (pathCountry && pathCountry !== 'ALL' && regForm.nationality !== pathCountry) {
+      const confirmSave = window.confirm(`⚠️ 현재 작업 중인 경로(팀 영역)는 [${pathCountry}]입니다. 저장하려는 고객의 국적은 [${regForm.nationality}]입니다. 이 국적으로 저장을 계속 진행하시겠습니까?`);
+      if (!confirmSave) {
+        return;
+      }
     }
 
     const nextId = customers.length > 0 ? Math.max(...customers.map(c => c.id)) + 1 : 24708;
@@ -2368,10 +2476,10 @@ function App() {
     ];
 
     customers.forEach(c => {
-      const matchesManagerCountry = currentManagerCountry && currentManagerCountry !== 'ALL'
-        ? c.nationality === currentManagerCountry
+      const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
+      const matchesManagerCountry = activeCountryFilter
+        ? c.nationality === activeCountryFilter
         : true;
-
       if (!matchesManagerCountry) return;
 
       all++;
@@ -2387,12 +2495,13 @@ function App() {
     });
 
     return { all, inProgress, feeCompleted, nextYear };
-  }, [customers, currentManagerCountry]);
+  }, [customers, pathCountry]);
 
   const filteredCustomers = customers.filter(c => {
     // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
-    const matchesManagerCountry = currentManagerCountry && currentManagerCountry !== 'ALL'
-      ? c.nationality === currentManagerCountry
+    const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
+    const matchesManagerCountry = activeCountryFilter
+      ? c.nationality === activeCountryFilter
       : true;
 
     if (!matchesManagerCountry) return false;

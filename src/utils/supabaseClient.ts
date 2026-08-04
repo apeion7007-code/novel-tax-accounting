@@ -633,14 +633,11 @@ export async function fetchManagersFromSupabase() {
   }
 }
 
-/**
- * Create a new Team in Supabase
- */
-export async function createTeamInSupabase(name: string) {
+export async function createTeamInSupabase(name: string, code: string) {
   try {
     const { data, error } = await supabase
       .from('Team')
-      .insert([{ name, createdAt: new Date().toISOString() }])
+      .insert([{ name, code: code.trim().toLowerCase(), createdAt: new Date().toISOString() }])
       .select()
       .single();
     if (error) throw error;

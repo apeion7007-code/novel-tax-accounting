@@ -112,10 +112,14 @@ const getCountryFromPath = (dbTeams: any[]): string | null => {
   const code = parts[0]?.toLowerCase();
   if (!code) return null;
 
+  if (code === 'all') return 'ALL';
+
   if (dbTeams && dbTeams.length > 0) {
     const matched = dbTeams.find(t => t.code && t.code.trim().toLowerCase() === code);
     if (matched) {
-      return matched.name ? matched.name.replace(/팀$/, '').trim() : '';
+      const name = matched.name ? matched.name.replace(/팀$/, '').trim() : '';
+      if (name === '관리자') return 'ALL';
+      return name;
     }
   }
 
@@ -124,9 +128,10 @@ const getCountryFromPath = (dbTeams: any[]): string | null => {
 
 const getCodeFromCountry = (dbTeams: any[], country: string): string => {
   if (!country) return 'all';
-  if (country === 'ALL') return 'all';
+  if (country === 'ALL' || country === '관리자') return 'all';
 
   const cleanCountry = country.replace(/팀$/, '').trim();
+  if (cleanCountry === '관리자') return 'all';
 
   if (dbTeams && dbTeams.length > 0) {
     const matched = dbTeams.find(t => {

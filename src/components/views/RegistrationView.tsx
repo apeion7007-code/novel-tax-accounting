@@ -369,6 +369,77 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         handleFeeRateChange={handleFeeRateChange}
       />
 
+      {/* 🌟 Smart Multi-Company Dual Employment Guide Banner */}
+      {(() => {
+        const years = ['2021', '2022', '2023', '2024', '2025'];
+        const dualYearsInfo: any[] = [];
+
+        years.forEach(yr => {
+          const activeWageList = (regForm.years || []).filter((y: any) => 
+            String(y.year) === yr && (y.active || y.isFileUploaded || Boolean(y.workPlace || y.companyName || Number(y.salaryTotal || y.totalSalary) > 0))
+          );
+          if (activeWageList.length > 1) {
+            let maxStandaloneRefund = -Infinity;
+            let maxCompany: any = null;
+
+            activeWageList.forEach((y: any) => {
+              const nat = Number(y.refundExpectNational || y.expectedRefundNational || 0);
+              const loc = Number(y.refundExpectLocal || y.expectedRefundLocal || 0);
+              const standaloneTotal = nat + loc;
+              if (standaloneTotal > maxStandaloneRefund) {
+                maxStandaloneRefund = standaloneTotal;
+                maxCompany = y;
+              }
+            });
+
+            dualYearsInfo.push({
+              year: yr,
+              companyCount: activeWageList.length,
+              companies: activeWageList.map((y: any) => y.workPlace || '미상근무지').filter(Boolean).join(', '),
+              bestCompany: maxCompany?.workPlace || '선택 근무지',
+              bestRefund: maxStandaloneRefund > 0 ? maxStandaloneRefund : 0
+            });
+          }
+        });
+
+        if (dualYearsInfo.length === 0) return null;
+
+        return (
+          <div style={{
+            margin: '18px 0',
+            padding: '16px 20px',
+            backgroundColor: '#fef2f2',
+            borderRadius: '10px',
+            border: '1px solid #fca5a5',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+              <span style={{ fontSize: '18px' }}>⚠️</span>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold', color: '#991b1b' }}>
+                [실무 가이드] 이중근로(복수 회사) 감지 및 최적 경정청구 안내
+              </h4>
+            </div>
+            {dualYearsInfo.map((info, idx) => (
+              <div key={idx} style={{
+                backgroundColor: '#ffffff',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #fecaca',
+                marginTop: idx > 0 ? '10px' : '0'
+              }}>
+                <div style={{ fontSize: '13px', color: '#7f1d1d', fontWeight: 'bold', marginBottom: '6px' }}>
+                  📅 {info.year}년도: {info.companyCount}개 회사 소득 감지 ({info.companies})
+                </div>
+                <div style={{ fontSize: '13px', color: '#374151', lineHeight: '1.6' }}>
+                  • <strong>이중근로 합산 시 안내</strong>: 2개 이상 회사 소득을 무리하게 전체 합산할 경우, 누진세율 및 중복 공제 조정으로 인해 <u>환급액이 줄어들거나 세금 추징</u>이 일어날 수 있습니다.<br />
+                  • <strong style={{ color: '#059669' }}>👉 추천 신청 방법</strong>: 결정세액이 가장 높게 들어있는 <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>[{info.bestCompany}]</span> 1개 회사 건으로만 단독 경정청구를 진행하시는 것이 가장 유리합니다.
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* 3.3% Freelancer Business Income Settlement Table */}
       <FreelancerSettlementTable
         regForm={regForm}

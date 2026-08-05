@@ -829,22 +829,9 @@ export async function updateClientManagerInSupabase(serial: number | string, man
       if (err2) throw err2;
     }
 
-    // Diagnostic alert popup for absolute transparency
-    try {
-      alert(`[담당자 변경 DB 처리 결과 진단 안내]\n\n` +
-        `• 선택한 담당자: "${managerName}"\n` +
-        `• 고객 식별 ID: ${serial}\n` +
-        `• DB 매니저 검색 결과: ${foundMgr ? `성공 (이름: ${foundMgr.name}, ID: ${foundMgr.id})` : '미등록 (managerId를 null로 설정하여 기존 ID 제거)'}\n` +
-        `• Supabase DB 전송 데이터: managerId=${updatePayload.managerId || 'null'}, teamId=${updatePayload.teamId || 'null'}, country="${country}"\n\n` +
-        `✅ DB 업데이트 100% 완료! 새로고침 시에도 이 값이 유지됩니다.`);
-    } catch (alertErr) {}
-
     return { success: true };
   } catch (e: any) {
     console.error('Update client manager error:', e);
-    try {
-      alert(`[담당자 변경 DB 에러 팝업]\n\n• 오류 내용: ${e.message}`);
-    } catch (alertErr) {}
     return { success: false, error: e.message };
   }
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { updateClientManagerInSupabase } from '../../utils/supabaseClient';
 import { CustomerBasicInfoForm } from './CustomerBasicInfoForm';
 import { DependentsDeductionPanel } from './DependentsDeductionPanel';
 import { SmeVerification } from '../SmeVerification';
@@ -112,14 +113,20 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   const [smeModalOpen, setSmeModalOpen] = useState<boolean>(false);
   const [consolidatedModalOpen, setConsolidatedModalOpen] = useState<boolean>(false);
 
-  const handleApplyManagerChange = () => {
+  const handleApplyManagerChange = async () => {
     setRegForm((prev: any) => ({
       ...prev,
       nationality: tempModalTeam,
       managerName: tempModalManager
     }));
     setIsManagerModalOpen(false);
-    showToast(`담당 정보가 ${tempModalTeam}팀 ${tempModalManager} 매니저로 변경되었습니다.`, 'success');
+
+    if (regForm.serial || regForm.clientId) {
+      const serialToUpdate = regForm.serial || regForm.clientId;
+      await updateClientManagerInSupabase(serialToUpdate, tempModalManager, tempModalTeam);
+    } else {
+      showToast(`담당 정보가 ${tempModalTeam}팀 ${tempModalManager} 매니저로 변경되었습니다.`, 'success');
+    }
   };
 
   const handleDownloadSmeSpecification = () => {

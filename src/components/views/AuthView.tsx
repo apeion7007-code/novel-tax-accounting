@@ -146,9 +146,9 @@ export const AuthView: React.FC<AuthViewProps> = ({
           .upsert([{
             id: authData.user.id,
             name: signUpName.trim(),
-            teamId: signUpTeamId,
+            teamId: Number(signUpTeamId),
             isAdmin: isFirstUser,
-            isConfirmed: isFirstUser
+            isConfirmed: true
           }], { onConflict: 'id' });
 
         if (profileErr) {
@@ -268,24 +268,23 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   cursor: 'pointer'
                 }}
               >
-                {dbTeams.length > 0 ? (
-                  dbTeams.map(team => (
-                    <option key={team.id} value={team.id} style={{ color: '#000000' }}>
+                {(() => {
+                  const teamList = dbTeams && dbTeams.length > 0 ? dbTeams : [
+                    { id: 1, name: '관리자' },
+                    { id: 2, name: '베트남팀' },
+                    { id: 3, name: '미얀마팀' },
+                    { id: 4, name: '몽골팀' },
+                    { id: 5, name: '인도네시아팀' },
+                    { id: 6, name: '우즈베키스탄팀' },
+                    { id: 7, name: '캄보디아팀' },
+                    { id: 8, name: '스리랑카팀' }
+                  ];
+                  return teamList.map(team => (
+                    <option key={team.id} value={Number(team.id)} style={{ color: '#000000' }}>
                       {team.name}
                     </option>
-                  ))
-                ) : (
-                  <>
-                    <option value={1} style={{ color: '#000000' }}>관리자</option>
-                    <option value={2} style={{ color: '#000000' }}>베트남팀</option>
-                    <option value={3} style={{ color: '#000000' }}>미얀마팀</option>
-                    <option value={4} style={{ color: '#000000' }}>몽골팀</option>
-                    <option value={5} style={{ color: '#000000' }}>인도네시아팀</option>
-                    <option value={6} style={{ color: '#000000' }}>우즈베키스탄팀</option>
-                    <option value={7} style={{ color: '#000000' }}>캄보디아팀</option>
-                    <option value={8} style={{ color: '#000000' }}>스리랑카팀</option>
-                  </>
-                )}
+                  ));
+                })()}
               </select>
             </div>
             <div className="form-group">

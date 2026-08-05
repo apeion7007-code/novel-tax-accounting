@@ -153,7 +153,7 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isSessionChecking, setIsSessionChecking] = useState<boolean>(true);
   const [currentManager, setCurrentManager] = useState<any>(null);
-  
+
   // Country URL routing state
   const [pathCountry, setPathCountry] = useState<string>(() => getCountryFromPath([]) || 'ALL');
 
@@ -162,7 +162,7 @@ function App() {
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
-  
+
   // Tab control state
   const [selectedTab, setSelectedTab] = useState<'all' | 'inProgress' | 'feeCompleted' | 'nextYear'>('all');
 
@@ -381,17 +381,17 @@ function App() {
   const availableTeamList = useMemo(() => {
     const teams = new Set<string>();
     if (dbTeams && dbTeams.length > 0) {
-      dbTeams.forEach(t => { 
+      dbTeams.forEach(t => {
         if (t && t.name && t.name !== '관리자' && t.name !== '관리자팀') {
-          teams.add(t.name.replace(/팀$/, '').trim()); 
+          teams.add(t.name.replace(/팀$/, '').trim());
         }
       });
     }
     ['미얀마', '인도네시아', '베트남', '캄보디아', '몽골', '네팔', '방글라데시', '우즈베키스탄', '파키스탄', '필리핀', '태국', '스리랑카'].forEach(c => teams.add(c));
     if (customers && customers.length > 0) {
-      customers.forEach(c => { 
+      customers.forEach(c => {
         if (c && c.nationality && c.nationality !== '관리자' && c.nationality !== '관리자팀') {
-          teams.add(c.nationality); 
+          teams.add(c.nationality);
         }
       });
     }
@@ -411,8 +411,8 @@ function App() {
     if (!currentManager) return null;
     // 이메일이 admin@novel.com이거나, isAdmin 플래그가 true이거나, 소속 팀ID가 1(관리자팀)이거나 이름에 '관리자'/'admin'이 포함된 경우 ALL 권한 부여
     if (
-      currentManager.email === 'admin@novel.com' || 
-      currentManager.isAdmin || 
+      currentManager.email === 'admin@novel.com' ||
+      currentManager.isAdmin ||
       currentManager.teamId === 1 ||
       (currentManager.name && (currentManager.name.includes('관리자') || currentManager.name.toLowerCase().includes('admin'))) ||
       (currentManager.email && currentManager.email.toLowerCase().includes('admin'))
@@ -429,7 +429,7 @@ function App() {
   }, [currentManager, dbTeams]);
 
 
-  
+
 
   // Hometax Submitter Modal States & Persistence
   const [isHometaxModalOpen, setIsHometaxModalOpen] = useState<boolean>(false);
@@ -513,12 +513,12 @@ function App() {
 
       // 3. Construct the detailed clients structure
       const yr = hometaxSubmitter.targetYear;
-      
+
       const clientsWithData = dbClients.map(c => {
         const cYearRecords = dbYearData ? dbYearData.filter(y => y.clientId === c.id) : [];
         const yearsMap: Record<string, any> = {};
         const freelancerYearsMap: Record<string, any> = {};
-        
+
         cYearRecords.forEach(y => {
           if (y.companyName && !y.freelancerActive) {
             // Wage record
@@ -892,7 +892,7 @@ function App() {
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
               : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
-            const resolvedMgr = c.managerName || (c.managerId ? mgrMap.get(c.managerId) : '') || '관리자';
+            const resolvedMgr = (c.managerId ? mgrMap.get(c.managerId) : '') || c.managerName || '관리자';
 
             return {
               id: c.serial || (25000 + idx),
@@ -943,7 +943,7 @@ function App() {
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
               : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
-            const resolvedMgr = c.managerName || (c.managerId ? mgrMap.get(c.managerId) : '') || '관리자';
+            const resolvedMgr = (c.managerId ? mgrMap.get(c.managerId) : '') || c.managerName || '관리자';
 
             return {
               id: c.serial || (25000 + idx),
@@ -983,12 +983,9 @@ function App() {
   // Sync URL path country code to pathCountry state dynamically
   useEffect(() => {
     const resolvedCountry = getCountryFromPath(dbTeams);
-    if (resolvedCountry) {
-      setPathCountry(resolvedCountry);
-    } else {
-      setPathCountry('ALL');
-    }
-  }, [dbTeams, window.location.pathname]);
+    const targetCountry = resolvedCountry || 'ALL';
+    setPathCountry(prev => (prev === targetCountry ? prev : targetCountry));
+  }, [dbTeams]);
 
   // SmeModal States for company details
 
@@ -1003,7 +1000,7 @@ function App() {
     name: '',
     foreignerNumber: '',
     nationality: '미얀마',
-    managerName: 'Boram',
+    managerName: currentManager?.name || '관리자',
     telecom: 'SKT',
     phone: '',
     visaType: 'E10',
@@ -1108,8 +1105,8 @@ function App() {
     else setInvoiceLanguage('한국어');
 
     // Contract Language Auto-Mapping (Prioritize Manager Country, fallback to Customer Nationality)
-    const managerOrCustCountry = (currentManagerCountry && currentManagerCountry !== 'ALL') 
-      ? currentManagerCountry 
+    const managerOrCustCountry = (currentManagerCountry && currentManagerCountry !== 'ALL')
+      ? currentManagerCountry
       : regForm.nationality;
 
     if (managerOrCustCountry === '베트남') setContractLanguage('베트남어');
@@ -1179,7 +1176,7 @@ function App() {
       .map((wp: string) => wp.split('~')[0].trim())
       .filter((d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d))
       .sort();
-    
+
     const hasEmpDate = Boolean(actualEmpDateStr || periods.length > 0);
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -1327,7 +1324,7 @@ function App() {
       companyAddress: '',
       companyPhone: '',
       companyIndustry: '',
-      managerName: 'Boram',
+      managerName: currentManager?.name || '관리자',
       telecom: 'SKT',
       phone: '',
       visaType: 'E10',
@@ -1718,11 +1715,11 @@ function App() {
       prev.map(c =>
         c.id === customerId
           ? {
-              ...c,
-              managerName,
-              nationality: matchedCountry,
-              managerCountry: matchedCountry
-            }
+            ...c,
+            managerName,
+            nationality: matchedCountry,
+            managerCountry: matchedCountry
+          }
           : c
       )
     );
@@ -1758,11 +1755,11 @@ function App() {
           prev.map(c =>
             c.id === customerId
               ? {
-                  ...c,
-                  nationality: targetCountry,
-                  managerName: targetManager,
-                  managerCountry: edit.managerCountry || customer.managerCountry
-                }
+                ...c,
+                nationality: targetCountry,
+                managerName: targetManager,
+                managerCountry: edit.managerCountry || customer.managerCountry
+              }
               : c
           )
         );
@@ -1886,8 +1883,8 @@ function App() {
         const yrKey = String(yr.year);
         loadedYearsSet.add(yrKey);
 
-        const workPeriodStr = (yr.workPeriodStart && yr.workPeriodEnd) 
-          ? `${yr.workPeriodStart} ~ ${yr.workPeriodEnd}` 
+        const workPeriodStr = (yr.workPeriodStart && yr.workPeriodEnd)
+          ? `${yr.workPeriodStart} ~ ${yr.workPeriodEnd}`
           : (yr.workPeriodStart || yr.workPeriodEnd || yr.workPeriod || '');
 
         const totalSal = yr.netSalary || yr.netSalaryFromReceipt || yr.netSalaryFromAllCompany || 0;
@@ -1900,7 +1897,7 @@ function App() {
         const totalRef = yr.totalTaxRefund || yr.determinedTaxRefund || 0;
         const localRef = yr.localTaxRefund || 0;
 
-        const isWageActive = Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL);
+        const isWageActive = yr.active !== undefined ? Boolean(yr.active) : Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL || yr.id);
         const rentRefundTotal = yr.rentRefundTotal || 0;
         const rentRefundExpectNational = yr.rentRefundExpectNational || 0;
         const rentRefundExpectLocal = yr.rentRefundExpectLocal || 0;
@@ -1919,7 +1916,7 @@ function App() {
           businessNumber: yr.companyRegNo || yr.companyRegisterNumber || '',
           companyRegNum: yr.companyRegNo || yr.companyRegisterNumber || '',
           birthDate: yr.regNum || customer.birthDate || '',
-          
+
           salaryTotal: totalSal,
           totalSalary: totalSal,
           taxBase: calcTax,
@@ -2131,7 +2128,7 @@ function App() {
         name: clientDetails?.name || customer.name,
         foreignerNumber: clientDetails?.regNum || customer.birthDate,
         nationality: clientDetails?.country || customer.nationality,
-        managerName: customer.managerName || (clientDetails?.managerId ? dbManagers.find(m => m.id === clientDetails.managerId)?.name : '') || clientDetails?.managerName || '관리자',
+        managerName: (clientDetails?.managerId ? dbManagers.find(m => m.id === clientDetails.managerId)?.name : '') || customer.managerName || clientDetails?.managerName || '관리자',
         phone: clientDetails?.phone || '',
         telecom: clientDetails?.phoneComp || clientDetails?.phoneCompany || 'KT',
         visaType: clientDetails?.visa || customer.visa,
@@ -2172,11 +2169,11 @@ function App() {
         seniorCount: Number(clientDetails?.seniorCount) || 0,
         disabledCount: Number(clientDetails?.disabledCount) || 0,
         childCount: Number(clientDetails?.childCount) || 0,
-        familyDocUrl: Array.isArray(clientDetails?.familyDocUrl) 
-          ? clientDetails.familyDocUrl 
+        familyDocUrl: Array.isArray(clientDetails?.familyDocUrl)
+          ? clientDetails.familyDocUrl
           : (clientDetails?.familyDocUrl ? [clientDetails.familyDocUrl] : []),
-        remittanceDocUrl: Array.isArray(clientDetails?.remittanceDocUrl) 
-          ? clientDetails.remittanceDocUrl 
+        remittanceDocUrl: Array.isArray(clientDetails?.remittanceDocUrl)
+          ? clientDetails.remittanceDocUrl
           : (clientDetails?.remittanceDocUrl ? [clientDetails.remittanceDocUrl] : []),
         familyDocFile: [] as File[],
         remittanceDocFile: [] as File[],
@@ -2199,7 +2196,8 @@ function App() {
       }));
 
       setCurrentView('registration');
-      showToast(`${customer.name} 님의 고객 등록 관리 화면을 열었습니다.`, 'success');
+      const displayName = customer?.name || regForm.name || '고객';
+      showToast(`${displayName} 님의 고객 등록 관리 화면을 열었습니다.`, 'success');
     } catch (err) {
       console.error('Error loading customer details:', err);
       setRegForm(prev => ({
@@ -2263,10 +2261,15 @@ function App() {
     if (view === 'registration' && serial) {
       const serialNum = Number(serial);
       if (serialNum) {
-        handleOpenCustomerRegistration({ id: serialNum } as any);
+        const foundCustomer = customers.find(c => c.id === serialNum || c.uuid === serial);
+        if (foundCustomer) {
+          handleOpenCustomerRegistration(foundCustomer);
+        } else {
+          handleOpenCustomerRegistration({ id: serialNum, name: '고객', managerName: currentManager?.name || '베트남 테스트' } as any);
+        }
       }
     }
-  }, [isLoggedIn, currentManagerCountry, dbTeams]);
+  }, [isLoggedIn, currentManagerCountry, dbTeams, customers]);
 
   // Synchronize view state to URL query parameters
   useEffect(() => {
@@ -2383,7 +2386,7 @@ function App() {
         // Map registration form to simplified list view customer using actual serial from DB
         const isUpdate = regForm.serial && regForm.serial > 0;
         const actualSerial = res.serial || regForm.serial || nextId;
-        
+
         let companyName = '-';
         for (let i = (regForm.years || []).length - 1; i >= 0; i--) {
           const yrData = regForm.years[i];
@@ -2483,9 +2486,9 @@ function App() {
     // setCurrentView('customer'); // Return to list view
   };
 
-  
 
-  
+
+
 
 
 
@@ -2575,14 +2578,14 @@ function App() {
     let nextYear = 0;
 
     const excludedStatuses = [
-      '♥경정청구완료', 
-      '♡국세수수료수납완료', 
-      '◆지방세수수료수납완료', 
-      '♠지방세수수료수납완료', 
-      '자격안됨', 
-      '◎자격안됨(확인완료)', 
-      '고객취소', 
-      '홈택스가입불가', 
+      '♥경정청구완료',
+      '♡국세수수료수납완료',
+      '◆지방세수수료수납완료',
+      '♠지방세수수료수납완료',
+      '자격안됨',
+      '◎자격안됨(확인완료)',
+      '고객취소',
+      '홈택스가입불가',
       '▲경정청구기각'
     ];
 
@@ -2636,7 +2639,7 @@ function App() {
       c.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(c.id).includes(searchQuery) ||
       (c.birthDate && c.birthDate.replace(/-/g, '').includes(searchQuery.replace(/-/g, '')));
-    
+
     const matchesNationality = selectedNationality ? matchCountryName(c.nationality, selectedNationality) : true;
     const matchesRefundStatus = selectedRefundStatus ? c.refundStatus === selectedRefundStatus : true;
     const matchesManager = selectedManager ? c.managerName === selectedManager : true;
@@ -2704,14 +2707,14 @@ function App() {
     let matchesTab = true;
     if (selectedTab === 'inProgress') {
       const excludedStatuses = [
-        '♥경정청구완료', 
-        '♡국세수수료수납완료', 
-        '◆지방세수수료수납완료', 
-        '♠지방세수수료수납완료', 
-        '자격안됨', 
-        '◎자격안됨(확인완료)', 
-        '고객취소', 
-        '홈택스가입불가', 
+        '♥경정청구완료',
+        '♡국세수수료수납완료',
+        '◆지방세수수료수납완료',
+        '♠지방세수수료수납완료',
+        '자격안됨',
+        '◎자격안됨(확인완료)',
+        '고객취소',
+        '홈택스가입불가',
         '▲경정청구기각'
       ];
       matchesTab = !excludedStatuses.includes(c.refundStatus);
@@ -2875,7 +2878,7 @@ function App() {
                 <div>🛡️ 최고관리자여부: <strong style={{ color: (currentManager?.isAdmin || currentManager?.teamId === 1) ? '#4ade80' : '#f87171', fontSize: '13px' }}>{(currentManager?.isAdmin || currentManager?.teamId === 1) ? 'YES (슈퍼 관리자)' : 'NO (일반 담당자)'}</strong></div>
               </div>
             </div>
-            
+
             {/* 1. Customer List View */}
             {currentView === 'customer' && (
               <CustomerListView
@@ -3038,8 +3041,8 @@ function App() {
       )}
 
       {isHometaxExcelSyncModalOpen && (
-        <HometaxExcelSyncModal 
-          onClose={() => setIsHometaxExcelSyncModalOpen(false)} 
+        <HometaxExcelSyncModal
+          onClose={() => setIsHometaxExcelSyncModalOpen(false)}
           showToast={showToast}
           onSyncCompleted={() => {
             window.location.reload();
@@ -3065,8 +3068,8 @@ function App() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>제출자 구분</label>
-                  <select 
-                    className="form-control" 
+                  <select
+                    className="form-control"
                     style={{ width: '100%', height: '36px', fontSize: '13px' }}
                     value={hometaxSubmitter.submitterType}
                     onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, submitterType: e.target.value }))}
@@ -3078,8 +3081,8 @@ function App() {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginBottom: '4px' }}>귀속 연도</label>
-                  <select 
-                    className="form-control" 
+                  <select
+                    className="form-control"
                     style={{ width: '100%', height: '36px', fontSize: '13px' }}
                     value={hometaxSubmitter.targetYear}
                     onChange={(e) => setHometaxSubmitter((prev: any) => ({ ...prev, targetYear: e.target.value }))}

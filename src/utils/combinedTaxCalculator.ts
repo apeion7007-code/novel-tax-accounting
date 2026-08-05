@@ -8,12 +8,7 @@ function cleanNum(val: any): number {
 }
 
 import type { RegistrationForm } from '../types/tax';
-
-const deriveTaxableIncome = (calcTax: number): number => {
-  if (calcTax <= 840000) return calcTax / 0.06;
-  if (calcTax <= 6240000) return (calcTax + 1260000) / 0.15;
-  return (calcTax + 5760000) / 0.24;
-};
+import { getEarnedIncomeDeduction, getEarnedIncomeCredit, deriveTaxableIncome } from './taxCalculator';
 
 export interface CombinedRefundResult {
   wageFreeRefund: number;
@@ -117,7 +112,6 @@ export const calculateCombinedRefund = (
       let wageCalcTax = 0;
       let wagePaidTax = 0;
       let wagePaidLocalTax = 0;
-      let childDeduction = 0;
       let childReductionApply = 'Y';
 
       matchingWageDataList.forEach((yrData: any) => {
@@ -125,29 +119,38 @@ export const calculateCombinedRefund = (
         wageCalcTax += cleanNum(yrData.taxBase);
         wagePaidTax += origDecTax;
         wagePaidLocalTax += cleanNum(yrData.localTax) || Math.round(origDecTax * 0.1);
-        childDeduction += cleanNum(yrData.childDeduction);
         if (yrData.childReductionApply === 'N' || yrData.childReductionApply === '0') {
           childReductionApply = 'N';
         }
       });
 
       const wageTaxables = matchingWageDataList.map((y: any) => deriveTaxableIncome(cleanNum(y.taxBase)));
-      let originalTaxable = wageTaxables.reduce((a: number, b: number) => a + b, 0);
+      const originalTaxable = wageTaxables.reduce((a: number, b: number) => a + b, 0);
+
+      let totalDeductionsSum = 0;
+      matchingWageDataList.forEach((yrData: any) => {
+        const salary = cleanNum(yrData.salaryTotal);
+        const taxBase = cleanNum(yrData.taxBase);
+        if (taxBase > 0) {
+          const derivedTaxable = deriveTaxableIncome(taxBase);
+          const eDeduction = getEarnedIncomeDeduction(salary);
+          const eAmount = salary - eDeduction;
+          const deductions = Math.max(0, eAmount - derivedTaxable);
+          totalDeductionsSum += deductions;
+        } else {
+          // Estimate deductions for secondary job with taxBase 0
+          const deductions = 1500000 + salary * 0.041;
+          totalDeductionsSum += deductions;
+        }
+      });
+
+      const combinedDeductions = Math.max(0, totalDeductionsSum - 1500000);
 
       const totalSalary = matchingWageDataList.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
-      const primaryJob = [...matchingWageDataList].sort((a, b) => cleanNum(b.salaryTotal) - cleanNum(a.salaryTotal))[0];
-      const primarySalary = primaryJob ? cleanNum(primaryJob.salaryTotal) : 0;
-      if (primarySalary > 0 && totalSalary > primarySalary) {
-        originalTaxable = originalTaxable * (totalSalary / primarySalary);
-      }
+      const combinedEDeduction = getEarnedIncomeDeduction(totalSalary);
+      const combinedEAmount = totalSalary - combinedEDeduction;
 
-      const depCount = Number(regForm.dependentsCount) || 0;
-      const senCount = Number(regForm.seniorCount) || 0;
-      const disCount = Number(regForm.disabledCount) || 0;
-      const chCount = Number(regForm.childCount) || 0;
-
-      const extraIncomeDeduction = (depCount * 1500000) + (senCount * 1000000) + (disCount * 2000000);
-      const combinedTaxable = Math.max(0, originalTaxable - extraIncomeDeduction);
+      const combinedTaxable = Math.max(0, combinedEAmount - combinedDeductions);
 
       let combinedCalcTax = 0;
       if (combinedTaxable <= 14000000) {
@@ -164,32 +167,12 @@ export const calculateCombinedRefund = (
       const limit = yrNum >= 2023 ? 2000000 : 1500000;
       const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(combinedCalcTax * 0.9)) : 0;
 
-      const extraTaxReductionFromDeduction = Math.round(extraIncomeDeduction * 0.06);
+      const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt);
 
-      let extraChildTaxCredit = 0;
-      if (chCount > 0) {
-        if (yrNum >= 2024) {
-          if (chCount === 1) {
-            extraChildTaxCredit = 250000;
-          } else if (chCount === 2) {
-            extraChildTaxCredit = 550000;
-          } else {
-            extraChildTaxCredit = 550000 + (chCount - 2) * 400000;
-          }
-        } else {
-          if (chCount === 1) {
-            extraChildTaxCredit = 150000;
-          } else if (chCount === 2) {
-            extraChildTaxCredit = 300000;
-          } else {
-            extraChildTaxCredit = 300000 + (chCount - 2) * 300000;
-          }
-        }
-      }
+      const combinedChildDeduction = getEarnedIncomeCredit(combinedCalcTax, totalSalary);
+      const changedChildDeduction = combinedCalcTax > 0 ? Math.round(combinedChildDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
 
-       const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
-      const changedChildDeduction = childDeduction;
-      const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
+      const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction);
 
       let rentDeductionAmt = 0;
       if ((regForm.isMonthlyRent === 'ga' || regForm.isMonthlyRent === '가') && regForm.rentAllHouseholdsNoHouse === '가' && regForm.monthlyRentFee) {
@@ -225,7 +208,7 @@ export const calculateCombinedRefund = (
         originalCalcTax: wageCalcTax,
         originalDecisionTax: wagePaidTax,
         originalTaxable: Math.round(originalTaxable),
-        combinedTaxable: Math.round(Math.max(0, combinedTaxable - extraIncomeDeduction))
+        combinedTaxable: Math.round(combinedTaxable)
       };
     }
   }
@@ -275,7 +258,37 @@ export const calculateCombinedRefund = (
   });
 
   const freeIncome = cleanNum(freeData?.totalIncome);
-  const wageTaxable = deriveTaxableIncome(wageCalcTax);
+
+  let wageTaxable = 0;
+  if (matchingWageDataList.length > 1) {
+    let totalDeductionsSum = 0;
+    matchingWageDataList.forEach((yrData: any) => {
+      const salary = cleanNum(yrData.salaryTotal);
+      const taxBase = cleanNum(yrData.taxBase);
+      if (taxBase > 0) {
+        const derivedTaxable = deriveTaxableIncome(taxBase);
+        const eDeduction = getEarnedIncomeDeduction(salary);
+        const eAmount = salary - eDeduction;
+        const deductions = Math.max(0, eAmount - derivedTaxable);
+        totalDeductionsSum += deductions;
+      } else {
+        // Estimate deductions for secondary job with taxBase 0
+        const deductions = 1500000 + salary * 0.041;
+        totalDeductionsSum += deductions;
+      }
+    });
+
+    const combinedDeductions = Math.max(0, totalDeductionsSum - 1500000);
+
+    const totalSalary = matchingWageDataList.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
+    const combinedEDeduction = getEarnedIncomeDeduction(totalSalary);
+    const combinedEAmount = totalSalary - combinedEDeduction;
+
+    wageTaxable = Math.max(0, combinedEAmount - combinedDeductions);
+  } else {
+    wageTaxable = deriveTaxableIncome(wageCalcTax);
+  }
+
   const freeTaxable = freeIncome * 0.359;
   const combinedTaxable = wageTaxable + freeTaxable;
   
@@ -325,7 +338,15 @@ export const calculateCombinedRefund = (
 
   const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt - extraTaxReductionFromDeduction);
   
-  const changedChildDeduction = combinedCalcTax > 0 ? Math.round(childDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
+  let combinedChildDeduction = 0;
+  if (matchingWageDataList.length > 1) {
+    const totalSalary = matchingWageDataList.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
+    combinedChildDeduction = getEarnedIncomeCredit(combinedCalcTax, totalSalary);
+  } else {
+    combinedChildDeduction = childDeduction;
+  }
+
+  const changedChildDeduction = combinedCalcTax > 0 ? Math.round(combinedChildDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
 
   const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction - extraChildTaxCredit);
   

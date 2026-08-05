@@ -70,6 +70,7 @@ interface CustomerListViewProps {
   handleInlineCountryChange: (id: number, val: string) => void;
   handleInlineManagerChange: (id: number, val: string) => void;
   handleSaveRow: (id: number) => void;
+  tempInlineEdits?: Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>;
 
   // Tab controls
   selectedTab: 'all' | 'inProgress' | 'feeCompleted' | 'nextYear';
@@ -131,6 +132,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   handleInlineCountryChange,
   handleInlineManagerChange,
   handleSaveRow,
+  tempInlineEdits = {},
   selectedTab,
   setSelectedTab,
   countAll,
@@ -580,7 +582,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                           <select
                             className="select-sm"
                             style={{ fontSize: '11px', padding: '2px 2px', height: '26px', maxWidth: '75px' }}
-                            value={customer.nationality}
+                            value={tempInlineEdits[customer.id]?.nationality || customer.nationality}
                             onChange={(e) => handleInlineCountryChange(customer.id, e.target.value)}
                           >
                             {availableTeamList.map(n => <option key={n} value={n}>{n}</option>)}
@@ -588,7 +590,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                           <select
                             className="select-sm"
                             style={{ fontSize: '11px', padding: '2px 2px', height: '26px', maxWidth: '70px' }}
-                            value={customer.managerName}
+                            value={tempInlineEdits[customer.id]?.managerName || customer.managerName}
                             onChange={(e) => handleInlineManagerChange(customer.id, e.target.value)}
                           >
                             {availableManagerList.map(mName => <option key={mName} value={mName}>{mName}</option>)}

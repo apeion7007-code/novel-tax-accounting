@@ -95,6 +95,43 @@ export const calculateRentDeduction = (yrData: any, formObj: any) => {
   return Math.round(limitAmount * rate);
 };
 
+// Earned Income Deduction (근로소득공제)
+export const getEarnedIncomeDeduction = (salary: number): number => {
+  if (salary <= 5000000) return salary * 0.70;
+  if (salary <= 15000000) return 3500000 + (salary - 5000000) * 0.40;
+  if (salary <= 45000000) return 7500000 + (salary - 15000000) * 0.15;
+  if (salary <= 100000000) return 12000000 + (salary - 45000000) * 0.05;
+  return 14750000 + (salary - 100000000) * 0.02;
+};
+
+// Earned Income Tax Credit (근로소득세액공제)
+export const getEarnedIncomeCredit = (calcTax: number, salary: number): number => {
+  let baseCredit = 0;
+  if (calcTax <= 1300000) {
+    baseCredit = calcTax * 0.55;
+  } else {
+    baseCredit = 715000 + (calcTax - 1300000) * 0.30;
+  }
+
+  let limit = 740000;
+  if (salary <= 33000000) {
+    limit = 740000;
+  } else if (salary <= 70000000) {
+    limit = Math.max(660000, 740000 - (salary - 33000000) * 0.008);
+  } else {
+    limit = Math.max(500000, 660000 - (salary - 70000000) * 0.5);
+  }
+
+  return Math.min(baseCredit, limit);
+};
+
+// Income tax to taxable income inverse function
+export const deriveTaxableIncome = (calcTax: number): number => {
+  if (calcTax <= 840000) return calcTax / 0.06;
+  if (calcTax <= 6240000) return (calcTax + 1260000) / 0.15;
+  return (calcTax + 5760000) / 0.24;
+};
+
 // Pure tax calculator formula engine
 export const recalculateYearData = (
   yrData: any, 
@@ -108,6 +145,119 @@ export const recalculateYearData = (
   formObj?: any
 ) => {
   if (!yrData || (!yrData.active && !yrData.isFileUploaded)) return yrData;
+
+  const yrStr = String(yrData.year);
+  const sameYearWages = formObj?.years 
+    ? formObj.years.filter((y: any) => String(y.year) === yrStr && (y.active || y.isFileUploaded)) 
+    : [];
+
+  if (sameYearWages.length > 1) {
+    const sortedWages = [...sameYearWages].sort((a, b) => cleanNum(b.salaryTotal || b.netSalary) - cleanNum(a.salaryTotal || a.netSalary));
+    const isPrimary = sortedWages[0]?.id === yrData.id;
+
+    if (isPrimary) {
+      let wagePaidTax = 0;
+      let wagePaidLocalTax = 0;
+      let childReductionApply = 'Y';
+
+      sameYearWages.forEach((y: any) => {
+        const origDec = cleanNum(y.decisionTax || y.originalDeterminedTax);
+        wagePaidTax += origDec;
+        wagePaidLocalTax += cleanNum(y.localTax) || Math.round(origDec * 0.1);
+        if (y.childReductionApply === 'N' || y.childReductionApply === '0') {
+          childReductionApply = 'N';
+        }
+      });
+
+      let totalDeductionsSum = 0;
+      sameYearWages.forEach((y: any) => {
+        const salary = cleanNum(y.salaryTotal);
+        const taxBase = cleanNum(y.taxBase);
+        if (taxBase > 0) {
+          const derivedTaxable = deriveTaxableIncome(taxBase);
+          const eDeduction = getEarnedIncomeDeduction(salary);
+          const eAmount = salary - eDeduction;
+          const deductions = Math.max(0, eAmount - derivedTaxable);
+          totalDeductionsSum += deductions;
+        } else {
+          // Estimate deductions for secondary job with taxBase 0 (include health/pension approx)
+          const deductions = 1500000 + salary * 0.041;
+          totalDeductionsSum += deductions;
+        }
+      });
+
+      const combinedDeductions = Math.max(0, totalDeductionsSum - 1500000);
+
+      const totalSalary = sameYearWages.reduce((sum: number, y: any) => sum + cleanNum(y.salaryTotal), 0);
+      const combinedEDeduction = getEarnedIncomeDeduction(totalSalary);
+      const combinedEAmount = totalSalary - combinedEDeduction;
+
+      const combinedTaxable = Math.max(0, combinedEAmount - combinedDeductions);
+
+      let combinedCalcTax = 0;
+      if (combinedTaxable <= 14000000) {
+        combinedCalcTax = combinedTaxable * 0.06;
+      } else if (combinedTaxable <= 50000000) {
+        combinedCalcTax = combinedTaxable * 0.15 - 1260000;
+      } else {
+        combinedCalcTax = combinedTaxable * 0.24 - 5760000;
+      }
+      combinedCalcTax = Math.max(0, Math.round(combinedCalcTax));
+
+      const isReductionApplied = childReductionApply !== 'N' && childReductionApply !== '0';
+      const yrNum = Number(yrStr) || 0;
+      const limit = yrNum >= 2023 ? 2000000 : 1500000;
+      const reductionAmt = isReductionApplied ? Math.min(limit, Math.round(combinedCalcTax * 0.9)) : 0;
+
+      const remainingTaxAfterReduction = Math.max(0, combinedCalcTax - reductionAmt);
+
+      const combinedChildDeduction = getEarnedIncomeCredit(combinedCalcTax, totalSalary);
+      const changedChildDeduction = combinedCalcTax > 0 ? Math.round(combinedChildDeduction * (remainingTaxAfterReduction / combinedCalcTax)) : 0;
+
+      const combinedDecisionTax = Math.max(0, remainingTaxAfterReduction - changedChildDeduction);
+      const combinedLocalTax = Math.round(combinedDecisionTax * 0.1);
+
+      const isOverridden = Boolean(yrData.isRefundOverridden);
+      const refundNational = isOverridden ? Math.max(0, cleanNum(yrData.refundExpectNational)) : Math.max(0, wagePaidTax - combinedDecisionTax);
+      const refundLocal = isOverridden ? Math.max(0, cleanNum(yrData.refundExpectLocal)) : Math.max(0, wagePaidLocalTax - combinedLocalTax);
+      const courtFee = refundNational + refundLocal;
+      const expectedFee = Math.round(courtFee * (feeRate / 100));
+
+      return {
+        ...yrData,
+        childReductionApplyAmt: String(reductionAmt),
+        childDeductionApplyAmt: String(changedChildDeduction),
+        decisionTaxApplyAmt: String(combinedDecisionTax),
+        localTaxApplyAmt: String(combinedLocalTax),
+        decisionTaxRefundAmt: String(combinedDecisionTax + combinedLocalTax),
+        refundExpectNational: String(refundNational),
+        refundExpectLocal: String(refundLocal),
+        courtFee: String(courtFee),
+        expectedFeeAmt: String(expectedFee),
+        dependentRefundTotal: '0'
+      };
+    } else {
+      const isOverridden = Boolean(yrData.isRefundOverridden);
+      const refundNational = isOverridden ? Math.max(0, cleanNum(yrData.refundExpectNational)) : 0;
+      const refundLocal = isOverridden ? Math.max(0, cleanNum(yrData.refundExpectLocal)) : 0;
+      const courtFee = refundNational + refundLocal;
+      const expectedFee = Math.round(courtFee * (feeRate / 100));
+
+      return {
+        ...yrData,
+        childReductionApplyAmt: '0',
+        childDeductionApplyAmt: '0',
+        decisionTaxApplyAmt: '0',
+        localTaxApplyAmt: '0',
+        decisionTaxRefundAmt: '0',
+        refundExpectNational: String(refundNational),
+        refundExpectLocal: String(refundLocal),
+        courtFee: String(courtFee),
+        expectedFeeAmt: String(expectedFee),
+        dependentRefundTotal: '0'
+      };
+    }
+  }
 
   const eligibility = checkYouthEligibility(rrn, empDate);
 

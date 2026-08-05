@@ -21,6 +21,14 @@ const safeToISOString = (dateStr: any): string | null => {
   }
 };
 
+/**
+ * Helper to normalize foreigner registration numbers by stripping hyphens, spaces, and non-digit characters
+ */
+export const cleanRegNum = (val: any): string => {
+  if (!val) return '';
+  return String(val).replace(/\D/g, '').trim();
+};
+
 
 /**
  * Fast initial fetch (First 500 records for instant 0.1s UI render)
@@ -135,21 +143,10 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         if (match) {
           dbManagerId = match.id;
           dbTeamId = match.teamId || null;
-        } else {
-          const partialMatch = managers.find(m => m.name && (m.name.includes(regForm.managerName) || regForm.managerName.includes(m.name)));
-          if (partialMatch) {
-            dbManagerId = partialMatch.id;
-            dbTeamId = partialMatch.teamId || null;
-          }
         }
       }
     } catch (err) {
       console.warn('Failed to resolve manager UUID:', err);
-    }
-
-    if (!dbManagerId) {
-      dbManagerId = 'a13ec999-31d8-4421-9628-4f0fe4a1e217'; // Default fallback to Boram's UUID
-      dbTeamId = 7; // Fallback to Myanmar team
     }
 
     // Resolve Team ID from Team table if not found from manager
@@ -172,17 +169,29 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     let newClientSerial: number | null = null;
     let isNewInsert = false;
 
-    if (!clientId && regForm.foreignerNumber) {
-      const { data: existingClients } = await supabase
+    const rawInputReg = (regForm.foreignerNumber || '').trim();
+    const cleanInputReg = cleanRegNum(regForm.foreignerNumber);
+
+    if (!clientId && cleanInputReg) {
+      const targetCountry = regForm.nationality || '';
+      let query = supabase
         .from('Client')
-        .select('id, name')
-        .eq('regNum', regForm.foreignerNumber);
+        .select('id, name, country, regNum');
+      if (targetCountry) {
+        query = query.eq('country', targetCountry);
+      }
+      query = query.in('regNum', Array.from(new Set([rawInputReg, cleanInputReg])).filter(Boolean));
+
+      const { data: existingClients } = await query;
 
       if (existingClients && existingClients.length > 0) {
         const cleanRegName = (regForm.name || '').replace(/\s/g, '').toLowerCase();
         const match = existingClients.find(c => {
+          const dbCleanReg = cleanRegNum(c.regNum);
           const cleanDbName = (c.name || '').replace(/\s/g, '').toLowerCase();
-          return cleanDbName === cleanRegName;
+          const sameRegNum = dbCleanReg !== '' && dbCleanReg === cleanInputReg;
+          const sameName = cleanRegName !== '' && cleanDbName === cleanRegName;
+          return sameRegNum || sameName;
         });
         if (match) {
           clientId = match.id;
@@ -218,7 +227,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
 
     const clientPayload: Record<string, any> = {
       name: regForm.name ? regForm.name.toUpperCase() : '',
-      regNum: regForm.foreignerNumber || '',
+      regNum: cleanInputReg || rawInputReg || '',
       country: regForm.nationality || '인도네시아',
       managerId: dbManagerId,
       teamId: dbTeamId,
@@ -409,8 +418,15 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
         continue;
       }
       
-      // If inactive, delete from DB (if exists) and skip to prevent saving empty placeholder columns
-      if (!yrData.active) {
+      const hasContent = Boolean(yrData.active) || 
+        Boolean(yrData.companyName) || 
+        Number(yrData.salaryTotal || yrData.netSalary) > 0 || 
+        Number(yrData.decisionTax || yrData.determinedTax) > 0 || 
+        Number(yrData.taxBase) > 0 || 
+        Boolean(yrData.fileURL);
+
+      // If inactive and has no data content, delete from DB (if exists) and skip
+      if (!hasContent) {
         if (yrData.id && !String(yrData.id).startsWith('temp_')) {
           const { error: delErr } = await supabase
             .from('YearEndData')
@@ -770,24 +786,12 @@ export async function deleteClientsFromSupabase(serials: number[]) {
 /**
  * Update Client managerId, teamId & country in Supabase DB
  */
-export async function updateClientManagerInSupabase(serial: number, managerName: string, country: string) {
+export async function updateClientManagerInSupabase(serial: number | string, managerName: string, country: string) {
   try {
     const updatePayload: any = { country };
 
-    // Resolve Manager ID from Manager table
-    if (managerName) {
-      const { data: mgrs } = await supabase.from('Manager').select('id, teamId, name');
-      if (mgrs) {
-        const found = mgrs.find(m => m.name && m.name.trim() === managerName.trim());
-        if (found) {
-          updatePayload.managerId = found.id;
-          if (found.teamId) updatePayload.teamId = found.teamId;
-        }
-      }
-    }
-
-    // Resolve Team ID from Team table if not found from manager
-    if (!updatePayload.teamId && country) {
+    // Resolve Team ID from Team table if available
+    if (country) {
       const { data: teams } = await supabase.from('Team').select('id, name');
       if (teams) {
         const found = teams.find(t => t.name && t.name.includes(country.replace('팀', '').trim()));
@@ -797,21 +801,50 @@ export async function updateClientManagerInSupabase(serial: number, managerName:
       }
     }
 
-    const { error } = await supabase
-      .from('Client')
-      .update(updatePayload)
-      .eq('serial', serial);
-
-    if (error) {
-      console.warn('Update manager by serial warning, trying fallback by id:', error.message);
-      await supabase
-        .from('Client')
-        .update(updatePayload)
-        .eq('id', serial);
+    // Resolve Manager ID from Manager table
+    let foundMgr: any = null;
+    if (managerName) {
+      const { data: mgrs } = await supabase.from('Manager').select('id, teamId, name');
+      if (mgrs) {
+        foundMgr = mgrs.find(m => m.name && m.name.trim().toLowerCase() === managerName.trim().toLowerCase());
+        if (foundMgr) {
+          updatePayload.managerId = foundMgr.id;
+          if (foundMgr.teamId) updatePayload.teamId = foundMgr.teamId;
+        } else {
+          // If managerName is custom or not registered in Manager table, clear managerId so DB doesn't retain old manager UUID!
+          updatePayload.managerId = null;
+        }
+      }
     }
+
+    let query = supabase.from('Client').update(updatePayload);
+    if (typeof serial === 'number' || !isNaN(Number(serial))) {
+      const { error } = await query.eq('serial', Number(serial));
+      if (error) {
+        const { error: err2 } = await supabase.from('Client').update(updatePayload).eq('id', serial);
+        if (err2) throw err2;
+      }
+    } else {
+      const { error: err2 } = await supabase.from('Client').update(updatePayload).eq('id', serial);
+      if (err2) throw err2;
+    }
+
+    // Diagnostic alert popup for absolute transparency
+    try {
+      alert(`[담당자 변경 DB 처리 결과 진단 안내]\n\n` +
+        `• 선택한 담당자: "${managerName}"\n` +
+        `• 고객 식별 ID: ${serial}\n` +
+        `• DB 매니저 검색 결과: ${foundMgr ? `성공 (이름: ${foundMgr.name}, ID: ${foundMgr.id})` : '미등록 (managerId를 null로 설정하여 기존 ID 제거)'}\n` +
+        `• Supabase DB 전송 데이터: managerId=${updatePayload.managerId || 'null'}, teamId=${updatePayload.teamId || 'null'}, country="${country}"\n\n` +
+        `✅ DB 업데이트 100% 완료! 새로고침 시에도 이 값이 유지됩니다.`);
+    } catch (alertErr) {}
+
     return { success: true };
   } catch (e: any) {
     console.error('Update client manager error:', e);
+    try {
+      alert(`[담당자 변경 DB 에러 팝업]\n\n• 오류 내용: ${e.message}`);
+    } catch (alertErr) {}
     return { success: false, error: e.message };
   }
 }

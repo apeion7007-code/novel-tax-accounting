@@ -150,8 +150,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
             <span 
               onClick={() => {
-                setTempModalTeam(regForm.nationality || '미얀마');
-                setTempModalManager(regForm.managerName || 'Boram');
+                setTempModalTeam(regForm.nationality || '베트남');
+                setTempModalManager(regForm.managerName || '관리자');
                 setIsManagerModalOpen(true);
               }}
               title="클릭하여 담당 팀 및 매니저 변경"
@@ -173,7 +173,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
             >
-              {regForm.nationality || '미얀마'}팀 {regForm.managerName || 'Boram'}
+              {regForm.nationality ? `${regForm.nationality}팀` : '전체팀'} {regForm.managerName || '관리자'}
               <span style={{ fontSize: '11px', opacity: 0.9 }}>✏️</span>
             </span>
 

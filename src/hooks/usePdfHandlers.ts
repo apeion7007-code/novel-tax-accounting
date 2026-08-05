@@ -287,7 +287,7 @@ export function usePdfHandlers(
               selectedFeeRate,
               newRrn,
               newEmpDate,
-              prev
+              { ...prev, years: updatedYears }
             );
           }
           return yrData;
@@ -401,7 +401,7 @@ export function usePdfHandlers(
                 selectedFeeRate,
                 newRrn,
                 newEmpDate,
-                prev
+                { ...prev, years: updatedYears }
               );
             }
             return yrData;
@@ -555,7 +555,7 @@ export function usePdfHandlers(
               selectedFeeRate,
               prev.foreignerNumber,
               prev.residentAddress,
-              prev
+              { ...prev, years: updatedYears }
             );
           }
           return yrData;
@@ -726,7 +726,7 @@ export function usePdfHandlers(
                   selectedFeeRate,
                   newRrn,
                   newEmpDate,
-                  prev
+                  { ...prev, years: updatedYears }
                 );
               }
               return yrData;

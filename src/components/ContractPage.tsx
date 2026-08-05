@@ -7,7 +7,7 @@ interface ContractPageProps {
   onBackToLogin?: () => void;
 }
 
-const CONTRACT_LANG_CODES: Record<string, string> = {
+export const CONTRACT_LANG_CODES: Record<string, string> = {
   '한국어': 'KO',
   '베트남어': 'VN',
   '인도네시아어': 'ID',
@@ -24,7 +24,7 @@ const CONTRACT_LANG_CODES: Record<string, string> = {
   '영어': 'EN'
 };
 
-const CONTRACT_TRANSLATIONS: Record<string, Record<string, string>> = {
+export const CONTRACT_TRANSLATIONS: Record<string, Record<string, string>> = {
   '한국어': {
     title: '세무 경정 청구 표준계약서',
     subtitle: '본 계약은 세무회계 위임 고객님과 세무법인 노벨세무회계 간의 경정청구 대행 약정서입니다.',

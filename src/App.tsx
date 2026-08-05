@@ -39,7 +39,8 @@ import {
   deleteManagerInSupabase,
   createManagerInSupabase,
   deleteClientsFromSupabase,
-  updateClientManagerInSupabase
+  updateClientManagerInSupabase,
+  cleanRegNum
 } from './utils/supabaseClient';
 import { calculateCombinedRefund } from './utils/combinedTaxCalculator';
 
@@ -154,7 +155,7 @@ function App() {
   const [currentManager, setCurrentManager] = useState<any>(null);
   
   // Country URL routing state
-  const [pathCountry, setPathCountry] = useState<string>('미얀마');
+  const [pathCountry, setPathCountry] = useState<string>(() => getCountryFromPath([]) || 'ALL');
 
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract'>('customer');
@@ -397,26 +398,24 @@ function App() {
     return Array.from(teams).filter(Boolean);
   }, [dbTeams, customers]);
 
-  // Dynamic All Available Managers List (Combining DB staff managers, default managers, and customer managers)
+  // Dynamic All Available Managers List (Loaded strictly from Supabase DB Manager table)
   const availableManagerList = useMemo(() => {
     const names = new Set<string>();
     if (dbManagers && dbManagers.length > 0) {
-      dbManagers.forEach(m => { if (m && m.name) names.add(m.name.trim()); });
+      dbManagers.forEach(m => { if (m && m.name && m.name.trim()) names.add(m.name.trim()); });
     }
-    ['Boram', 'Jennie', '사이풀', 'Gaby', 'Linh', '소피아', '레누카', '아드난', '디노라', '안토', '한지윤', '이두원', '사공지희', '원호아', '예리', '마두', '게렐', 'Inosha'].forEach(n => names.add(n));
-    if (customers && customers.length > 0) {
-      customers.forEach(c => { if (c && c.managerName) names.add(c.managerName.trim()); });
-    }
-    return Array.from(names).filter(Boolean);
-  }, [dbManagers, customers]);
+    return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko-KR'));
+  }, [dbManagers]);
 
   const currentManagerCountry = useMemo(() => {
     if (!currentManager) return null;
-    // 이메일이 admin@novel.com이거나, isAdmin 플래그가 true이거나, 소속 팀ID가 1(관리자팀)인 경우 ALL 권한 부여
+    // 이메일이 admin@novel.com이거나, isAdmin 플래그가 true이거나, 소속 팀ID가 1(관리자팀)이거나 이름에 '관리자'/'admin'이 포함된 경우 ALL 권한 부여
     if (
       currentManager.email === 'admin@novel.com' || 
       currentManager.isAdmin || 
-      currentManager.teamId === 1
+      currentManager.teamId === 1 ||
+      (currentManager.name && (currentManager.name.includes('관리자') || currentManager.name.toLowerCase().includes('admin'))) ||
+      (currentManager.email && currentManager.email.toLowerCase().includes('admin'))
     ) {
       return 'ALL';
     }
@@ -796,12 +795,13 @@ function App() {
 
           if (!managerErr && managerData) {
             if (managerData.isConfirmed) {
-              setIsLoggedIn(true);
-              setCurrentManager({
+              const effectiveManager = {
                 ...managerData,
                 email: session.user.email
-              });
-              setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
+              };
+
+              setIsLoggedIn(true);
+              setCurrentManager(effectiveManager);
             } else {
               showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
               await supabase.auth.signOut();
@@ -836,12 +836,13 @@ function App() {
 
         if (managerData) {
           if (managerData.isConfirmed) {
-            setIsLoggedIn(true);
-            setCurrentManager({
+            const effectiveManager = {
               ...managerData,
               email: session.user.email
-            });
-            setRegForm(prev => ({ ...prev, managerName: managerData.name || 'Boram' }));
+            };
+
+            setIsLoggedIn(true);
+            setCurrentManager(effectiveManager);
           } else {
             showToast('가입 승인 대기 중입니다. 관리자의 승인을 기다려주세요.', 'error');
             await supabase.auth.signOut();
@@ -891,7 +892,7 @@ function App() {
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
               : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
-            const resolvedMgr = mgrMap.get(c.managerId) || c.managerName || (nat === '미얀마' ? 'Boram' : nat === '베트남' ? 'Linh' : nat === '네팔' ? '레누카' : nat === '방글라데시' ? '사이풀' : nat === '필리핀' ? 'Jennie' : 'Gaby');
+            const resolvedMgr = c.managerName || (c.managerId ? mgrMap.get(c.managerId) : '') || '관리자';
 
             return {
               id: c.serial || (25000 + idx),
@@ -942,7 +943,7 @@ function App() {
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
               : (cleanTeamName !== '관리자' && cleanTeamName !== '' ? cleanTeamName : '인도네시아');
-            const resolvedMgr = mgrMap.get(c.managerId) || c.managerName || (nat === '미얀마' ? 'Boram' : nat === '베트남' ? 'Linh' : nat === '네팔' ? '레누카' : nat === '방글라데시' ? '사이풀' : nat === '필리핀' ? 'Jennie' : 'Gaby');
+            const resolvedMgr = c.managerName || (c.managerId ? mgrMap.get(c.managerId) : '') || '관리자';
 
             return {
               id: c.serial || (25000 + idx),
@@ -978,6 +979,16 @@ function App() {
     }
     loadSupabaseData();
   }, [isLoggedIn]);
+
+  // Sync URL path country code to pathCountry state dynamically
+  useEffect(() => {
+    const resolvedCountry = getCountryFromPath(dbTeams);
+    if (resolvedCountry) {
+      setPathCountry(resolvedCountry);
+    } else {
+      setPathCountry('ALL');
+    }
+  }, [dbTeams, window.location.pathname]);
 
   // SmeModal States for company details
 
@@ -1696,20 +1707,31 @@ function App() {
     }
   }, [toast]);
 
-  // Sync Manager Countries
-  const handleInlineManagerChange = (customerId: number, managerName: string) => {
+  // Sync Manager Countries and save immediately to DB
+  const handleInlineManagerChange = async (customerId: number, managerName: string) => {
+    const customer = customers.find(c => c.id === customerId);
     const dbMgr = dbManagers.find(m => m.name === managerName);
     const matchedTeam = dbTeams.find(t => t.id === dbMgr?.teamId);
-    const matchedCountry = matchedTeam?.name || '';
+    const matchedCountry = matchedTeam?.name ? matchedTeam.name.replace(/팀$/, '').trim() : (customer ? customer.nationality : '베트남');
 
-    setTempInlineEdits(prev => ({
-      ...prev,
-      [customerId]: {
-        ...prev[customerId],
-        managerName,
-        ...(matchedCountry ? { managerCountry: matchedCountry } : {})
-      }
-    }));
+    setCustomers(prev =>
+      prev.map(c =>
+        c.id === customerId
+          ? {
+              ...c,
+              managerName,
+              nationality: matchedCountry,
+              managerCountry: matchedCountry
+            }
+          : c
+      )
+    );
+
+    const targetId = customer?.uuid || customerId;
+    const res = await updateClientManagerInSupabase(targetId, managerName, matchedCountry);
+    if (res.success) {
+      showToast(`${customer?.name || '고객'}님의 담당자(${managerName})가 DB에 성공적으로 저장되었습니다!`, 'success');
+    }
   };
 
   const handleInlineCountryChange = (customerId: number, nationality: string) => {
@@ -1758,43 +1780,63 @@ function App() {
 
   const handleOpenCustomerRegistration = async (customer: Customer) => {
     try {
+      // 1. Immediately purge old consult memos state to prevent lingering memo leakage during loading
+      setConsultMemos([]);
+
       showToast(`${customer.name || '고객'} 님의 상세 정보를 불러오는 중입니다...`, 'info');
 
-      // Query Client records using multiple matching strategies to handle duplicate/legacy entries in Supabase
+      // 2. Query Client record strictly using UUID / serial direct 1:1 targeting
       let clientRecords: any[] = [];
-      if (customer.id) {
-        const { data } = await supabase
-          .from('Client')
-          .select('*')
-          .eq('serial', customer.id);
+      const targetCountry = customer.nationality || (currentManagerCountry !== 'ALL' ? currentManagerCountry : null);
+
+      if (customer.uuid) {
+        let query = supabase.from('Client').select('*').eq('id', customer.uuid);
+        const { data } = await query;
+        if (data && data.length > 0) clientRecords = data;
+      }
+
+      if (clientRecords.length === 0 && customer.id) {
+        let query = supabase.from('Client').select('*').eq('serial', customer.id);
+        const { data } = await query;
         if (data && data.length > 0) clientRecords = data;
       }
 
       if (clientRecords.length === 0 && customer.birthDate) {
-        const { data } = await supabase
-          .from('Client')
-          .select('*')
-          .eq('regNum', customer.birthDate);
-        if (data && data.length > 0) clientRecords = data;
+        const rawBirth = String(customer.birthDate).trim();
+        const cleanBirth = cleanRegNum(customer.birthDate);
+        const searchTargets = Array.from(new Set([rawBirth, cleanBirth])).filter(Boolean);
+
+        let query = supabase.from('Client').select('*').in('regNum', searchTargets);
+        if (targetCountry) query = query.eq('country', targetCountry);
+        const { data } = await query;
+        if (data && data.length > 0) {
+          const matched = data.filter(c => cleanRegNum(c.regNum) === cleanBirth || c.regNum === rawBirth);
+          if (matched.length > 0) clientRecords = matched;
+        }
       }
 
       if (clientRecords.length === 0 && customer.name) {
-        const { data } = await supabase
-          .from('Client')
-          .select('*')
-          .ilike('name', `%${customer.name.trim()}%`);
+        let query = supabase.from('Client').select('*').ilike('name', `%${customer.name.trim()}%`);
+        if (targetCountry) query = query.eq('country', targetCountry);
+        const { data } = await query;
         if (data && data.length > 0) clientRecords = data;
       }
 
+      // Filter clientRecords strictly by country if specified
+      if (targetCountry) {
+        const countryMatched = clientRecords.filter(c => !c.country || c.country === targetCountry);
+        if (countryMatched.length > 0) clientRecords = countryMatched;
+      }
+
       const clientDetails = clientRecords[0] || null;
-      const clientIds = clientRecords.map(c => c.id).filter(Boolean);
+      // Isolate strictly to the single selected client's UUID to prevent multi-client data leakage
+      const targetClientUuid = clientDetails?.id || customer.uuid;
+      const clientIds = targetClientUuid ? [targetClientUuid] : [];
 
       const customerNat = clientDetails?.country || customer.nationality;
       if (customerNat && currentManagerCountry && currentManagerCountry !== 'ALL' && customerNat !== currentManagerCountry) {
-        const confirmAccess = window.confirm(`⚠️ 이 고객은 [${customerNat}팀] 고객입니다. 귀하는 [${currentManagerCountry}팀] 매니저입니다. 계속해서 이 고객의 상세 정보를 조회/수정하시겠습니까?`);
-        if (!confirmAccess) {
-          return;
-        }
+        showToast(`⚠️ 접근 차단: 이 고객은 [${customerNat}팀] 소속입니다. [${currentManagerCountry}팀] 전용 화면에서는 조회가 불가합니다.`, 'error');
+        return;
       }
 
       let yearRecords: any[] = [];
@@ -1806,19 +1848,35 @@ function App() {
         if (yData && yData.length > 0) yearRecords = yData;
       }
 
-      // Fetch ConsultMemo logs for this client
+      // Fetch ConsultMemo logs strictly for this client's unique UUID
       let consultMemosList: any[] = [];
-      if (clientDetails?.id) {
+      if (targetClientUuid) {
         const { data: memoData, error: memoErr } = await supabase
           .from('ConsultMemo')
           .select('*')
-          .eq('clientId', clientDetails.id)
+          .eq('clientId', targetClientUuid)
           .order('createdAt', { ascending: false });
         if (!memoErr && memoData) {
           consultMemosList = memoData;
         }
       }
       setConsultMemos(consultMemosList);
+
+      const premappedYears = yearRecords.filter(y => !y.freelancerActive).map(y => {
+        const totalSal = y.netSalary || y.netSalaryFromReceipt || y.netSalaryFromAllCompany || 0;
+        return {
+          id: String(y.id),
+          year: String(y.year),
+          active: Boolean(y.companyName || totalSal > 0 || y.determinedTax > 0 || y.fileURL),
+          salaryTotal: totalSal,
+          taxBase: y.calculatedTax || 0,
+          decisionTax: y.determinedTax || 0,
+          localTax: y.localTax || 0,
+          childDeduction: y.childDeduction || 0,
+          childReductionApply: y.childReductionApply || 'Y',
+          childReductionApplyAmt: y.childReductionApplyAmt || 0
+        };
+      });
 
       const loadedYearsList: any[] = [];
       const loadedYearsSet = new Set<string>();
@@ -1903,7 +1961,8 @@ function App() {
           dependentsCount: Number(clientDetails?.dependentsCount) || 0,
           seniorCount: Number(clientDetails?.seniorCount) || 0,
           disabledCount: Number(clientDetails?.disabledCount) || 0,
-          childCount: Number(clientDetails?.childCount) || 0
+          childCount: Number(clientDetails?.childCount) || 0,
+          years: premappedYears
         };
 
         const yrDep = rawYrData.dependentsCount !== undefined ? rawYrData.dependentsCount : (Number(clientDetails?.dependentsCount) || 0);
@@ -1929,7 +1988,34 @@ function App() {
         const savedNat = Number(totalRef) || 0;
         const savedLoc = Number(localRef) || 0;
 
-        if (calcNat !== savedNat || calcLoc !== savedLoc) {
+        const sameYearWagesCount = premappedYears.filter(y => String(y.year) === String(rawYrData.year) && y.active).length;
+
+        // Calculate old single-job refund for comparison to check if DB has old incorrect defaults
+        const oldSingleForm = { ...tempRegForm, years: [rawYrData] };
+        const singleCalculated = recalculateYearData(
+          rawYrData,
+          yrDep,
+          yrSen,
+          yrDis,
+          yrChild,
+          selectedFeeRate,
+          clientDetails?.regNum || '',
+          clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
+          oldSingleForm
+        );
+        const oldSingleNat = Number(singleCalculated.refundExpectNational) || 0;
+
+        let shouldOverride = false;
+        if (sameYearWagesCount <= 1) {
+          shouldOverride = (calcNat !== savedNat || calcLoc !== savedLoc);
+        } else {
+          const isOldSingleJobDefault = Math.abs(savedNat - oldSingleNat) <= 100;
+          if (!isOldSingleJobDefault && (calcNat !== savedNat || calcLoc !== savedLoc)) {
+            shouldOverride = true;
+          }
+        }
+
+        if (shouldOverride) {
           rawYrData.isRefundOverridden = true;
           rawYrData.refundExpectNational = savedNat;
           rawYrData.refundExpectLocal = savedLoc;
@@ -2045,7 +2131,7 @@ function App() {
         name: clientDetails?.name || customer.name,
         foreignerNumber: clientDetails?.regNum || customer.birthDate,
         nationality: clientDetails?.country || customer.nationality,
-        managerName: customer.managerName || 'Boram',
+        managerName: customer.managerName || (clientDetails?.managerId ? dbManagers.find(m => m.id === clientDetails.managerId)?.name : '') || clientDetails?.managerName || '관리자',
         phone: clientDetails?.phone || '',
         telecom: clientDetails?.phoneComp || clientDetails?.phoneCompany || 'KT',
         visaType: clientDetails?.visa || customer.visa,
@@ -2104,6 +2190,9 @@ function App() {
         consentStatus: clientDetails?.consentStatus || '대기',
         arcImageUrl: clientDetails?.arcImageUrl || '',
         signatureImageUrl: clientDetails?.signatureImageUrl || '',
+        contractStatus: clientDetails?.contractStatus || '대기',
+        contractSignatureUrl: clientDetails?.contractSignatureUrl || '',
+        contractConsentDate: clientDetails?.contractConsentDate || null,
         isNextYearApply: clientDetails?.isNextYearApply || false,
         years: yearsObj,
         freelancerYears: freelancerYearsObj
@@ -2144,7 +2233,7 @@ function App() {
       setPathCountry(parsedCountry);
     }
 
-    if (currentManagerCountry && currentManagerCountry !== 'ALL' && parsedCountry !== currentManagerCountry) {
+    if (!currentManager?.isAdmin && currentManager?.teamId !== 1 && currentManagerCountry && currentManagerCountry !== 'ALL' && parsedCountry !== currentManagerCountry) {
       if (parsedCountry === 'ALL') {
         alert('⚠️ 귀하는 전체 고객 정보를 조회할 권한이 없습니다.');
         const code = getCodeFromCountry(dbTeams, currentManagerCountry);
@@ -2497,10 +2586,17 @@ function App() {
       '▲경정청구기각'
     ];
 
+    const matchCountryName = (countryA?: string, countryB?: string): boolean => {
+      if (!countryA || !countryB) return false;
+      const cleanA = countryA.replace(/팀$/, '').trim().toLowerCase();
+      const cleanB = countryB.replace(/팀$/, '').trim().toLowerCase();
+      return cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA);
+    };
+
     customers.forEach(c => {
       const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
       const matchesManagerCountry = activeCountryFilter
-        ? c.nationality === activeCountryFilter
+        ? matchCountryName(c.nationality, activeCountryFilter)
         : true;
       if (!matchesManagerCountry) return;
 
@@ -2519,11 +2615,18 @@ function App() {
     return { all, inProgress, feeCompleted, nextYear };
   }, [customers, pathCountry]);
 
+  const matchCountryName = (countryA?: string, countryB?: string): boolean => {
+    if (!countryA || !countryB) return false;
+    const cleanA = countryA.replace(/팀$/, '').trim().toLowerCase();
+    const cleanB = countryB.replace(/팀$/, '').trim().toLowerCase();
+    return cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA);
+  };
+
   const filteredCustomers = customers.filter(c => {
     // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
     const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
     const matchesManagerCountry = activeCountryFilter
-      ? c.nationality === activeCountryFilter
+      ? matchCountryName(c.nationality, activeCountryFilter)
       : true;
 
     if (!matchesManagerCountry) return false;
@@ -2534,7 +2637,7 @@ function App() {
       String(c.id).includes(searchQuery) ||
       (c.birthDate && c.birthDate.replace(/-/g, '').includes(searchQuery.replace(/-/g, '')));
     
-    const matchesNationality = selectedNationality ? c.nationality === selectedNationality : true;
+    const matchesNationality = selectedNationality ? matchCountryName(c.nationality, selectedNationality) : true;
     const matchesRefundStatus = selectedRefundStatus ? c.refundStatus === selectedRefundStatus : true;
     const matchesManager = selectedManager ? c.managerName === selectedManager : true;
 
@@ -2758,6 +2861,20 @@ function App() {
 
           {/* Main Workspace */}
           <main className="main-content">
+
+            {/* 🔍 REAL-TIME DIAGNOSTIC TRACKER BANNER */}
+            <div style={{ backgroundColor: '#0f172a', color: '#38bdf8', padding: '12px 18px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', border: '1px solid #0284c7', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+              <div style={{ fontWeight: 'bold', color: '#ffffff', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>🔍 [실시간 상태 진단 모니터] 세션 & 담당자 상태 실시간 추적</span>
+                <span style={{ color: '#c084fc', backgroundColor: '#3b0764', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' }}>URL 경로: {window.location.pathname}</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', fontSize: '12px', backgroundColor: '#1e293b', padding: '10px', borderRadius: '6px', border: '1px solid #334155' }}>
+                <div>🔑 로그인계정: <strong style={{ color: '#facc15', fontSize: '13px' }}>{currentManager?.name || '미인증'}</strong></div>
+                <div>🏢 접속팀소속: <strong style={{ color: '#4ade80', fontSize: '13px' }}>{currentManagerCountry} (Team ID: {currentManager?.teamId ?? '없음'})</strong></div>
+                <div>🌐 브라우저URL국적: <strong style={{ color: '#f472b6', fontSize: '13px' }}>{pathCountry}</strong></div>
+                <div>🛡️ 최고관리자여부: <strong style={{ color: (currentManager?.isAdmin || currentManager?.teamId === 1) ? '#4ade80' : '#f87171', fontSize: '13px' }}>{(currentManager?.isAdmin || currentManager?.teamId === 1) ? 'YES (슈퍼 관리자)' : 'NO (일반 담당자)'}</strong></div>
+              </div>
+            </div>
             
             {/* 1. Customer List View */}
             {currentView === 'customer' && (
@@ -2818,6 +2935,7 @@ function App() {
                 handleInlineCountryChange={handleInlineCountryChange}
                 handleInlineManagerChange={handleInlineManagerChange}
                 handleSaveRow={handleSaveRow}
+                tempInlineEdits={tempInlineEdits}
               />
             )}
 

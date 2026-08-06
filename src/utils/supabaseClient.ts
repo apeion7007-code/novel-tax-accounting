@@ -29,6 +29,17 @@ export const cleanRegNum = (val: any): string => {
   return String(val).replace(/\D/g, '').trim();
 };
 
+/**
+ * Helper to format foreigner registration numbers with hyphens (e.g. 890528-5580013)
+ */
+export const formatForeignerNumber = (val: any): string => {
+  if (!val) return '';
+  const cleaned = String(val).replace(/\D/g, '').slice(0, 13);
+  if (cleaned.length <= 6) return cleaned;
+  return `${cleaned.slice(0, 6)}-${cleaned.slice(6)}`;
+};
+
+
 
 /**
  * Fast initial fetch (First 500 records for instant 0.1s UI render)

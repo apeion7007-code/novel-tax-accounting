@@ -40,7 +40,8 @@ import {
   createManagerInSupabase,
   deleteClientsFromSupabase,
   updateClientManagerInSupabase,
-  cleanRegNum
+  cleanRegNum,
+  formatForeignerNumber
 } from './utils/supabaseClient';
 import { calculateCombinedRefund } from './utils/combinedTaxCalculator';
 
@@ -566,7 +567,7 @@ function App() {
           consentStatus: c.consentStatus || '대기',
           name: c.name || '',
           regNum: c.regNum || '',
-          foreignerNumber: c.regNum || '',
+          foreignerNumber: formatForeignerNumber(c.regNum || ''),
           nationality: c.country || '',
           isMonthlyRent: c.isMonthlyTenant ? '가' : '부',
           landlordName: c.landlordName || '',
@@ -902,14 +903,14 @@ function App() {
               name: c.name || '미상',
               birthDate: c.regNum || '-',
               visa: c.visa || 'E9',
-              companyName: c.company || '-',
+              companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
-              managerCountry: nat,
+              managerCountry: (cleanTeamName && cleanTeamName !== '관리자' && cleanTeamName !== '') ? cleanTeamName : nat,
               managerName: resolvedMgr,
               phone: c.phone || '',
               consentStatus: c.consentStatus || '대기',
@@ -953,14 +954,14 @@ function App() {
               name: c.name || '미상',
               birthDate: c.regNum || '-',
               visa: c.visa || 'E9',
-              companyName: c.company || '-',
+              companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
-              managerCountry: nat,
+              managerCountry: (cleanTeamName && cleanTeamName !== '관리자' && cleanTeamName !== '') ? cleanTeamName : nat,
               managerName: resolvedMgr,
               phone: c.phone || '',
               consentStatus: c.consentStatus || '대기',
@@ -2126,7 +2127,7 @@ function App() {
         clientId: clientDetails?.id || '',
         serial: clientDetails?.serial || customer.id || 0,
         name: clientDetails?.name || customer.name,
-        foreignerNumber: clientDetails?.regNum || customer.birthDate,
+        foreignerNumber: formatForeignerNumber(clientDetails?.regNum || customer.birthDate || ''),
         nationality: clientDetails?.country || customer.nationality,
         managerName: (clientDetails?.managerId ? dbManagers.find(m => m.id === clientDetails.managerId)?.name : '') || customer.managerName || clientDetails?.managerName || '관리자',
         phone: clientDetails?.phone || '',
@@ -2203,7 +2204,7 @@ function App() {
       setRegForm(prev => ({
         ...prev,
         name: customer.name,
-        foreignerNumber: customer.birthDate,
+        foreignerNumber: formatForeignerNumber(customer.birthDate || ''),
         nationality: customer.nationality,
         visaType: customer.visa,
       }));
@@ -2402,7 +2403,7 @@ function App() {
           registeredDate: formattedDate,
           nationality: regForm.nationality,
           name: regForm.name.toUpperCase(),
-          birthDate: regForm.foreignerNumber,
+          birthDate: formatForeignerNumber(regForm.foreignerNumber),
           visa: regForm.visaType,
           companyName: companyName,
           refundStatus: regForm.refundStatus,
@@ -2599,7 +2600,7 @@ function App() {
     customers.forEach(c => {
       const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
       const matchesManagerCountry = activeCountryFilter
-        ? matchCountryName(c.nationality, activeCountryFilter)
+        ? (matchCountryName(c.managerCountry, activeCountryFilter) || matchCountryName(c.nationality, activeCountryFilter))
         : true;
       if (!matchesManagerCountry) return;
 
@@ -2629,7 +2630,7 @@ function App() {
     // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
     const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
     const matchesManagerCountry = activeCountryFilter
-      ? matchCountryName(c.nationality, activeCountryFilter)
+      ? (matchCountryName(c.managerCountry, activeCountryFilter) || matchCountryName(c.nationality, activeCountryFilter))
       : true;
 
     if (!matchesManagerCountry) return false;

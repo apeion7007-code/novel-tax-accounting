@@ -1,5 +1,6 @@
 import React from 'react';
 import { RentDeductionForm } from './RentDeductionForm';
+import { formatForeignerNumber } from '../../utils/supabaseClient';
 
 interface CustomerBasicInfoFormProps {
   regForm: any;
@@ -52,7 +53,15 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
               <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.name} onChange={(e) => setRegForm((prev: any) => ({ ...prev, name: e.target.value }))} placeholder="이름 입력" />
             </td>
             <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-              <input type="text" className="form-control" style={{ fontSize: '13px', height: '32px' }} value={regForm.foreignerNumber} onChange={(e) => setRegForm((prev: any) => ({ ...prev, foreignerNumber: e.target.value }))} placeholder="890528-5580013" />
+              <input 
+                type="text" 
+                className="form-control" 
+                style={{ fontSize: '13px', height: '32px' }} 
+                value={formatForeignerNumber(regForm.foreignerNumber)} 
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, foreignerNumber: formatForeignerNumber(e.target.value) }))} 
+                placeholder="890528-5580013" 
+                maxLength={14}
+              />
             </td>
             <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
               <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.nationality} onChange={(e) => setRegForm((prev: any) => ({ ...prev, nationality: e.target.value }))}>

@@ -517,21 +517,6 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                 </tr>
               ) : (
                 displayedCustomers.map((customer) => {
-                  const formatStatusIcon = (status: string | undefined | null) => {
-                    if (!status || status === '-' || status.trim() === '') return '-';
-                    let clean = status.replace(/^[◎※◇▲♥◎]\s*/, '').trim();
-
-                    if (clean.startsWith('⏱️') || clean.startsWith('◆') || clean.startsWith('✔')) {
-                      return clean;
-                    }
-
-                    if (clean.includes('녹취계약') || clean.includes('우편발송') || clean.includes('모바일') || clean.includes('완료') || clean.includes('서류완료')) {
-                      return `◆${clean}`;
-                    }
-
-                    return `⏱️${clean}`;
-                  };
-
                   return (
                     <tr key={customer.id} onDoubleClick={() => handleOpenCustomerRegistration(customer)} style={{ cursor: 'pointer' }}>
                       <td>{customer.id}</td>
@@ -560,18 +545,14 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
                       <td>{customer.companyName}</td>
                       <td>
                         <span style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                          {formatStatusIcon(customer.refundStatus)}
+                          {customer.refundStatus || '-'}
                         </span>
                       </td>
 
                       <td>
-                        {customer.submissionStatus && customer.submissionStatus !== '-' ? (
-                          <span style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                            {formatStatusIcon(customer.submissionStatus)}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
+                        <span style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                          {customer.submissionStatus && customer.submissionStatus !== '-' ? customer.submissionStatus : '-'}
+                        </span>
                       </td>
                       <td>{customer.monthlyRent}</td>
                       <td>{customer.claimDate}</td>

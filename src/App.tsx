@@ -1,6 +1,6 @@
 import { useExcelHandlers } from './hooks/useExcelHandlers';
 import { usePdfHandlers } from './hooks/usePdfHandlers';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Users,
   UserCheck,
@@ -374,6 +374,8 @@ function App() {
   // Supabase Staff Management State (Team & Manager)
   const [dbTeams, setDbTeams] = useState<any[]>([]);
   const [dbManagers, setDbManagers] = useState<any[]>([]);
+  const urlRegistrationOpenedRef = useRef<number | null>(null);
+  const initialUrlParamsRef = useRef<URLSearchParams>(new URLSearchParams(window.location.search));
   const [consultMemos, setConsultMemos] = useState<any[]>([]);
   const [managerPage, setManagerPage] = useState<number>(1);
   const managerItemsPerPage = 10;
@@ -906,7 +908,7 @@ function App() {
               companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
-              monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
+              monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
@@ -957,7 +959,7 @@ function App() {
               companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
-              monthlyRent: c.isMonthlyRent || c.isMonthlyTenant ? '예' : '아니오',
+              monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
@@ -1853,7 +1855,7 @@ function App() {
           .from('ConsultMemo')
           .select('*')
           .eq('clientId', targetClientUuid)
-          .order('createdAt', { ascending: false });
+          .order('createdAt', { ascending: true });
         if (!memoErr && memoData) {
           consultMemosList = memoData;
         }
@@ -1865,7 +1867,7 @@ function App() {
         return {
           id: String(y.id),
           year: String(y.year),
-          active: Boolean(y.companyName || totalSal > 0 || y.determinedTax > 0 || y.fileURL),
+          active: true,
           salaryTotal: totalSal,
           taxBase: y.calculatedTax || 0,
           decisionTax: y.determinedTax || 0,
@@ -1898,7 +1900,7 @@ function App() {
         const totalRef = yr.totalTaxRefund || yr.determinedTaxRefund || 0;
         const localRef = yr.localTaxRefund || 0;
 
-        const isWageActive = yr.active !== undefined ? Boolean(yr.active) : Boolean(yr.companyName || totalSal > 0 || detTax > 0 || yr.fileURL || yr.id);
+        const isWageActive = true;
         const rentRefundTotal = yr.rentRefundTotal || 0;
         const rentRefundExpectNational = yr.rentRefundExpectNational || 0;
         const rentRefundExpectLocal = yr.rentRefundExpectLocal || 0;
@@ -2256,21 +2258,32 @@ function App() {
       }
     }
 
-    const params = new URLSearchParams(window.location.search);
+    const params = initialUrlParamsRef.current;
     const view = params.get('view');
     const serial = params.get('serial');
     if (view === 'registration' && serial) {
       const serialNum = Number(serial);
       if (serialNum) {
+        // 안전장치: dbManagers가 완전히 로드될 때까지 고객 등록 화면 열기를 대기
+        if (!dbManagers || dbManagers.length === 0) {
+          return;
+        }
+        // 이미 이 serial로 성공적으로 열었으면 중복 호출 방지
+        if (urlRegistrationOpenedRef.current === serialNum) {
+          return;
+        }
         const foundCustomer = customers.find(c => c.id === serialNum || c.uuid === serial);
         if (foundCustomer) {
+          urlRegistrationOpenedRef.current = serialNum;
           handleOpenCustomerRegistration(foundCustomer);
         } else {
-          handleOpenCustomerRegistration({ id: serialNum, name: '고객', managerName: currentManager?.name || '베트남 테스트' } as any);
+          // customers 목록에 없어도 serial로 DB 직접 조회
+          urlRegistrationOpenedRef.current = serialNum;
+          handleOpenCustomerRegistration({ id: serialNum, name: '고객' } as any);
         }
       }
     }
-  }, [isLoggedIn, currentManagerCountry, dbTeams, customers]);
+  }, [isLoggedIn, currentManagerCountry, dbTeams, customers, dbManagers]);
 
   // Synchronize view state to URL query parameters
   useEffect(() => {

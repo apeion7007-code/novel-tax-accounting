@@ -41,12 +41,19 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);
   const [selectedContractLang, setSelectedContractLang] = React.useState<string>('한국어');
+  const memoScrollRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     if (showFullContractModal) {
       setSelectedContractLang(contractLanguage || '한국어');
     }
   }, [showFullContractModal, contractLanguage]);
+
+  React.useEffect(() => {
+    if (memoScrollRef.current) {
+      memoScrollRef.current.scrollTop = memoScrollRef.current.scrollHeight;
+    }
+  }, [consultMemos]);
 
   const handleRegisterConsultMemo = async () => {
     if (!regForm.clientId) {
@@ -80,7 +87,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
       }
 
       if (data) {
-        setConsultMemos((prev: any[]) => [data, ...prev]);
+        setConsultMemos((prev: any[]) => [...prev, data]);
         setRegForm((prev: any) => ({ ...prev, consultMemo: '' }));
         showToast('상담 내용 및 메모가 상담처리 로그에 등록되었습니다.', 'success');
       }
@@ -256,9 +263,9 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                 if (!confirmProceed) return;
               }
 
-              const contractLink = `${window.location.origin}${window.location.pathname}?view=contract&id=${regForm.clientId}&lang=${contractLanguage}`;
+              const contractLink = `${window.location.origin}${window.location.pathname}?view=contract&id=${regForm.clientId}&lang=${contractLanguage}&feeRate=${selectedFeeRate}`;
               navigator.clipboard.writeText(contractLink);
-              showToast(`${regForm.name || '고객'}의 표준계약서 링크가 복사되었습니다.`, 'success');
+              showToast(`${regForm.name || '고객'}의 표준계약서 링크가 복사되었습니다. (수수료율 ${selectedFeeRate}% 반영)`, 'success');
             }}
           >
             🔗 경정청구 표준계약서 공유 링크 복사
@@ -318,7 +325,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           </div>
           <div style={{ gridColumn: 'span 2' }}>
             <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>상담처리 메모</label>
-            <textarea className="form-control" style={{ height: '150px', fontSize: '13px', padding: '6px' }} value={regForm.consultMemo || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))} placeholder="상담 세부 정보를 기입하세요" />
+            <textarea className="form-control" style={{ height: '350px', fontSize: '13px', padding: '8px', lineHeight: '1.5' }} value={regForm.consultMemo || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))} placeholder="상담 세부 정보를 기입하세요" />
           </div>
           
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
@@ -350,9 +357,9 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
         <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
           상담처리 로그
         </div>
-        <div style={{ flex: 1, minHeight: '200px', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1, minHeight: '480px', display: 'flex', flexDirection: 'column' }}>
           {consultMemos.length > 0 ? (
-            <div style={{ width: '100%', overflowY: 'auto', maxHeight: '280px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
+            <div ref={memoScrollRef} style={{ width: '100%', flex: 1, height: '100%', overflowY: 'auto', minHeight: '480px', maxHeight: '750px', border: '1px solid #cbd5e1', borderRadius: '6px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>

@@ -24,6 +24,58 @@ export const CONTRACT_LANG_CODES: Record<string, string> = {
   '영어': 'EN'
 };
 
+export const BANK_DETAILS_MAP: Record<string, { bank: string; depositor: string }> = {
+  '한국어': { bank: '• 입금 계좌: 기업은행 540-049052-04-010', depositor: '• 예금주: 한결금융컨설팅' },
+  '영어': { bank: '• Bank Account: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• Account Holder: Hangyeol Financial Consulting' },
+  '베트남어': { bank: '• Tài khoản ngân hàng: IBK (Ngân hàng Công nghiệp Hàn Quốc) 540-049052-04-010', depositor: '• Chủ tài khoản: Hangyeol Financial Consulting' },
+  '인도네시아어': { bank: '• Rekening Bank: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• Pemilik Rekening: Hangyeol Financial Consulting' },
+  '몽골어': { bank: '• Банкны данс: IBK (Солонгосын Аж үйлдвэрийн банк) 540-049052-04-010', depositor: '• Дансны эзэмшигч: Hangyeol Financial Consulting' },
+  '미얀မာ어': { bank: '• ဘဏ်အကောင့်: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• အကောင့်ပိုင်ရှင်: Hangyeol Financial Consulting' },
+  '캄보디아어': { bank: '• គណនីធនាគារ: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• ម្ចាស់គណនី: Hangyeol Financial Consulting' },
+  '네팔어': { bank: '• बैंक खाता: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• खातावाला: Hangyeol Financial Consulting' },
+  '방글라데시어': { bank: '• ব্যাংক অ্যাকাউন্ট: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• অ্যাকাউন্টের নাম: Hangyeol Financial Consulting' },
+  '우즈베크어': { bank: '• Bank hisobi: IBK (Koreya Sanoat Banki) 540-049052-04-010', depositor: '• Hisob egasi: Hangyeol Financial Consulting' },
+  '파키스탄어': { bank: '• بینک اکاؤنٹ: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• اکاؤنٹ ہولڈر: Hangyeol Financial Consulting' },
+  '태국어': { bank: '• บัญชีธนาคาร: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• ชื่อบัญชี: Hangyeol Financial Consulting' },
+  '필리핀어': { bank: '• Bank Account: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• Account Holder: Hangyeol Financial Consulting' },
+  '스리랑카어': { bank: '• බැංකු ගිණුම: IBK (Industrial Bank of Korea) 540-049052-04-010', depositor: '• ගිණුම් හිමියා: Hangyeol Financial Consulting' }
+};
+
+export const PREPAID_LABEL_MAP: Record<string, string> = {
+  '한국어': '선불금액',
+  '영어': 'Prepaid Amount',
+  '베트남어': 'Số tiền trả trước',
+  '인도네시아어': 'Jumlah Uang Muka',
+  '몽골어': 'Урьдчилгаа төлбөр',
+  '미얀မာ어': 'ကြိုတင်ပေးငွေ',
+  '캄보디아어': 'ប្រាក់បង់មុន',
+  '네팔어': 'अग्रिम रकम',
+  '방글라데시어': 'অগ্রিম পরিমাণ',
+  '우즈베크어': 'Oldindan toʻlov',
+  '파키스탄어': 'پیشگی رقم',
+  '태국어': 'จำนวนเงินล่วงหน้า',
+  '필리핀어': 'Halaga ng Paunang Bayad',
+  '스리랑카어': 'පූර්ව ගෙවීම් මුදල'
+};
+
+export const POSTPAID_LABEL_MAP: Record<string, string> = {
+  '한국어': '후불금액',
+  '영어': 'Postpaid Amount',
+  '베트남어': 'Số tiền trả sau',
+  '인도네시아어': 'Jumlah Pascabayar',
+  '몽골어': 'Дараа төлбөр',
+  '미얀မာ어': 'နောက်မှပေးငွေ',
+  '캄보디아어': 'ប្រាក់បង់ក្រោយ',
+  '네팔어': 'पछिल्लो रकम',
+  '방글라데시어': 'পরবর্তী পরিশোধ',
+  '우즈베크어': 'Keyin toʻlanadigan summa',
+  '파키스탄어': 'بعد میں ادائیگی کی رقم',
+  '태국어': 'จำนวนเงินชำระทีหลัง',
+  '필리핀어': 'Halaga ng Huling Bayad',
+  '스리랑카어': 'පසු ගෙවීම් මුදල'
+};
+
+
 export const CONTRACT_TRANSLATIONS: Record<string, Record<string, string>> = {
   '한국어': {
     title: '세무 경정 청구 표준계약서',
@@ -751,9 +803,12 @@ export function ContractPage({ token }: ContractPageProps) {
               }
             });
 
+            const urlFeeParam = new URLSearchParams(window.location.search).get('feeRate') || new URLSearchParams(window.location.search).get('fee');
+            const feeRateToUse = urlFeeParam ? Number(urlFeeParam) : (Number(data.feeRate) || 22);
+
             let total = 0;
             targetYears.forEach(yr => {
-              const combinedRes = calculateCombinedRefund(reconstructedRegForm, yr, Number(data.feeRate) || 22);
+              const combinedRes = calculateCombinedRefund(reconstructedRegForm, yr, feeRateToUse);
               const hasWage = reconstructedRegForm.years.some((y: any) => String(y.year) === yr && y.active);
               const isActive = hasWage || reconstructedRegForm.freelancerYears[yr]?.active;
               if (isActive) {
@@ -900,25 +955,37 @@ export function ContractPage({ token }: ContractPageProps) {
     );
   }
 
-  const numericFeeRate = Number(client.feeRate) || 22;
-  const feeMethod = client.feeMethod || '후불 22%';
+  const urlFeeParam = new URLSearchParams(window.location.search).get('feeRate') || new URLSearchParams(window.location.search).get('fee');
+  const numericFeeRate = urlFeeParam ? Number(urlFeeParam) : (Number(client.feeRate) || 22);
+  const feeMethod = client.feeMethod || `후불 ${numericFeeRate}%`;
   
   let prepaidRate = 0;
   let postpaidRate = 0;
   
-  // Regex to match "선불 10%, 후불 10%" or similar hybrid structures
   const hybridMatch = feeMethod.match(/선불\s*(\d+)%?,\s*후불\s*(\d+)%?/);
   if (hybridMatch) {
-    prepaidRate = Number(hybridMatch[1]);
-    postpaidRate = Number(hybridMatch[2]);
+    const prep = Number(hybridMatch[1]);
+    const post = Number(hybridMatch[2]);
+    if (!urlFeeParam || (prep + post === numericFeeRate)) {
+      prepaidRate = prep;
+      postpaidRate = post;
+    } else {
+      prepaidRate = 0;
+      postpaidRate = numericFeeRate;
+    }
   } else if (feeMethod.includes('선불')) {
     const prepaidMatch = feeMethod.match(/선불\s*(\d+)%?/);
-    prepaidRate = prepaidMatch ? Number(prepaidMatch[1]) : numericFeeRate;
-    postpaidRate = 0;
+    const prep = prepaidMatch ? Number(prepaidMatch[1]) : numericFeeRate;
+    if (!urlFeeParam || prep === numericFeeRate) {
+      prepaidRate = prep;
+      postpaidRate = 0;
+    } else {
+      prepaidRate = 0;
+      postpaidRate = numericFeeRate;
+    }
   } else {
     prepaidRate = 0;
-    const postpaidMatch = feeMethod.match(/후불\s*(\d+)%?/);
-    postpaidRate = postpaidMatch ? Number(postpaidMatch[1]) : numericFeeRate;
+    postpaidRate = numericFeeRate;
   }
 
   const totalFeeRate = prepaidRate + postpaidRate;
@@ -951,9 +1018,8 @@ export function ContractPage({ token }: ContractPageProps) {
 
   // Dynamic Payment clause generator
   const getDynamicPaymentText = (lang: string, prepRate: number, postRate: number) => {
-    const bankDetails = lang === '영어' 
-      ? '\n• Bank: IBK (Industrial Bank of Korea) 540-049052-04-010\n• Depositor: Hangyeol Financial Consulting'
-      : '\n• 입금 계좌: 기업은행 540-049052-04-010\n• 예금주: 한결금융컨설팅';
+    const bankInfo = BANK_DETAILS_MAP[lang] || BANK_DETAILS_MAP['영어'];
+    const bankDetails = `\n${bankInfo.bank}\n${bankInfo.depositor}`;
 
     if (prepRate > 0 && postRate > 0) {
       if (lang === '한국어') {
@@ -968,11 +1034,9 @@ export function ContractPage({ token }: ContractPageProps) {
         return `Party A shall transfer the prepaid fee (${prepRate}%) to Party B's designated bank account below before the tax rectification claim is filed.${bankDetails}`;
       }
     } else {
-      if (lang === '한국어') {
-        return `의뢰인(갑)은 국세청 및 지자체로부터 세금 환급금을 본인 계좌로 수령한 날로부터 3영업일 이내에 수임인(을)이 지정한 아래 입금 계좌로 수수료를 송금해야 한다.${bankDetails}`;
-      } else {
-        return `Party A shall transfer the fee to Party B's designated bank account below within 3 business days from the date Party A receives the tax refund from the tax office or local government.${bankDetails}`;
-      }
+      const baseText = CONTRACT_TRANSLATIONS[lang]?.paymentText || CONTRACT_TRANSLATIONS['한국어'].paymentText;
+      const cleanBaseText = baseText.split('\n•')[0].trim();
+      return `${cleanBaseText}${bankDetails}`;
     }
   };
 
@@ -1105,9 +1169,13 @@ export function ContractPage({ token }: ContractPageProps) {
                 <h4 style={{ margin: '0 0 4px 0', fontWeight: 'bold', color: '#0f172a' }}>{t.feeTitle}</h4>
                 <p style={{ margin: '0 0 6px 0', color: '#475569', wordBreak: 'keep-all' }}>{feeDescriptionText}</p>
                 <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div>{t.feeText2} <strong>{totalFeeRate}% ({feeMethod})</strong></div>
-                  {prepaidRate > 0 && <div>• {selectedLanguage === '영어' ? 'Prepaid portion' : '선불금액'} ({prepaidRate}%): <strong>{prepaidAmt.toLocaleString()} {t.won}</strong></div>}
-                  {postpaidRate > 0 && <div>• {selectedLanguage === '영어' ? 'Postpaid portion' : '후불금액'} ({postpaidRate}%): <strong>{postpaidAmt.toLocaleString()} {t.won}</strong></div>}
+                  <div>{t.feeText2} <strong>{totalFeeRate}%{prepaidRate > 0 && postpaidRate > 0 ? (selectedLanguage === '영어' ? ` (${prepaidRate}% Prepaid, ${postpaidRate}% Postpaid)` : ` (선불 ${prepaidRate}%, 후불 ${postpaidRate}%)`) : ''}</strong></div>
+                  {prepaidRate > 0 && postpaidRate > 0 && (
+                    <>
+                      <div>• {(PREPAID_LABEL_MAP[selectedLanguage] || 'Prepaid Amount')} ({prepaidRate}%): <strong>{prepaidAmt.toLocaleString()} {t.won}</strong></div>
+                      <div>• {(POSTPAID_LABEL_MAP[selectedLanguage] || 'Postpaid Amount')} ({postpaidRate}%): <strong>{postpaidAmt.toLocaleString()} {t.won}</strong></div>
+                    </>
+                  )}
                   <div>{t.feeText3} <strong>{expectedRefund.toLocaleString()} {t.won}</strong></div>
                   <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '4px', marginTop: '4px' }}>{t.feeText4} <strong style={{ color: '#2563eb', fontSize: '13px' }}>{calculatedFee.toLocaleString()} {t.won}</strong></div>
                 </div>

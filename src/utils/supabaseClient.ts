@@ -236,6 +236,13 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       if (uploaded) rentReceiptUrl = uploaded;
     }
 
+    const primaryCompany = (Array.isArray(regForm.years) ? regForm.years : []).find((y: any) => y.workPlace || y.companyName)?.workPlace ||
+                           (Array.isArray(regForm.years) ? regForm.years : []).find((y: any) => y.workPlace || y.companyName)?.companyName ||
+                           (Object.values(regForm.freelancerYears || {}) as any[]).find((f: any) => f?.workPlace || f?.freelancerCompanyName)?.workPlace ||
+                           (Object.values(regForm.freelancerYears || {}) as any[]).find((f: any) => f?.workPlace || f?.freelancerCompanyName)?.freelancerCompanyName ||
+                           regForm.companyName ||
+                           regForm.company || '';
+
     const clientPayload: Record<string, any> = {
       name: regForm.name ? regForm.name.toUpperCase() : '',
       regNum: cleanInputReg || rawInputReg || '',
@@ -243,7 +250,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       managerId: dbManagerId,
       teamId: dbTeamId,
       visa: regForm.visaType || 'E9',
-      company: regForm.years['2025']?.workPlace || regForm.years['2024']?.workPlace || '',
+      company: primaryCompany,
       isMonthlyTenant: regForm.isMonthlyRent === '가',
       landlordName: regForm.landlordName || '',
       landlordRegNum: regForm.landlordRegNum || '',

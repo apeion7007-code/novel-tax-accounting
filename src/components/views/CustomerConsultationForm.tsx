@@ -302,7 +302,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
             <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#1e293b' }}>고객 상담 정보 관리</span>
           <div style={{ display: 'flex', gap: '4px' }}>
-            <button className="btn-cancel" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => setRegForm((prev: any) => ({ ...prev, snsName: '', snsAddress: '', hometaxId: '', hometaxPw: '', consultMemo: '' }))}>초기화</button>
+            <button className="btn-cancel" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => { setRegForm((prev: any) => ({ ...prev, snsName: '', snsAddress: '', hometaxId: '', hometaxPw: '', consultMemo: '' })); setConsultMemos([]); }}>초기화</button>
             <button className="btn-submit" style={{ padding: '4px 12px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={handleSaveConsultInfo}>저장</button>
           </div>
         </div>
@@ -1052,7 +1052,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                       <span>• {t.regNumLabel}:</span> <span>{regForm.foreignerNumber || '-'}</span>
                       <span>• {t.addressLabel}:</span> <span>{regForm.residentRegisterAddress || '-'}</span>
                       <span>• {t.phoneLabel}:</span> <span>{regForm.phone || '-'}</span>
-                      <span>• {t.companyLabel}:</span> <span>{regForm.years?.[0]?.workPlace || regForm.companyName || '-'}</span>
+                      <span>• {t.companyLabel}:</span> <span>{[...(regForm.years || [])].sort((a: any, b: any) => (Number(b.year) || 0) - (Number(a.year) || 0)).find((y: any) => y.workPlace || y.companyName)?.workPlace || regForm.companyName || '-'}</span>
                       <span>• {t.visaLabel}:</span> <span>{regForm.visaType || '-'}</span>
                     </div>
                   </div>

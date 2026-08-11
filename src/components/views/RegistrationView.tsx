@@ -322,6 +322,27 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           >
             <span>{regForm.isNextYearApply ? `⭐ ${new Date().getFullYear() + 1}년 접수대상 (지정됨)` : `☆ ${new Date().getFullYear() + 1}년 접수대상 지정`}</span>
           </button>
+          {regForm.serial && regForm.serial > 0 && (
+            <button 
+              type="button" 
+              className="btn-action" 
+              style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#10b981', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer', border: 'none' }}
+              onClick={() => {
+                setRegForm((prev: any) => ({
+                  ...prev,
+                  clientId: '',
+                  serial: 0,
+                  years: (prev.years || []).map((y: any) => ({ ...y, id: `temp_${y.year}` })),
+                  deletedYearIds: [],
+                  consultMemo: ''
+                }));
+                setConsultMemos([]);
+                showToast('✨ 신규 등록 모드로 전환되었습니다! (저장 시 새로운 UID 및 일련번호 생성)', 'info');
+              }}
+            >
+              ➕ 신규 건으로 전환 (새 UID)
+            </button>
+          )}
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleResetAll}>전체 초기화</button>
           <button className="btn-submit" style={{ padding: '6px 16px', fontSize: '13px', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSaveRegistration}>{regForm.serial && regForm.serial > 0 ? '고객 업데이트' : '신규저장'}</button>
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>삭제</button>

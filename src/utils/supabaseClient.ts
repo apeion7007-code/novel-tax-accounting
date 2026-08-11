@@ -183,33 +183,6 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     const rawInputReg = (regForm.foreignerNumber || '').trim();
     const cleanInputReg = cleanRegNum(regForm.foreignerNumber);
 
-    if (!clientId && cleanInputReg) {
-      const targetCountry = regForm.nationality || '';
-      let query = supabase
-        .from('Client')
-        .select('id, name, country, regNum');
-      if (targetCountry) {
-        query = query.eq('country', targetCountry);
-      }
-      query = query.in('regNum', Array.from(new Set([rawInputReg, cleanInputReg])).filter(Boolean));
-
-      const { data: existingClients } = await query;
-
-      if (existingClients && existingClients.length > 0) {
-        const cleanRegName = (regForm.name || '').replace(/\s/g, '').toLowerCase();
-        const match = existingClients.find(c => {
-          const dbCleanReg = cleanRegNum(c.regNum);
-          const cleanDbName = (c.name || '').replace(/\s/g, '').toLowerCase();
-          const sameRegNum = dbCleanReg !== '' && dbCleanReg === cleanInputReg;
-          const sameName = cleanRegName !== '' && cleanDbName === cleanRegName;
-          return sameRegNum || sameName;
-        });
-        if (match) {
-          clientId = match.id;
-        }
-      }
-    }
-
     if (!clientId) {
       clientId = typeof self !== 'undefined' && self.crypto && self.crypto.randomUUID 
         ? self.crypto.randomUUID() 
@@ -236,10 +209,16 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       if (uploaded) rentReceiptUrl = uploaded;
     }
 
-    const primaryCompany = (Array.isArray(regForm.years) ? regForm.years : []).find((y: any) => y.workPlace || y.companyName)?.workPlace ||
-                           (Array.isArray(regForm.years) ? regForm.years : []).find((y: any) => y.workPlace || y.companyName)?.companyName ||
-                           (Object.values(regForm.freelancerYears || {}) as any[]).find((f: any) => f?.workPlace || f?.freelancerCompanyName)?.workPlace ||
-                           (Object.values(regForm.freelancerYears || {}) as any[]).find((f: any) => f?.workPlace || f?.freelancerCompanyName)?.freelancerCompanyName ||
+    const wageYearsSorted = (Array.isArray(regForm.years) ? [...regForm.years] : [])
+      .sort((a: any, b: any) => (Number(b.year) || 0) - (Number(a.year) || 0));
+    const freeYearsSorted = (Object.values(regForm.freelancerYears || {}) as any[])
+      .sort((a: any, b: any) => (Number(b.year) || 0) - (Number(a.year) || 0));
+
+    const latestWageItem = wageYearsSorted.find((y: any) => y.workPlace || y.companyName);
+    const latestFreeItem = freeYearsSorted.find((f: any) => f?.workPlace || f?.freelancerCompanyName);
+
+    const primaryCompany = latestWageItem?.workPlace || latestWageItem?.companyName ||
+                           latestFreeItem?.workPlace || latestFreeItem?.freelancerCompanyName ||
                            regForm.companyName ||
                            regForm.company || '';
 

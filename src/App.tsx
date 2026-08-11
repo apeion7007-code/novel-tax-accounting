@@ -2458,7 +2458,8 @@ function App() {
             familyDocFile: [],
             remittanceDocFile: [],
             familyDocUrl: res.familyDocUrl || prev.familyDocUrl,
-            remittanceDocUrl: res.remittanceDocUrl || prev.remittanceDocUrl
+            remittanceDocUrl: res.remittanceDocUrl || prev.remittanceDocUrl,
+            consultMemo: ''
           };
         });
 

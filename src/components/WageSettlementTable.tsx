@@ -38,10 +38,6 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
     return Number(cleaned).toLocaleString();
   };
 
-  const cleanInputVal = (val: string) => {
-    return val.replace(/[^0-9]/g, '');
-  };
-
   // Helper to generate headers with repeated counts (e.g. 2024년도 (1), 2024년도 (2))
   const getYearLabel = (index: number, year: string) => {
     const sameYearsBefore = yearsList.slice(0, index).filter((y: any) => y.year === year).length;
@@ -293,8 +289,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
                   value={yrData.workPeriod || ''}
-                  onChange={(e) => updateYearField(yrData.id, 'workPeriod', e.target.value)}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -309,8 +305,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
                   value={yrData.workPlace || ''}
-                  onChange={(e) => updateYearField(yrData.id, 'workPlace', e.target.value)}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -325,8 +321,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
                   value={yrData.businessNumber || ''}
-                  onChange={(e) => updateYearField(yrData.id, 'businessNumber', e.target.value)}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -341,8 +337,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'center' }}
                   value={yrData.birthDate || ''}
-                  onChange={(e) => updateYearField(yrData.id, 'birthDate', e.target.value)}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -361,8 +357,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.salaryTotal, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'salaryTotal', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -400,8 +396,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.taxBase, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'taxBase', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -421,8 +417,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.childReduction, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'childReduction', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -442,8 +438,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.childDeduction, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'childDeduction', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -462,8 +458,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.decisionTax, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTax', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -482,8 +478,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.localTax, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'localTax', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -502,8 +498,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.taxRefundTotal, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'taxRefundTotal', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -585,8 +581,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.childReductionApplyAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'childReductionApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -606,8 +602,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.childDeductionApplyAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'childDeductionApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -626,8 +622,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.decisionTaxApplyAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -646,8 +642,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.localTaxApplyAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'localTaxApplyAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -666,8 +662,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right' }}
                   value={formatInputVal(yrData.decisionTaxRefundAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'decisionTaxRefundAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -687,29 +683,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
                   value={formatInputVal(yrData.refundExpectNational, yrData.active)}
-                  onChange={(e) => {
-                    const val = cleanInputVal(e.target.value);
-                    const local = Number(yrData.refundExpectLocal) || 0;
-                    const newCourtFee = (Number(val) || 0) + local;
-                    const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                    setRegForm((prev: any) => {
-                      const updated = (prev.years || []).map((y: any) => {
-                        if (y.id === yrData.id) {
-                          return {
-                            ...y,
-                            refundExpectNational: val,
-                            courtFee: String(newCourtFee),
-                            expectedFeeAmt: String(newFee),
-                            isRefundOverridden: true,
-                            active: true
-                          };
-                        }
-                        return y;
-                      });
-                      return { ...prev, years: updated };
-                    });
-                  }}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -726,29 +701,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
                   value={formatInputVal(yrData.refundExpectLocal, yrData.active)}
-                  onChange={(e) => {
-                    const val = cleanInputVal(e.target.value);
-                    const nat = Number(yrData.refundExpectNational) || 0;
-                    const newCourtFee = nat + (Number(val) || 0);
-                    const newFee = Math.round(newCourtFee * (selectedFeeRate / 100));
-                    setRegForm((prev: any) => {
-                      const updated = (prev.years || []).map((y: any) => {
-                        if (y.id === yrData.id) {
-                          return {
-                            ...y,
-                            refundExpectLocal: val,
-                            courtFee: String(newCourtFee),
-                            expectedFeeAmt: String(newFee),
-                            isRefundOverridden: true,
-                            active: true
-                          };
-                        }
-                        return y;
-                      });
-                      return { ...prev, years: updated };
-                    });
-                  }}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}
@@ -914,8 +868,8 @@ export const WageSettlementTable: React.FC<WageSettlementTableProps> = ({
                   className="form-control"
                   style={{ height: '28px', fontSize: '12px', textAlign: 'right', backgroundColor: '#fffbeb' }}
                   value={formatInputVal(yrData.expectedFeeAmt, yrData.active)}
-                  onChange={(e) => updateYearField(yrData.id, 'expectedFeeAmt', cleanInputVal(e.target.value))}
                   placeholder="-"
+                  readOnly
                 />
               </td>
             ))}

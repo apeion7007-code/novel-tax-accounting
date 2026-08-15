@@ -14,7 +14,7 @@ interface FreelancerSettlementTableProps {
 
 export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps> = ({
   regForm,
-  setRegForm,
+  setRegForm: _setRegForm,
   targetYears,
   selectedFeeRate,
   handleFreelancerSingleYearPdfUpload,
@@ -30,9 +30,6 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
     return Number(cleaned).toLocaleString();
   };
 
-  const cleanInputVal = (val: string) => {
-    return val.replace(/[^0-9]/g, '');
-  };
   return (
     <div style={{ marginTop: '24px', marginBottom: '24px', border: '2px solid #0d9488', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
       {/* Header Banner */}
@@ -158,17 +155,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px' }}
                     value={regForm.freelancerYears?.[yr]?.workPlace || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        freelancerYears: {
-                          ...prev.freelancerYears,
-                          [yr]: { ...prev.freelancerYears?.[yr], workPlace: val, active: true }
-                        }
-                      }));
-                    }}
                     placeholder="상호명 기입"
+                    readOnly
                   />
                 </td>
               ))}
@@ -187,17 +175,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px' }}
                     value={regForm.freelancerYears?.[yr]?.businessNumber || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        freelancerYears: {
-                          ...prev.freelancerYears,
-                          [yr]: { ...prev.freelancerYears?.[yr], businessNumber: val, active: true }
-                        }
-                      }));
-                    }}
                     placeholder="000-00-00000"
+                    readOnly
                   />
                 </td>
               ))}
@@ -216,34 +195,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                     className="form-control"
                     style={{ height: '28px', fontSize: '12px', textAlign: 'right', fontWeight: 'bold' }}
                     value={formatInputVal(regForm.freelancerYears?.[yr]?.totalIncome, regForm.freelancerYears?.[yr]?.active)}
-                    onChange={(e) => {
-                      const raw = cleanInputVal(e.target.value);
-                      const income = Number(raw) || 0;
-                      const tax3 = Math.round(income * 0.03);
-                      const tax03 = Math.round(tax3 * 0.1);
-                      const total33 = tax3 + tax03;
-                      const feeAmt = Math.round(total33 * (selectedFeeRate / 100));
-
-                      setRegForm((prev: any) => ({
-                        ...prev,
-                        freelancerYears: {
-                          ...prev.freelancerYears,
-                          [yr]: {
-                            ...prev.freelancerYears?.[yr],
-                            totalIncome: raw,
-                            withholdingTax3: String(tax3),
-                            localTax03: String(tax03),
-                            totalWithholding33: String(total33),
-                            refundExpectNational: String(tax3),
-                            refundExpectLocal: String(tax03),
-                            courtFee: String(total33),
-                            expectedFeeAmt: String(feeAmt),
-                            active: true
-                          }
-                        }
-                      }));
-                    }}
                     placeholder="0"
+                    readOnly
                   />
                 </td>
               ))}
@@ -370,29 +323,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                         fontWeight: isNonRefund ? 'bold' : 'normal'
                       }}
                       value={isNonRefund ? '0' : formatInputVal(yrData?.refundExpectNational, yrData?.active)}
-                      disabled={isNonRefund || !yrData?.active}
-                      onChange={(e) => {
-                        const val = cleanInputVal(e.target.value);
-                        const nat = Number(val) || 0;
-                        const loc = Number(regForm.freelancerYears?.[yr]?.refundExpectLocal) || 0;
-                        const court = nat + loc;
-                        const feeAmt = Math.round(court * (selectedFeeRate / 100));
-
-                        setRegForm((prev: any) => ({
-                          ...prev,
-                          freelancerYears: {
-                            ...prev.freelancerYears,
-                            [yr]: {
-                              ...prev.freelancerYears?.[yr],
-                              refundExpectNational: val,
-                              courtFee: String(court),
-                              expectedFeeAmt: String(feeAmt),
-                              active: true
-                            }
-                          }
-                        }));
-                      }}
                       placeholder={isNonRefund ? "환급 제외" : "0"}
+                      readOnly
                     />
                   </td>
                 );
@@ -427,29 +359,8 @@ export const FreelancerSettlementTable: React.FC<FreelancerSettlementTableProps>
                         fontWeight: isNonRefund ? 'bold' : 'normal'
                       }}
                       value={isNonRefund ? '0' : formatInputVal(yrData?.refundExpectLocal, yrData?.active)}
-                      disabled={isNonRefund || !yrData?.active}
-                      onChange={(e) => {
-                        const val = cleanInputVal(e.target.value);
-                        const nat = Number(regForm.freelancerYears?.[yr]?.refundExpectNational) || 0;
-                        const loc = Number(val) || 0;
-                        const court = nat + loc;
-                        const feeAmt = Math.round(court * (selectedFeeRate / 100));
-
-                        setRegForm((prev: any) => ({
-                          ...prev,
-                          freelancerYears: {
-                            ...prev.freelancerYears,
-                            [yr]: {
-                              ...prev.freelancerYears?.[yr],
-                              refundExpectLocal: val,
-                              courtFee: String(court),
-                              expectedFeeAmt: String(feeAmt),
-                              active: true
-                            }
-                          }
-                        }));
-                      }}
                       placeholder={isNonRefund ? "환급 제외" : "0"}
+                      readOnly
                     />
                   </td>
                 );

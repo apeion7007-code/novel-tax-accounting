@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { FileSpreadsheet, Edit3, FileText } from 'lucide-react';
+import { FileSpreadsheet, Edit3 } from 'lucide-react';
 import { calculateCombinedRefund } from '../../utils/combinedTaxCalculator';
 import { CONTRACT_TRANSLATIONS, CONTRACT_LANG_CODES } from '../ContractPage';
 import { ContractTemplateModal } from '../modals/ContractTemplateModal';
@@ -40,7 +40,6 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
 }) => {
   const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
   const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
-  const [isContractViewerOpen, setIsContractViewerOpen] = React.useState<boolean>(false);
   const [isContractTemplateModalOpen, setIsContractTemplateModalOpen] = useState<boolean>(false);
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);
   const [selectedContractLang, setSelectedContractLang] = React.useState<string>('한국어');

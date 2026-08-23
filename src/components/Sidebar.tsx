@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCheck, BarChart3, Users, Lock, LogOut, FileText } from 'lucide-react';
+import { UserCheck, BarChart3, Users, Lock, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;

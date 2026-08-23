@@ -9,7 +9,6 @@ import {
   X,
   CheckCircle2,
   BarChart3,
-  FileText,
 } from 'lucide-react';
 
 import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';

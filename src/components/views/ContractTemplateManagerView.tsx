@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   FileText,
   Save,
@@ -7,9 +7,7 @@ import {
   Upload,
   Printer,
   Edit3,
-  Eye,
-  CheckCircle,
-  AlertCircle
+  Eye
 } from 'lucide-react';
 import {
   getStoredContractTranslations,
@@ -32,7 +30,7 @@ export const ContractTemplateManagerView: React.FC<ContractTemplateManagerViewPr
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
 
   // Sample dummy contract data for previewing how real numbers/names look
-  const [sampleClient, setSampleClient] = useState<ContractData>({
+  const [sampleClient] = useState<ContractData>({
     name: 'HOSEN LOKMAN',
     country: '방글라데시',
     regNum: '940202-5880054',

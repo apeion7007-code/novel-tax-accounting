@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { CONTRACT_LANG_CODES, BANK_DETAILS_MAP, PREPAID_LABEL_MAP, POSTPAID_LABEL_MAP } from '../utils/contractTemplateStorage';
 
 export interface ContractData {

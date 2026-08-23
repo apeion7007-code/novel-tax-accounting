@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   BarChart3,
+  FileText,
 } from 'lucide-react';
 
 import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/hometaxGenerator';
@@ -23,6 +24,7 @@ import { CustomerListView } from './components/views/CustomerListView';
 import { AuthView } from './components/views/AuthView';
 import { RegistrationView } from './components/views/RegistrationView';
 import { HometaxValidatorView } from './components/views/HometaxValidatorView';
+import { ContractTemplateManagerView } from './components/views/ContractTemplateManagerView';
 
 import { recalculateYearData } from './utils/taxCalculator';
 import {
@@ -158,8 +160,8 @@ function App() {
   // Country URL routing state
   const [pathCountry, setPathCountry] = useState<string>(() => getCountryFromPath([]) || 'ALL');
 
-  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View
-  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract'>('customer');
+  // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View, contractManager = Contract Template Manager View
+  const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract' | 'contractManager'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
@@ -2857,8 +2859,13 @@ function App() {
                 <Users size={18} />
                 직원 관리
               </button>
-
-
+              <button
+                className={`sidebar-item ${currentView === 'contractManager' ? 'active' : ''}`}
+                onClick={() => setCurrentView('contractManager')}
+              >
+                <FileText size={18} />
+                표준 계약서 양식 관리 (A4)
+              </button>
 
               <button
                 className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}
@@ -3039,6 +3046,10 @@ function App() {
             )}
 
 
+
+            {currentView === 'contractManager' && (
+              <ContractTemplateManagerView showToast={showToast} />
+            )}
 
             {currentView === 'validator' && (
               <HometaxValidatorView />

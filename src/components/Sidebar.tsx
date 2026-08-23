@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserCheck, BarChart3, Users, Lock, LogOut } from 'lucide-react';
+import { UserCheck, BarChart3, Users, Lock, LogOut, FileText } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
@@ -54,6 +54,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <Users size={18} />
           직원 관리
+        </button>
+        <button
+          className={`sidebar-item ${currentView === 'contractManager' ? 'active' : ''}`}
+          onClick={() => setCurrentView('contractManager')}
+        >
+          <FileText size={18} />
+          표준 계약서 양식 관리 (A4)
         </button>
         <button
           className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}

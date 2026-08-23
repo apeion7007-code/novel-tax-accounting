@@ -56,13 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           직원 관리
         </button>
         <button
-          className={`sidebar-item ${currentView === 'contractManager' ? 'active' : ''}`}
-          onClick={() => setCurrentView('contractManager')}
-        >
-          <FileText size={18} />
-          표준 계약서 양식 관리 (A4)
-        </button>
-        <button
           className={`sidebar-item ${currentView === 'password' ? 'active' : ''}`}
           onClick={() => setCurrentView('password')}
         >

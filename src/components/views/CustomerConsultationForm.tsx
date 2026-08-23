@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../../utils/supabaseClient';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Edit3, FileText } from 'lucide-react';
 import { calculateCombinedRefund } from '../../utils/combinedTaxCalculator';
 import { CONTRACT_TRANSLATIONS, CONTRACT_LANG_CODES } from '../ContractPage';
+import { ContractTemplateModal } from '../modals/ContractTemplateModal';
 
 interface CustomerConsultationFormProps {
   regForm: any;
@@ -38,7 +39,8 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   triggerKoreanInvoiceDownload
 }) => {
   const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
-  const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
+  const [isContractViewerOpen, setIsContractViewerOpen] = React.useState<boolean>(false);
+  const [isContractTemplateModalOpen, setIsContractTemplateModalOpen] = useState<boolean>(false);
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);
   const [selectedContractLang, setSelectedContractLang] = React.useState<string>('한국어');
   const memoScrollRef = React.useRef<HTMLDivElement | null>(null);
@@ -225,6 +227,32 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               <option value="영어">🇺🇸 영어 (English)</option>
             </select>
           </div>
+
+          {/* ✏️ 표준 계약서 양식 수정 버튼 */}
+          <button
+            type="button"
+            onClick={() => setIsContractTemplateModalOpen(true)}
+            style={{
+              width: '100%',
+              height: '34px',
+              fontSize: '12px',
+              backgroundColor: '#eff6ff',
+              color: '#1d4ed8',
+              border: '1px solid #93c5fd',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              marginBottom: '8px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Edit3 size={14} />
+            표준 계약서 양식/문구 수정 (A4)
+          </button>
 
           <button
             type="button"
@@ -1164,6 +1192,21 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           </div>
         );
       })()}
+      {/* Contract Template Editor Modal */}
+      <ContractTemplateModal
+        isOpen={isContractTemplateModalOpen}
+        onClose={() => setIsContractTemplateModalOpen(false)}
+        initialLanguage={contractLanguage}
+        showToast={showToast}
+        clientData={{
+          name: regForm.name,
+          nationality: regForm.nationality,
+          regNum: regForm.cleanRegNum || regForm.birthDate,
+          companyName: regForm.companyName,
+          visa: regForm.visa,
+          feeRate: selectedFeeRate
+        }}
+      />
     </div>
   );
 };

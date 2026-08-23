@@ -18,7 +18,7 @@ import {
   CONTRACT_LANG_CODES,
   DEFAULT_CONTRACT_TRANSLATIONS
 } from '../../utils/contractTemplateStorage';
-import { A4ContractDocument, ContractData } from '../A4ContractDocument';
+import { A4ContractDocument, type ContractData } from '../A4ContractDocument';
 
 interface ContractTemplateManagerViewProps {
   showToast: (message: string, type: 'success' | 'error' | 'info') => void;

@@ -9,7 +9,7 @@ import {
   DEFAULT_CONTRACT_TRANSLATIONS,
   getStoredContractTranslations
 } from '../utils/contractTemplateStorage';
-import { A4ContractDocument, ContractData } from './A4ContractDocument';
+import { A4ContractDocument, type ContractData } from './A4ContractDocument';
 
 export {
   CONTRACT_LANG_CODES,

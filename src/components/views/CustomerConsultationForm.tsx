@@ -39,6 +39,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   triggerKoreanInvoiceDownload
 }) => {
   const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
+  const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
   const [isContractViewerOpen, setIsContractViewerOpen] = React.useState<boolean>(false);
   const [isContractTemplateModalOpen, setIsContractTemplateModalOpen] = useState<boolean>(false);
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);

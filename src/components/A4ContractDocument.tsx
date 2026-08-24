@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { CONTRACT_LANG_CODES, BANK_DETAILS_MAP, PREPAID_LABEL_MAP, POSTPAID_LABEL_MAP } from '../utils/contractTemplateStorage';
+import { CONTRACT_LANG_CODES, BANK_DETAILS_MAP } from '../utils/contractTemplateStorage';
 
 export interface ContractData {
   name: string;
@@ -72,10 +72,6 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
   const totalFeeRate = client.feeRate || 22;
   const prepaidRate = client.prepaidRate || 0;
   const postpaidRate = client.postpaidRate || totalFeeRate;
-  const expectedRefund = client.totalRefund || 0;
-  const calculatedFee = Math.round(expectedRefund * (totalFeeRate / 100));
-  const prepaidAmt = Math.round(expectedRefund * (prepaidRate / 100));
-  const postpaidAmt = Math.round(expectedRefund * (postpaidRate / 100));
 
   // Dynamic fee text calculation
   const getDynamicFeeText = () => {

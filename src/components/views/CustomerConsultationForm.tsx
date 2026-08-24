@@ -923,23 +923,6 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
 
         const totalFeeRate = prepaidRate + postpaidRate;
 
-        // Calculate expected refund
-        const years = regForm.years || [];
-        const targetYears = ['2021', '2022', '2023', '2024', '2025'];
-        let expectedRefund = 0;
-        targetYears.forEach(yr => {
-          const hasWage = years.some((y: any) => String(y.year) === yr && y.active);
-          const hasFreelancer = regForm.freelancerYears?.[yr]?.active;
-          if (hasWage || hasFreelancer) {
-            const res = calculateCombinedRefund(regForm, yr, selectedFeeRate);
-            expectedRefund += res.finalRefund;
-          }
-        });
-
-        const calculatedFee = Math.round(expectedRefund * (totalFeeRate / 100));
-        const prepaidAmt = Math.round(expectedRefund * (prepaidRate / 100));
-        const postpaidAmt = Math.round(expectedRefund * (postpaidRate / 100));
-
         // Clauses
         const getDynamicFeeText = (lang: string, prepRate: number, postRate: number) => {
           if (prepRate > 0 && postRate > 0) {

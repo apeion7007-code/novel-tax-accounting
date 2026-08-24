@@ -113,9 +113,11 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
         return `Party A shall transfer the prepaid fee (${prepaidRate}%) to Party B's designated bank account below before the tax rectification claim is filed.${bankDetails}`;
       }
     } else {
-      const baseText = t.paymentText || '갑은 국세청 및 지자체로부터 세금 환급금을 본인 계좌로 수령한 날로부터 3영업일 이내에 을이 지정한 아래 입금 계좌로 수수료를 송금해야 한다.';
-      const cleanBaseText = baseText.split('\n•')[0].trim();
-      return `${cleanBaseText}${bankDetails}`;
+      if (t.paymentText) {
+        return t.paymentText;
+      }
+      const baseText = '갑은 국세청 및 지자체로부터 세금 환급금을 본인 계좌로 수령한 날로부터 3영업일 이내에 을이 지정한 아래 입금 계좌로 수수료를 송금해야 한다.';
+      return `${baseText}${bankDetails}`;
     }
   };
 
@@ -198,7 +200,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
   return (
     <div className="a4-document-container" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', fontFamily: "'Noto Sans KR', 'Inter', sans-serif" }}>
-      
+
       {/* 🖨️ Print Stylesheet */}
       <style>{`
         @page {
@@ -234,7 +236,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
       {/* ========================================================= */}
       {/* 📄 SHEET 1: A4 앞면 (Page 1) - 계약 본문 전체 (제1조 ~ 제5조) */}
       {/* ========================================================= */}
-      <div 
+      <div
         className="a4-page-sheet a4-page-front"
         style={{
           width: '100%',
@@ -256,7 +258,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
         <div>
           {/* Header Banner */}
           <div style={{ padding: '18px 20px', backgroundColor: '#0f172a', borderRadius: '10px', color: '#ffffff', textAlign: 'center', marginBottom: '18px' }}>
-            
+
             {/* Top CI Logo */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#38bdf8', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '14px', fontWeight: '900', color: '#0f172a' }}>
@@ -306,7 +308,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
           {/* 1. Parties Info Table (의뢰인 갑 & 수임인 을) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', padding: '12px 14px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
-            
+
             {/* 甲: 의뢰인 */}
             <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '10px' }}>
               <div style={{ fontWeight: '800', color: '#2563eb', marginBottom: '6px', fontSize: '12.5px' }}>
@@ -315,16 +317,16 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
                 <span style={{ color: '#64748b' }}>• {renderEditableText('nameLabel', '성명')}:</span>
                 <span style={{ fontWeight: '700', color: '#0f172a' }}>{client.name || '-'}</span>
-                
+
                 <span style={{ color: '#64748b' }}>• {renderEditableText('nationalityLabel', '국적')}:</span>
                 <span>{client.country || '-'}</span>
-                
+
                 <span style={{ color: '#64748b' }}>• {renderEditableText('regNumLabel', '외국인등록번호')}:</span>
                 <span>{client.regNum || '-'}</span>
-                
+
                 <span style={{ color: '#64748b' }}>• {renderEditableText('companyLabel', '근무처')}:</span>
                 <span>{client.company || '-'}</span>
-                
+
                 <span style={{ color: '#64748b' }}>• {renderEditableText('visaLabel', '비자 종류')}:</span>
                 <span>{client.visa || '-'}</span>
               </div>
@@ -338,11 +340,11 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
                 <span style={{ color: '#64748b' }}>• {renderEditableText('firmNameLabel', '상호/법인명')}:</span>
                 <span style={{ fontWeight: '700' }}>{renderEditableText('firmNameVal', '세무법인 노벨세무회계')}</span>
-                
+
                 <span style={{ color: '#64748b' }}>• {renderEditableText('firmRepresentativeLabel', '대표자')}:</span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {renderEditableText('representativeVal', '대표세무사 (직인)')}
-                  
+
                   {/* 세무사 공식 직인 인영 */}
                   <div style={{
                     width: '38px',
@@ -372,7 +374,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
           {/* 2. Contract Articles (제1조 ~ 제5조) */}
           <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.55', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '11px' }}>
-            
+
             {/* Article 1 */}
             <div>
               <div style={{ fontWeight: '800', color: '#0f172a', marginBottom: '2px' }}>
@@ -401,32 +403,12 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               <div style={{ color: '#475569', marginBottom: '5px', wordBreak: 'keep-all' }}>
                 {isEditable ? renderEditableText('feeText1', feeDescription, { isTextarea: true, rows: 2 }) : feeDescription}
               </div>
-              
+
               {/* Fee Calculation Highlight Box */}
-              <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontSize: '11.5px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '3px', border: '1px solid #e2e8f0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{t.feeText2 || '• 약정 수수료율: '}</span>
-                  <strong>{totalFeeRate}%{prepaidRate > 0 && postpaidRate > 0 ? ` (선불 ${prepaidRate}%, 후불 ${postpaidRate}%)` : ''}</strong>
-                </div>
-                {prepaidRate > 0 && postpaidRate > 0 && (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                      <span>• {(PREPAID_LABEL_MAP[language] || '선불금액')} ({prepaidRate}%):</span>
-                      <strong>{prepaidAmt.toLocaleString()} {t.won || '원'}</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#475569' }}>
-                      <span>• {(POSTPAID_LABEL_MAP[language] || '후불금액')} ({postpaidRate}%):</span>
-                      <strong>{postpaidAmt.toLocaleString()} {t.won || '원'}</strong>
-                    </div>
-                  </>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>{t.feeText3 || '• 예상 총 환급금액: '}</span>
-                  <strong>{expectedRefund.toLocaleString()} {t.won || '원'}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #cbd5e1', paddingTop: '4px', marginTop: '2px', color: '#1d4ed8', fontWeight: '800' }}>
-                  <span>{t.feeText4 || '• 계산된 예상 수수료: '}</span>
-                  <span style={{ fontSize: '12.5px' }}>{calculatedFee.toLocaleString()} {t.won || '원'}</span>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: '600' }}>{t.feeText2 || '• 약정 수수료율: '}</span>
+                  <strong style={{ color: '#1d4ed8', fontSize: '14px' }}>{totalFeeRate}%{prepaidRate > 0 && postpaidRate > 0 ? ` (선불 ${prepaidRate}%, 후불 ${postpaidRate}%)` : ''}</strong>
                 </div>
               </div>
             </div>
@@ -465,7 +447,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
       {/* ========================================================= */}
       {/* 📄 SHEET 2: A4 뒷면 (Page 2) - 동의 확약 및 전자 서명란 */}
       {/* ========================================================= */}
-      <div 
+      <div
         className="a4-page-sheet a4-page-back"
         style={{
           width: '100%',
@@ -516,14 +498,14 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
           {/* Signature Grid (Party A Client vs Party B Contractor) */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
-            
+
             {/* 甲 의뢰인 서명란 */}
             <div style={{ border: '2px solid #3b82f6', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: '800', color: '#1d4ed8' }}>
                   ✍️ {renderEditableText('sigLabel', '의뢰인 (갑) 서명')}
                 </span>
-                
+
                 {showSignaturePad && !client.signatureUrl && clearCanvas && (
                   <button
                     type="button"
@@ -592,7 +574,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>
                   <div>• 상호: <strong>{t.firmNameVal || '세무법인 노벨세무회계'}</strong></div>
-                  <div>• 대표세무사: <strong>대표세무사</strong></div>
+                  <div>• 대표세무사: <strong>{t.representativeVal ? t.representativeVal.replace(/\(직인.*?\)/, '').trim() : '대표세무사'}</strong></div>
                   <div>• 사업자번호: 540-85-01234</div>
                 </div>
               </div>

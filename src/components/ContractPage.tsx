@@ -7,7 +7,8 @@ import {
   PREPAID_LABEL_MAP,
   POSTPAID_LABEL_MAP,
   DEFAULT_CONTRACT_TRANSLATIONS,
-  getStoredContractTranslations
+  getStoredContractTranslations,
+  fetchContractTranslationsFromSupabase
 } from '../utils/contractTemplateStorage';
 import { A4ContractDocument, type ContractData } from './A4ContractDocument';
 
@@ -16,7 +17,8 @@ export {
   BANK_DETAILS_MAP,
   PREPAID_LABEL_MAP,
   POSTPAID_LABEL_MAP,
-  DEFAULT_CONTRACT_TRANSLATIONS as CONTRACT_TRANSLATIONS
+  DEFAULT_CONTRACT_TRANSLATIONS as CONTRACT_TRANSLATIONS,
+  getStoredContractTranslations
 };
 
 interface ContractPageProps {
@@ -36,8 +38,12 @@ export function ContractPage({ token }: ContractPageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef<boolean>(false);
 
-  // Sync translations if storage updates
+  // Sync translations from Supabase Cloud on mount & listen to storage updates
   useEffect(() => {
+    fetchContractTranslationsFromSupabase().then((cloudData) => {
+      setTranslations(cloudData);
+    });
+
     const handleStorageUpdate = () => {
       setTranslations(getStoredContractTranslations());
     };

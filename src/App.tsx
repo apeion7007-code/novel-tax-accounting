@@ -432,6 +432,17 @@ function App() {
     return null;
   }, [currentManager, dbTeams]);
 
+  const isSuperAdmin = useMemo(() => {
+    if (!currentManager) return false;
+    return Boolean(
+      currentManager.email === 'admin@novel.com' ||
+      currentManager.isAdmin ||
+      currentManager.teamId === 1 ||
+      (currentManager.name && (currentManager.name.includes('관리자') || currentManager.name.toLowerCase().includes('admin'))) ||
+      (currentManager.email && currentManager.email.toLowerCase().includes('admin'))
+    );
+  }, [currentManager]);
+
 
 
 
@@ -2317,6 +2328,10 @@ function App() {
   };
 
   const handleDeleteCustomers = async () => {
+    if (!isSuperAdmin) {
+      showToast('⚠️ 고객 데이터 삭제 권한이 없습니다. (최고 관리자만 삭제 가능)', 'error');
+      return;
+    }
     if (selectedIds.length === 0) {
       showToast('삭제할 항목을 체크박스로 선택해 주세요.', 'error');
       return;
@@ -2953,6 +2968,7 @@ function App() {
                 handleInlineManagerChange={handleInlineManagerChange}
                 handleSaveRow={handleSaveRow}
                 tempInlineEdits={tempInlineEdits}
+                isSuperAdmin={isSuperAdmin}
               />
             )}
 
@@ -2999,6 +3015,7 @@ function App() {
                 handleRemoveFreelancerYear={handleRemoveFreelancerYear}
                 getCombinedRefund={getCombinedRefund}
                 youthTaxReductionInfo={youthTaxReductionInfo}
+                isSuperAdmin={isSuperAdmin}
               />
             )}
 

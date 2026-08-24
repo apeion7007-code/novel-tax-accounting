@@ -1,4 +1,5 @@
 // Contract multi-language templates storage and manager utilities
+import { supabase } from './supabaseClient';
 
 export const CONTRACT_LANG_CODES: Record<string, string> = {
   '한국어': 'KO',
@@ -689,9 +690,14 @@ export const DEFAULT_CONTRACT_TRANSLATIONS: Record<string, Record<string, string
 };
 
 const STORAGE_KEY = 'novel_custom_contract_translations_v2';
+const SUPABASE_STORAGE_PATH = 'contract_templates/novel_contract_templates.json';
+
+// In-memory cached translations
+let memoryCachedTranslations: Record<string, Record<string, string>> | null = null;
 
 // Get current effective translations (merging saved custom edits over defaults)
 export function getStoredContractTranslations(): Record<string, Record<string, string>> {
+  if (memoryCachedTranslations) return memoryCachedTranslations;
   if (typeof window === 'undefined') return DEFAULT_CONTRACT_TRANSLATIONS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -704,6 +710,7 @@ export function getStoredContractTranslations(): Record<string, Record<string, s
         ...(parsed[lang] || {})
       };
     }
+    memoryCachedTranslations = result;
     return result;
   } catch (e) {
     console.error('Failed to read contract translations from localStorage:', e);
@@ -711,33 +718,106 @@ export function getStoredContractTranslations(): Record<string, Record<string, s
   }
 }
 
-// Save translations to storage
-export function saveContractTranslations(translations: Record<string, Record<string, string>>): boolean {
-  if (typeof window === 'undefined') return false;
+// Fetch latest contract translations from Supabase Cloud Storage
+export async function fetchContractTranslationsFromSupabase(): Promise<Record<string, Record<string, string>>> {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(translations));
-    window.dispatchEvent(new Event('novel_contract_translations_updated'));
-    return true;
+    const { data, error } = await supabase.storage
+      .from('novel_pdf')
+      .download(SUPABASE_STORAGE_PATH);
+
+    if (error || !data) {
+      // If file doesn't exist yet in Supabase, return local / default
+      return getStoredContractTranslations();
+    }
+
+    const text = await data.text();
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object') {
+      const merged: Record<string, Record<string, string>> = {};
+      for (const lang of Object.keys(DEFAULT_CONTRACT_TRANSLATIONS)) {
+        merged[lang] = {
+          ...DEFAULT_CONTRACT_TRANSLATIONS[lang],
+          ...(parsed[lang] || {})
+        };
+      }
+      memoryCachedTranslations = merged;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        window.dispatchEvent(new Event('novel_contract_translations_updated'));
+      }
+      return merged;
+    }
   } catch (e) {
-    console.error('Failed to save contract translations to localStorage:', e);
-    return false;
+    console.warn('Could not fetch contract templates from Supabase Storage:', e);
   }
+  return getStoredContractTranslations();
+}
+
+// Save translations to both Supabase Cloud Storage and local storage
+export async function saveContractTranslationsAsync(translations: Record<string, Record<string, string>>): Promise<{ success: boolean; cloudSuccess: boolean; error?: string }> {
+  memoryCachedTranslations = translations;
+
+  // 1. Save to LocalStorage immediately
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(translations));
+      window.dispatchEvent(new Event('novel_contract_translations_updated'));
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  }
+
+  // 2. Upload to Supabase Cloud Storage for all devices & customer contract links
+  let cloudSuccess = false;
+  let errorMsg: string | undefined = undefined;
+  try {
+    const jsonStr = JSON.stringify(translations, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const { error } = await supabase.storage
+      .from('novel_pdf')
+      .upload(SUPABASE_STORAGE_PATH, blob, {
+        upsert: true,
+        contentType: 'application/json'
+      });
+
+    if (error) {
+      console.warn('Supabase cloud storage upload warning:', error.message);
+      errorMsg = error.message;
+    } else {
+      cloudSuccess = true;
+    }
+  } catch (err: any) {
+    console.error('Supabase cloud storage save exception:', err);
+    errorMsg = err?.message || String(err);
+  }
+
+  return { success: true, cloudSuccess, error: errorMsg };
+}
+
+// Synchronous wrapper for backwards compatibility
+export function saveContractTranslations(translations: Record<string, Record<string, string>>): boolean {
+  saveContractTranslationsAsync(translations).catch(err => {
+    console.error('Async Supabase save error in background:', err);
+  });
+  return true;
 }
 
 // Reset specific language or all to defaults
-export function resetContractTranslations(language?: string): Record<string, Record<string, string>> {
+export async function resetContractTranslations(language?: string): Promise<Record<string, Record<string, string>>> {
   if (typeof window === 'undefined') return DEFAULT_CONTRACT_TRANSLATIONS;
   try {
     if (!language) {
       localStorage.removeItem(STORAGE_KEY);
+      memoryCachedTranslations = { ...DEFAULT_CONTRACT_TRANSLATIONS };
       window.dispatchEvent(new Event('novel_contract_translations_updated'));
+      await saveContractTranslationsAsync(DEFAULT_CONTRACT_TRANSLATIONS);
       return DEFAULT_CONTRACT_TRANSLATIONS;
     } else {
       const current = getStoredContractTranslations();
       if (DEFAULT_CONTRACT_TRANSLATIONS[language]) {
         current[language] = { ...DEFAULT_CONTRACT_TRANSLATIONS[language] };
       }
-      saveContractTranslations(current);
+      await saveContractTranslationsAsync(current);
       return current;
     }
   } catch (e) {
@@ -745,3 +825,9 @@ export function resetContractTranslations(language?: string): Record<string, Rec
     return DEFAULT_CONTRACT_TRANSLATIONS;
   }
 }
+
+// Auto-trigger cloud fetch on module load in browser
+if (typeof window !== 'undefined') {
+  fetchContractTranslationsFromSupabase().catch(() => {});
+}
+

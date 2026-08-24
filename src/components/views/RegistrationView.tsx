@@ -62,6 +62,7 @@ interface RegistrationViewProps {
 
   // Youth Age Info
   youthTaxReductionInfo: any;
+  isSuperAdmin?: boolean;
 }
 
 export const RegistrationView: React.FC<RegistrationViewProps> = ({
@@ -104,7 +105,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   handleFeeRateChange,
   handleRemoveFreelancerYear,
   getCombinedRefund,
-  youthTaxReductionInfo
+  youthTaxReductionInfo,
+  isSuperAdmin = false
 }) => {
   // Modal Local States
   const [isManagerModalOpen, setIsManagerModalOpen] = useState<boolean>(false);
@@ -345,7 +347,9 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           )}
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleResetAll}>전체 초기화</button>
           <button className="btn-submit" style={{ padding: '6px 16px', fontSize: '13px', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSaveRegistration}>{regForm.serial && regForm.serial > 0 ? '고객 업데이트' : '신규저장'}</button>
-          <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>삭제</button>
+          {isSuperAdmin && (
+            <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>삭제</button>
+          )}
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>목록</button>
         </div>
       </div>
@@ -554,11 +558,13 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         handleSaveConsultInfo={handleSaveConsultInfo}
         setCustomers={setCustomers}
         selectedFeeRate={selectedFeeRate}
+        handleFeeRateChange={handleFeeRateChange}
         invoiceLanguage={invoiceLanguage}
         setInvoiceLanguage={setInvoiceLanguage}
         contractLanguage={contractLanguage}
         setContractLanguage={setContractLanguage}
         triggerKoreanInvoiceDownload={triggerKoreanInvoiceDownload}
+        isSuperAdmin={isSuperAdmin}
       />
 
       {/* SME Modal */}

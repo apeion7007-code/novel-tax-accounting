@@ -3,6 +3,7 @@ import { supabase } from '../../utils/supabaseClient';
 import { FileSpreadsheet, Edit3 } from 'lucide-react';
 import { calculateCombinedRefund } from '../../utils/combinedTaxCalculator';
 import { CONTRACT_TRANSLATIONS, CONTRACT_LANG_CODES } from '../ContractPage';
+import { getStoredContractTranslations } from '../../utils/contractTemplateStorage';
 import { ContractTemplateModal } from '../modals/ContractTemplateModal';
 
 interface CustomerConsultationFormProps {
@@ -15,11 +16,13 @@ interface CustomerConsultationFormProps {
   handleSaveConsultInfo: () => Promise<void>;
   setCustomers: React.Dispatch<React.SetStateAction<any[]>>;
   selectedFeeRate: number;
+  handleFeeRateChange?: (rate: number) => void;
   invoiceLanguage: string;
   setInvoiceLanguage: React.Dispatch<React.SetStateAction<string>>;
   contractLanguage: string;
   setContractLanguage: React.Dispatch<React.SetStateAction<string>>;
   triggerKoreanInvoiceDownload: () => Promise<void>;
+  isSuperAdmin?: boolean;
 }
 
 export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> = ({
@@ -32,11 +35,13 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   handleSaveConsultInfo,
   setCustomers,
   selectedFeeRate,
+  handleFeeRateChange,
   invoiceLanguage,
   setInvoiceLanguage,
   contractLanguage,
   setContractLanguage,
-  triggerKoreanInvoiceDownload
+  triggerKoreanInvoiceDownload,
+  isSuperAdmin = false
 }) => {
   const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
   const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
@@ -101,6 +106,10 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
 
   const handleDeleteConsultMemo = async (memoId: number, e: React.MouseEvent) => {
     e.stopPropagation(); // prevent modal detail popup on clicking delete button
+    if (!isSuperAdmin) {
+      showToast('⚠️ 상담 메모 삭제 권한이 없습니다. (최고 관리자만 삭제 가능)', 'error');
+      return;
+    }
     const ok = window.confirm('이 상담 메모를 삭제하시겠습니까?');
     if (!ok) return;
 
@@ -228,31 +237,74 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
             </select>
           </div>
 
-          {/* ✏️ 표준 계약서 양식 수정 버튼 */}
-          <button
-            type="button"
-            onClick={() => setIsContractTemplateModalOpen(true)}
-            style={{
-              width: '100%',
-              height: '34px',
-              fontSize: '12px',
-              backgroundColor: '#eff6ff',
-              color: '#1d4ed8',
-              border: '1px solid #93c5fd',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
+          {/* ✏️ 표준 계약서 양식 수정 버튼 & 15%~35% 수수료율 선택 드롭다운 */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+            <button
+              type="button"
+              onClick={() => setIsContractTemplateModalOpen(true)}
+              style={{
+                flex: 1,
+                height: '34px',
+                fontSize: '12px',
+                backgroundColor: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #93c5fd',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Edit3 size={14} />
+              표준 계약서 양식/문구 수정 (A4)
+            </button>
+
+            {/* 수수료율 드롭다운 (15% ~ 35%) */}
+            <div style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
               gap: '6px',
-              marginBottom: '8px',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Edit3 size={14} />
-            표준 계약서 양식/문구 수정 (A4)
-          </button>
+              backgroundColor: '#f0fdf4',
+              border: '1px solid #86efac',
+              borderRadius: '6px',
+              padding: '0 8px',
+              height: '34px',
+              boxSizing: 'border-box'
+            }}>
+              <span style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#166534', whiteSpace: 'nowrap' }}>수수료율</span>
+              <select
+                value={selectedFeeRate || 20}
+                onChange={(e) => {
+                  const rate = Number(e.target.value);
+                  if (handleFeeRateChange) {
+                    handleFeeRateChange(rate);
+                  }
+                }}
+                style={{
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#15803d',
+                  padding: '2px 4px',
+                  backgroundColor: '#ffffff',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  height: '24px'
+                }}
+              >
+                {Array.from({ length: 21 }, (_, i) => 15 + i).map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate}%
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <button
             type="button"
@@ -391,9 +443,11 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '65%', borderBottom: '1px solid #e2e8f0' }}>상담처리 메모</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '25%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>처리일시/담당자</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '10%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>삭제</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: isSuperAdmin ? '65%' : '70%', borderBottom: '1px solid #e2e8f0' }}>상담처리 메모</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: isSuperAdmin ? '25%' : '30%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>처리일시/담당자</th>
+                    {isSuperAdmin && (
+                      <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '10%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>삭제</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -430,25 +484,27 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                           <div>{formattedDate}</div>
                           <div style={{ fontWeight: 'bold', color: '#475569' }}>{resolvedManager}</div>
                         </td>
-                        <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'top' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteConsultMemo(memo.id, e)}
-                            style={{
-                              border: 'none',
-                              backgroundColor: 'transparent',
-                              color: '#ef4444',
-                              cursor: 'pointer',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '14px'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                          >
-                            🗑️
-                          </button>
-                        </td>
+                        {isSuperAdmin && (
+                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'top' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteConsultMemo(memo.id, e)}
+                              style={{
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '14px'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            >
+                              🗑️
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -841,7 +897,8 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
 
       {/* 📄 서명된 계약서 전체 보기 및 인쇄 모달 */}
       {showFullContractModal && regForm.contractSignatureUrl && (() => {
-        const t = CONTRACT_TRANSLATIONS[selectedContractLang] || CONTRACT_TRANSLATIONS['한국어'];
+        const stored = getStoredContractTranslations();
+        const t = stored[selectedContractLang] || stored['한국어'] || CONTRACT_TRANSLATIONS[selectedContractLang] || CONTRACT_TRANSLATIONS['한국어'];
         
         // Fee Calculations
         const feeMethod = regForm.feePaymentStatus || '후불 22%';
@@ -1139,11 +1196,10 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                     <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.feeTitle}</h4>
                     <p style={{ margin: '0 0 6px 0', color: '#475569', wordBreak: 'keep-all' }}>{feeDescriptionText}</p>
                     <div style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div>{t.feeText2} <strong>{totalFeeRate}% ({feeMethod})</strong></div>
-                      {prepaidRate > 0 && <div>• {selectedContractLang === '영어' ? 'Prepaid portion' : '선불금액'} ({prepaidRate}%): <strong>{prepaidAmt.toLocaleString()} {t.won}</strong></div>}
-                      {postpaidRate > 0 && <div>• {selectedContractLang === '영어' ? 'Postpaid portion' : '후불금액'} ({postpaidRate}%): <strong>{postpaidAmt.toLocaleString()} {t.won}</strong></div>}
-                      <div>{t.feeText3} <strong>{expectedRefund.toLocaleString()} {t.won}</strong></div>
-                      <div style={{ borderTop: '1px solid #cbd5e1', paddingTop: '6px', marginTop: '6px' }}>{t.feeText4} <strong style={{ color: '#2563eb', fontSize: '14px' }}>{calculatedFee.toLocaleString()} {t.won}</strong></div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>{t.feeText2}</span>
+                        <strong style={{ color: '#1d4ed8', fontSize: '14px' }}>{totalFeeRate}% ({feeMethod})</strong>
+                      </div>
                     </div>
                   </div>
 

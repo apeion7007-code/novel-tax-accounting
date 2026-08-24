@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Save,
@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import {
   getStoredContractTranslations,
-  saveContractTranslations,
+  saveContractTranslationsAsync,
+  fetchContractTranslationsFromSupabase,
   resetContractTranslations,
   CONTRACT_LANG_CODES,
   DEFAULT_CONTRACT_TRANSLATIONS
@@ -28,6 +29,13 @@ export const ContractTemplateManagerView: React.FC<ContractTemplateManagerViewPr
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
+
+  // Sync latest from Supabase on mount
+  useEffect(() => {
+    fetchContractTranslationsFromSupabase().then((latest) => {
+      setTranslations(latest);
+    });
+  }, []);
 
   // Sample dummy contract data for previewing how real numbers/names look
   const [sampleClient] = useState<ContractData>({
@@ -57,27 +65,36 @@ export const ContractTemplateManagerView: React.FC<ContractTemplateManagerViewPr
     setHasUnsavedChanges(true);
   };
 
-  // Save all custom translations
-  const handleSave = () => {
+  // Save all custom translations to Supabase Cloud & Local Storage
+  const handleSave = async () => {
     setIsSaving(true);
-    const success = saveContractTranslations(translations);
-    setTimeout(() => {
+    try {
+      const res = await saveContractTranslationsAsync(translations);
       setIsSaving(false);
-      if (success) {
+      if (res.success) {
         setHasUnsavedChanges(false);
-        showToast(`[${selectedLanguage}] 표준 계약서 템플릿이 성공적으로 저장되었습니다!`, 'success');
+        if (res.cloudSuccess) {
+          showToast(`[${selectedLanguage}] 표준 계약서 템플릿이 슈퍼베이스 클라우드 및 로컬에 안전하게 저장되었습니다!`, 'success');
+        } else {
+          showToast(`[${selectedLanguage}] 로컬에 저장되었습니다. (클라우드 동기화 중)`, 'info');
+        }
       } else {
         showToast('계약서 저장에 실패했습니다. 다시 시도해 주세요.', 'error');
       }
-    }, 300);
+    } catch (err) {
+      setIsSaving(false);
+      showToast('저장 중 오류가 발생했습니다.', 'error');
+    }
   };
 
   // Reset to original template
-  const handleReset = () => {
+  const handleReset = async () => {
     if (window.confirm(`'${selectedLanguage}' 표준 계약서 문구를 초기 기본값으로 되돌리시겠습니까?`)) {
-      const updated = resetContractTranslations(selectedLanguage);
+      setIsSaving(true);
+      const updated = await resetContractTranslations(selectedLanguage);
       setTranslations(updated);
       setHasUnsavedChanges(false);
+      setIsSaving(false);
       showToast(`'${selectedLanguage}' 문구가 기본값으로 복원되었습니다.`, 'info');
     }
   };
@@ -104,7 +121,7 @@ export const ContractTemplateManagerView: React.FC<ContractTemplateManagerViewPr
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (typeof parsed === 'object') {
-          saveContractTranslations(parsed);
+          saveContractTranslationsAsync(parsed);
           setTranslations(parsed);
           setHasUnsavedChanges(false);
           showToast('14개국어 계약서 번역 파일이 정상적으로 적용되었습니다!', 'success');

@@ -79,6 +79,7 @@ interface CustomerListViewProps {
   countInProgress: number;
   countFeeCompleted: number;
   countNextYear: number;
+  isSuperAdmin?: boolean;
 }
 
 export const CustomerListView: React.FC<CustomerListViewProps> = ({
@@ -138,7 +139,8 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   countAll,
   countInProgress,
   countFeeCompleted,
-  countNextYear
+  countNextYear,
+  isSuperAdmin = false
 }) => {
   const [isVisaWidgetExpanded, setIsVisaWidgetExpanded] = React.useState<boolean>(false);
   const [isConsentOpen, setIsConsentOpen] = React.useState<boolean>(false);
@@ -219,10 +221,12 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
             <Plus size={16} />
             신규등록
           </button>
-          <button className="btn-action btn-delete" onClick={handleDeleteCustomers}>
-            <Trash2 size={16} />
-            삭제
-          </button>
+          {isSuperAdmin && (
+            <button className="btn-action btn-delete" onClick={handleDeleteCustomers}>
+              <Trash2 size={16} />
+              삭제
+            </button>
+          )}
           <button className="btn-action btn-excel" onClick={handleExportExcel}>
             <FileSpreadsheet size={16} />
             Excel로 내보내기

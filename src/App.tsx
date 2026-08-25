@@ -1489,7 +1489,14 @@ function App() {
           prev
         );
       });
-      return { ...prev, years: updatedYears };
+      return { 
+        ...prev, 
+        feeRate: rate,
+        feePaymentStatus: prev.feePaymentStatus && prev.feePaymentStatus.includes('선불') && prev.feePaymentStatus.includes('후불')
+          ? prev.feePaymentStatus
+          : `후불 ${rate}%`,
+        years: updatedYears 
+      };
     });
   };
 
@@ -2159,7 +2166,8 @@ function App() {
         additionalApplyPerformance: clientDetails?.isAdditionalPayback || clientDetails?.isAdditionalApply ? '가' : '부',
         claimCompleteDate: clientDetails?.rectificationRequestDate ? clientDetails.rectificationRequestDate.split('T')[0] : '',
         claimRequestDate: clientDetails?.additionalApplyDate ? clientDetails.additionalApplyDate.split('T')[0] : '',
-        feePaymentStatus: clientDetails?.feeMethod || '후불 22%',
+        feeRate: Number(clientDetails?.feeRate) || (clientDetails?.feeMethod ? Number(clientDetails.feeMethod.match(/\d+/)?.[0] || 22) : 22),
+        feePaymentStatus: clientDetails?.feeMethod || (clientDetails?.feeRate ? `후불 ${clientDetails.feeRate}%` : '후불 22%'),
         taxReductionApplyDateStart: clientDetails?.taxReductionApplyDateStart ? clientDetails.taxReductionApplyDateStart.split('T')[0] : '',
         taxReductionApplyDateEnd: clientDetails?.taxReductionApplyDateEnd ? clientDetails.taxReductionApplyDateEnd.split('T')[0] : '',
         hometaxId: clientDetails?.hometaxId || '',
@@ -2209,6 +2217,9 @@ function App() {
         years: yearsObj,
         freelancerYears: freelancerYearsObj
       }));
+
+      const loadedFeeRate = Number(clientDetails?.feeRate) || (clientDetails?.feeMethod ? Number(clientDetails.feeMethod.match(/\d+/)?.[0] || 22) : 22);
+      setSelectedFeeRate(loadedFeeRate);
 
       setCurrentView('registration');
       const displayName = customer?.name || regForm.name || '고객';

@@ -1,6 +1,128 @@
 import React, { useRef } from 'react';
 import { CONTRACT_LANG_CODES, BANK_DETAILS_MAP } from '../utils/contractTemplateStorage';
 
+/**
+ * Dedicated isolated print utility for 2-page A4 Contract
+ * Guarantees Sheet 1 on Page 1, Sheet 2 on Page 2, and 0 background UI bleed
+ */
+export function printA4ContractDocument(targetSelector: string = '.a4-document-container') {
+  if (typeof window === 'undefined') return;
+
+  const container = document.querySelector(targetSelector) as HTMLElement | null;
+  if (!container) {
+    window.print();
+    return;
+  }
+
+  const sheets = container.querySelectorAll('.a4-page-sheet');
+  if (sheets.length === 0) {
+    window.print();
+    return;
+  }
+
+  // Remove existing print iframe if any
+  const existingIframe = document.getElementById('novel-contract-print-iframe');
+  if (existingIframe) {
+    existingIframe.remove();
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.id = 'novel-contract-print-iframe';
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const iframeDoc = iframe.contentWindow?.document;
+  if (!iframeDoc) {
+    window.print();
+    return;
+  }
+
+  const sheetsHtml = Array.from(sheets).map(s => s.outerHTML).join('');
+
+  iframeDoc.open();
+  iframeDoc.write(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>세무 경정 청구 표준계약서</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        font-family: 'Noto Sans KR', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        width: 210mm !important;
+      }
+      .a4-page-sheet {
+        width: 210mm !important;
+        height: 297mm !important;
+        max-height: 297mm !important;
+        min-height: 297mm !important;
+        padding: 14mm 16mm 12mm 16mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: #ffffff !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .a4-page-front {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      .a4-page-back {
+        page-break-before: always !important;
+        break-before: page !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      .no-print {
+        display: none !important;
+        visibility: hidden !important;
+      }
+    </style>
+  </head>
+  <body>
+    ${sheetsHtml}
+  </body>
+</html>`);
+  iframeDoc.close();
+
+  // Print once the iframe is loaded and images are rendered
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error('Print iframe error:', e);
+      window.print();
+    }
+  }, 350);
+}
+
 export interface ContractData {
   name: string;
   country: string;
@@ -204,27 +326,71 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           margin: 0;
         }
         @media print {
-          body {
-            background: white !important;
-            padding: 0 !important;
+          /* 1. Hide entire background page and UI */
+          body * {
+            visibility: hidden !important;
           }
+
+          /* 2. Show ONLY the A4 contract container and all its descendants */
+          .a4-document-container,
+          .a4-document-container * {
+            visibility: visible !important;
+          }
+
+          /* 3. Anchor A4 container directly at (0,0) of the print paper */
           .a4-document-container {
-            gap: 0 !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            background: #ffffff !important;
+            z-index: 99999 !important;
           }
+
+          /* 4. Format each A4 page sheet */
           .a4-page-sheet {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
             box-shadow: none !important;
             border-radius: 0 !important;
+            border: none !important;
             margin: 0 !important;
             width: 210mm !important;
+            min-height: 297mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
-            page-break-after: always !important;
-            page-break-inside: avoid !important;
             box-sizing: border-box !important;
-            padding: 16mm 16mm !important;
+            padding: 14mm 16mm 12mm 16mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          .no-print {
+
+          /* 5. Page 1 (Front) strictly breaks page after */
+          .a4-page-front {
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+
+          /* 6. Page 2 (Back) strictly breaks page before */
+          .a4-page-back {
+            page-break-before: always !important;
+            break-before: page !important;
+            page-break-after: auto !important;
+            break-after: auto !important;
+          }
+
+          /* 7. Hide buttons and toolbar */
+          .no-print,
+          .no-print * {
             display: none !important;
+            visibility: hidden !important;
           }
         }
       `}</style>

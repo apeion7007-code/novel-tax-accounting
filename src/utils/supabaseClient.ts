@@ -277,6 +277,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       taxReductionSentDate: safeToISOString(regForm.deductionSentDate),
       rectificationRequestDate: safeToISOString(regForm.claimCompleteDate),
       additionalApplyDate: safeToISOString(regForm.claimRequestDate),
+      feeRate: Number(regForm.feeRate) || (regForm.feePaymentStatus ? Number(regForm.feePaymentStatus.match(/\d+/)?.[0] || 22) : 22),
       feeMethod: regForm.feePaymentStatus || '후불 22%',
       hireDate: safeToISOString(regForm.residentAddress),
       isNextYearApply: regForm.isNextYearApply || false,
@@ -974,11 +975,13 @@ export async function bulkUpdateConsentStatusByRegNums(regNums: string[]) {
 }
 
 /**
- * Upload Contract signature image to Supabase Storage, and update contractStatus to '계약완료'
+ * Upload Contract signature image to Supabase Storage, and update contractStatus to '계약완료' with feeRate and feeMethod
  */
 export async function updateClientContract(
   clientId: string,
-  signatureBase64: string | null
+  signatureBase64: string | null,
+  feeRate?: number,
+  feeMethod?: string
 ) {
   try {
     const bucketName = 'novel_pdf';
@@ -1017,6 +1020,10 @@ export async function updateClientContract(
       updatedAt: new Date().toISOString()
     };
     if (contractSignatureUrl) updatePayload.contractSignatureUrl = contractSignatureUrl;
+    if (feeRate !== undefined && feeRate !== null) {
+      updatePayload.feeRate = Number(feeRate);
+      updatePayload.feeMethod = feeMethod || `후불 ${feeRate}%`;
+    }
 
     const { error: dbErr } = await supabase
       .from('Client')
@@ -1033,3 +1040,31 @@ export async function updateClientContract(
     return { success: false, error: e.message };
   }
 }
+
+/**
+ * Real-time update feeRate and feeMethod for a client in Supabase
+ */
+export async function updateClientFeeRate(
+  clientId: string,
+  feeRate: number,
+  feeMethod?: string
+) {
+  try {
+    const finalMethod = feeMethod || `후불 ${feeRate}%`;
+    const { error } = await supabase
+      .from('Client')
+      .update({
+        feeRate: Number(feeRate),
+        feeMethod: finalMethod,
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', clientId);
+
+    if (error) throw error;
+    return { success: true };
+  } catch (e: any) {
+    console.error('updateClientFeeRate error:', e);
+    return { success: false, error: e.message };
+  }
+}
+

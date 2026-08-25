@@ -269,7 +269,11 @@ export function ContractPage({ token }: ContractPageProps) {
     setSubmitting(true);
     const signatureBase64 = canvas.toDataURL('image/png');
 
-    const res = await updateClientContract(client.id, signatureBase64);
+    const urlFeeParam = new URLSearchParams(window.location.search).get('feeRate') || new URLSearchParams(window.location.search).get('fee');
+    const signedFeeRate = urlFeeParam ? Number(urlFeeParam) : (Number(client.feeRate) || 22);
+    const signedFeeMethod = `후불 ${signedFeeRate}%`;
+
+    const res = await updateClientContract(client.id, signatureBase64, signedFeeRate, signedFeeMethod);
     setSubmitting(false);
 
     if (res.success) {

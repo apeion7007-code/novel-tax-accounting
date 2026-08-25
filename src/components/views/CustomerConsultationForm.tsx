@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { supabase } from '../../utils/supabaseClient';
+import { supabase, updateClientFeeRate } from '../../utils/supabaseClient';
 import { FileSpreadsheet, Edit3 } from 'lucide-react';
 import { calculateCombinedRefund } from '../../utils/combinedTaxCalculator';
-import { CONTRACT_TRANSLATIONS, CONTRACT_LANG_CODES } from '../ContractPage';
+import { CONTRACT_TRANSLATIONS } from '../ContractPage';
 import { getStoredContractTranslations } from '../../utils/contractTemplateStorage';
 import { ContractTemplateModal } from '../modals/ContractTemplateModal';
+import { A4ContractDocument, type ContractData, printA4ContractDocument } from '../A4ContractDocument';
 
 interface CustomerConsultationFormProps {
   regForm: any;
@@ -282,6 +283,13 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                   const rate = Number(e.target.value);
                   if (handleFeeRateChange) {
                     handleFeeRateChange(rate);
+                  }
+                  if (regForm.clientId) {
+                    updateClientFeeRate(regForm.clientId, rate, `후불 ${rate}%`).then(res => {
+                      if (res.success) {
+                        showToast(`수수료율이 ${rate}%로 슈퍼베이스에 실시간 저장되었습니다.`, 'success');
+                      }
+                    });
                   }
                 }}
                 style={{
@@ -895,14 +903,14 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
         </div>
       )}
 
-      {/* 📄 서명된 계약서 전체 보기 및 인쇄 모달 */}
+      {/* 📄 서명된 계약서 전체 보기 및 인쇄 모달 (A4 2페이지 표준 규격) */}
       {showFullContractModal && regForm.contractSignatureUrl && (() => {
         const stored = getStoredContractTranslations();
-        const t = stored[selectedContractLang] || stored['한국어'] || CONTRACT_TRANSLATIONS[selectedContractLang] || CONTRACT_TRANSLATIONS['한국어'];
+        const currentTranslation = stored[selectedContractLang] || stored['한국어'] || CONTRACT_TRANSLATIONS[selectedContractLang] || CONTRACT_TRANSLATIONS['한국어'];
         
-        // Fee Calculations
+        // Fee Calculations from DB / regForm (Preserving exact signed feeRate)
         const feeMethod = regForm.feePaymentStatus || '후불 22%';
-        const numericFeeRate = selectedFeeRate || 22;
+        const numericFeeRate = Number(regForm.feeRate) || (regForm.feePaymentStatus ? Number(regForm.feePaymentStatus.match(/\d+/)?.[0] || 0) : 0) || selectedFeeRate || 22;
         
         let prepaidRate = 0;
         let postpaidRate = 0;
@@ -921,41 +929,32 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           postpaidRate = postpaidMatch ? Number(postpaidMatch[1]) : numericFeeRate;
         }
 
-        const totalFeeRate = prepaidRate + postpaidRate;
+        const totalFeeRate = (prepaidRate > 0 || postpaidRate > 0) ? (prepaidRate + postpaidRate) : numericFeeRate;
 
-        // Clauses
-        const getDynamicFeeText = (lang: string, prepRate: number, postRate: number) => {
-          if (prepRate > 0 && postRate > 0) {
-            if (lang === '한국어') return '본 경정청구 용역의 대가는 선불 및 성공보수 후불 혼합 방식으로 하며, 신청 시의 선불 수수료와 국세청으로부터 환급(결정)이 확정된 총 환급금액(지방세 포함)에 대한 후불 성공보수를 각각 합산한 금액으로 한다.';
-            return 'The fee for this service shall be a hybrid of a prepaid fee and a success postpaid fee, calculated as the sum of the prepaid portion and the postpaid success portion based on the final refund amount.';
-          } else if (prepRate > 0) {
-            if (lang === '한국어') return '본 경정청구 용역의 대가는 선불 방식으로 하며, 예상 환급금액에 약정 수수료율을 곱하여 산정된 금액을 경정청구 진행 전에 납부하는 것으로 한다.';
-            return 'The fee for this service shall be paid upfront (prepaid), calculated by multiplying the expected refund amount by the agreed fee rate before the filing process begins.';
-          } else {
-            if (lang === '한국어') return '본 경정청구 용역의 대가는 성공보수 후불 방식으로 하며, 국세청으로부터 환급(결정)이 확정된 총 환급금액(지방세 포함)에 약정 수수료율을 곱한 금액으로 한다.';
-            return 'The fee for this service shall be on a success-fee basis (postpaid), calculated by multiplying the total refund amount (including local tax) confirmed by the tax authorities by the agreed fee rate.';
+        // Calculate expected total refund across active years
+        let totalRefund = 0;
+        const years = regForm.years || [];
+        const targetYears = Array.from(new Set(years.filter((y: any) => y.active).map((y: any) => String(y.year))));
+        targetYears.forEach((yr: any) => {
+          const res = calculateCombinedRefund(regForm, yr, totalFeeRate);
+          if (res && res.finalRefund > 0) {
+            totalRefund += res.finalRefund;
           }
+        });
+
+        const contractData: ContractData = {
+          name: regForm.name || '',
+          country: regForm.nationality || '',
+          regNum: regForm.foreignerNumber || regForm.cleanRegNum || regForm.birthDate || '',
+          company: regForm.companyName || '-',
+          visa: regForm.visa || '-',
+          totalRefund: totalRefund,
+          feeRate: totalFeeRate,
+          prepaidRate: prepaidRate,
+          postpaidRate: postpaidRate,
+          signatureUrl: regForm.contractSignatureUrl,
+          signedDate: regForm.contractConsentDate ? new Date(regForm.contractConsentDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('ko-KR')
         };
-
-        const getDynamicPaymentText = (lang: string, prepRate: number, postRate: number) => {
-          const bankDetails = lang === '영어' 
-            ? '\n• Bank: IBK (Industrial Bank of Korea) 540-049052-04-010\n• Depositor: Hangyeol Financial Consulting'
-            : '\n• 입금 계좌: 기업은행 540-049052-04-010\n• 예금주: 한결금융컨설팅';
-
-          if (prepRate > 0 && postRate > 0) {
-            if (lang === '한국어') return `의뢰인(갑)은 세무 경정청구 신청 접수 전에 약정된 선불 수수료(${prepRate}%)에 해당하는 금액을 송금하고, 국세청 및 지자체로부터 환급금을 본인 계좌로 수령한 날로부터 3영업일 이내에 약정된 후불 수수료(${postRate}%)를 아래 입금 계좌로 송금해야 한다.${bankDetails}`;
-            return `Party A shall transfer the prepaid portion (${prepRate}%) before the claim is filed, and the postpaid portion (${postRate}%) within 3 business days after receiving the tax refund from the authorities, to Party B's designated bank account below.${bankDetails}`;
-          } else if (prepRate > 0) {
-            if (lang === '한국어') return `의뢰인(갑)은 세무 경정청구 신청 접수 전에 약정된 선불 수수료(${prepRate}%)에 해당하는 금액을 수임인(을)이 지정한 아래 입금 계좌로 송금해야 한다.${bankDetails}`;
-            return `Party A shall transfer the prepaid fee (${prepRate}%) to Party B's designated bank account below before the tax rectification claim is filed.${bankDetails}`;
-          } else {
-            if (lang === '한국어') return `의뢰인(갑)은 국세청 및 지자체로부터 세금 환급금을 본인 계좌로 수령한 날로부터 3영업일 이내에 수임인(을)이 지정한 아래 입금 계좌로 수수료를 송금해야 한다.${bankDetails}`;
-            return `Party A shall transfer the fee to Party B's designated bank account below within 3 business days from the date Party A receives the tax refund from the tax office or local government.${bankDetails}`;
-          }
-        };
-
-        const feeDescriptionText = getDynamicFeeText(selectedContractLang, prepaidRate, postpaidRate);
-        const paymentText = getDynamicPaymentText(selectedContractLang, prepaidRate, postpaidRate);
 
         return (
           <div 
@@ -966,7 +965,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0,0,0,0.6)',
+              backgroundColor: 'rgba(0,0,0,0.65)',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'flex-start',
@@ -977,256 +976,83 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
             }}
             onClick={() => setShowFullContractModal(false)}
           >
-            {/* Print styling tag */}
-            <style>{`
-              @media print {
-                body > * {
-                  display: none !important;
-                }
-                #printable-contract-modal-overlay {
-                  position: absolute !important;
-                  left: 0 !important;
-                  top: 0 !important;
-                  width: 100% !important;
-                  height: auto !important;
-                  background: white !important;
-                  display: block !important;
-                  z-index: 99999 !important;
-                  padding: 0 !important;
-                  margin: 0 !important;
-                  overflow: visible !important;
-                }
-                #printable-contract-modal-content {
-                  border: none !important;
-                  box-shadow: none !important;
-                  width: 100% !important;
-                  max-width: 100% !important;
-                  margin: 0 !important;
-                  padding: 0 !important;
-                  background: white !important;
-                }
-                .no-print {
-                  display: none !important;
-                }
-              }
-            `}</style>
-
+            {/* Top Toolbar */}
             <div 
-              id="printable-contract-modal-content"
+              className="no-print"
               style={{
                 width: '100%',
-                maxWidth: '650px',
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+                maxWidth: '820px',
                 display: 'flex',
-                flexDirection: 'column',
-                margin: '0 auto 40px',
-                position: 'relative'
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#0f172a',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                marginBottom: '16px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Modal Top Control Bar (Hidden on print) */}
-              <div 
-                className="no-print"
-                style={{ 
-                  padding: '12px 16px', 
-                  borderBottom: '1px solid #e2e8f0', 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  backgroundColor: '#f8fafc',
-                  borderTopLeftRadius: '12px',
-                  borderTopRightRadius: '12px'
-                }}
-              >
-                {/* Language Selector */}
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {Object.keys(CONTRACT_TRANSLATIONS).map(lang => (
-                    <button 
-                      key={lang}
-                      onClick={() => setSelectedContractLang(lang)}
-                      style={{ 
-                        border: '1px solid #cbd5e1', 
-                        background: selectedContractLang === lang ? '#3b82f6' : '#ffffff', 
-                        color: selectedContractLang === lang ? '#ffffff' : '#475569',
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        fontWeight: 'bold',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {CONTRACT_LANG_CODES[lang] || lang}
-                    </button>
-                  ))}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button 
-                    onClick={() => window.print()}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: '12px',
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    🖨️ 인쇄 / PDF 저장
-                  </button>
-                  <button 
-                    onClick={() => setShowFullContractModal(false)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      backgroundColor: '#ffffff',
-                      color: '#475569',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    닫기
-                  </button>
-                </div>
+              <div style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📄 서명 완료된 세무 경정청구 표준계약서</span>
+                <span style={{ fontSize: '11px', backgroundColor: '#10b981', color: '#ffffff', padding: '2px 8px', borderRadius: '4px' }}>
+                  약정 수수료 {totalFeeRate}%
+                </span>
               </div>
-
-              {/* Printable Contract Body */}
-              <div style={{ padding: '40px 30px', boxSizing: 'border-box', backgroundColor: '#ffffff', borderRadius: '12px' }}>
-                
-                {/* Header */}
-                <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-                  <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 8px 0', color: '#0f172a' }}>{t.title}</h2>
-                  <p style={{ fontSize: '12px', color: '#475569', margin: 0, lineHeight: '1.5' }}>{t.subtitle}</p>
-                </div>
-
-                {/* Parties Info Table */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                  
-                  {/* 甲: 의뢰인 */}
-                  <div style={{ fontSize: '13px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-                    <div style={{ fontWeight: 'bold', color: '#2563eb', marginBottom: '6px', fontSize: '14px' }}>{t.clientLabel}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '6px 12px', color: '#334155' }}>
-                      <span>• {t.nameLabel}:</span> <span style={{ fontWeight: 'bold' }}>{regForm.name || '-'}</span>
-                      <span>• {t.nationalityLabel}:</span> <span>{regForm.nationality || '-'}</span>
-                      <span>• {t.regNumLabel}:</span> <span>{regForm.foreignerNumber || '-'}</span>
-                      <span>• {t.addressLabel}:</span> <span>{regForm.residentRegisterAddress || '-'}</span>
-                      <span>• {t.phoneLabel}:</span> <span>{regForm.phone || '-'}</span>
-                      <span>• {t.companyLabel}:</span> <span>{[...(regForm.years || [])].sort((a: any, b: any) => (Number(b.year) || 0) - (Number(a.year) || 0)).find((y: any) => y.workPlace || y.companyName)?.workPlace || regForm.companyName || '-'}</span>
-                      <span>• {t.visaLabel}:</span> <span>{regForm.visaType || '-'}</span>
-                    </div>
-                  </div>
-
-                  {/* 乙: 수임인 */}
-                  <div style={{ fontSize: '13px', paddingTop: '6px' }}>
-                    <div style={{ fontWeight: 'bold', color: '#0f172a', marginBottom: '6px', fontSize: '14px' }}>{t.agentLabel}</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '6px 12px', color: '#334155', position: 'relative' }}>
-                      <span>• {t.firmNameLabel}:</span> <span>{t.firmNameVal}</span>
-                      <span>• {t.firmRepresentativeLabel}:</span> 
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {t.representativeVal}
-                        
-                        {/* Red Seal */}
-                        <div style={{ 
-                          width: '45px', 
-                          height: '45px', 
-                          borderRadius: '50%', 
-                          border: '2px dashed #ef4444', 
-                          color: '#ef4444', 
-                          fontSize: '8px', 
-                          display: 'flex', 
-                          flexDirection: 'column',
-                          justifyContent: 'center', 
-                          alignItems: 'center', 
-                          transform: 'rotate(-10deg)',
-                          fontWeight: 'bold',
-                          lineHeight: '1.1',
-                          padding: '2px',
-                          boxSizing: 'border-box',
-                          backgroundColor: 'rgba(239, 68, 68, 0.05)',
-                          userSelect: 'none'
-                        }}>
-                          <span>노벨세무</span>
-                          <span style={{ fontSize: '7px' }}>{t.sealPlaceholder}</span>
-                        </div>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contract Terms Details */}
-                <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '16px', marginBottom: '24px', backgroundColor: '#fafafa' }}>
-                  
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.purposeTitle}</h4>
-                    <p style={{ margin: 0, color: '#475569', wordBreak: 'keep-all' }}>{t.purposeText}</p>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.scopeTitle}</h4>
-                    <p style={{ margin: 0, color: '#475569', whiteSpace: 'pre-line' }}>{t.scopeText}</p>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.feeTitle}</h4>
-                    <p style={{ margin: '0 0 6px 0', color: '#475569', wordBreak: 'keep-all' }}>{feeDescriptionText}</p>
-                    <div style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>{t.feeText2}</span>
-                        <strong style={{ color: '#1d4ed8', fontSize: '14px' }}>{totalFeeRate}% ({feeMethod})</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '16px' }}>
-                    <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.paymentTitle}</h4>
-                    <p style={{ margin: 0, color: '#475569', whiteSpace: 'pre-line' }}>{paymentText}</p>
-                  </div>
-
-                  <div>
-                    <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.dutiesTitle}</h4>
-                    <p style={{ margin: 0, color: '#475569', whiteSpace: 'pre-line' }}>{t.dutiesText}</p>
-                  </div>
-
-                </div>
-
-                {/* Agreement & Signature Details */}
-                <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', marginBottom: '24px' }}>
-                  <h4 style={{ margin: '0 0 6px 0', fontWeight: 'bold', color: '#0f172a', fontSize: '13px' }}>{t.completionTitle}</h4>
-                  <p style={{ margin: '0 0 20px 0', color: '#475569' }}>{t.completionText}</p>
-                  
-                  {/* Signature display board */}
-                  <div style={{ border: '1px solid #cbd5e1', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '20px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '10px', width: '100%', textAlign: 'left' }}>
-                      ✍️ {t.sigLabel}
-                    </div>
-                    <img 
-                      src={regForm.contractSignatureUrl} 
-                      alt="Client Signature" 
-                      style={{ maxWidth: '100%', maxHeight: '120px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#ffffff', padding: '10px' }}
-                    />
-                    {regForm.contractConsentDate && (
-                      <div style={{ fontSize: '11px', color: '#64748b', marginTop: '10px' }}>
-                        서명 일시 / Signature Date: {new Date(regForm.contractConsentDate).toLocaleString('ko-KR')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div style={{ textAlign: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '20px', fontSize: '12px', color: '#94a3b8', fontWeight: 'bold' }}>
-                  NOVEL TAX LAW FIRM
-                </div>
-
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => printA4ContractDocument('#printable-contract-modal-overlay')}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  🖨️ A4 인쇄 / PDF 저장
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFullContractModal(false)}
+                  style={{
+                    padding: '6px 14px',
+                    fontSize: '12px',
+                    backgroundColor: '#334155',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  닫기
+                </button>
               </div>
+            </div>
+
+            {/* Document Content */}
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '100%', maxWidth: '820px' }}
+            >
+              <A4ContractDocument
+                language={selectedContractLang}
+                translations={currentTranslation}
+                onLanguageChange={setSelectedContractLang}
+                contractData={contractData}
+                isEditable={false}
+                showLanguageSelector={true}
+                showSignaturePad={false}
+                isCompleted={true}
+              />
             </div>
           </div>
         );

@@ -43,8 +43,6 @@ export const ContractTemplateModal: React.FC<ContractTemplateModalProps> = ({
   showToast,
   clientData
 }) => {
-  if (!isOpen) return null;
-
   const [translations, setTranslations] = useState<Record<string, Record<string, string>>>(getStoredContractTranslations);
   const [selectedLanguage, setSelectedLanguage] = useState<string>(initialLanguage || '한국어');
   const [isEditMode, setIsEditMode] = useState<boolean>(true);
@@ -53,10 +51,13 @@ export const ContractTemplateModal: React.FC<ContractTemplateModalProps> = ({
 
   // Sync latest from Supabase on mount
   useEffect(() => {
+    if (!isOpen) return;
     fetchContractTranslationsFromSupabase().then((latest) => {
       setTranslations(latest);
     });
-  }, []);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
 
   const sampleClient: ContractData = {
     name: clientData?.name || 'HOSEN LOKMAN',

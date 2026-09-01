@@ -65,12 +65,27 @@ export async function fetchInitialClientsFromSupabase() {
 }
 
 /**
- * High-speed parallel background fetch for ALL 24,634+ Client records
+ * High-speed parallel background fetch for ALL Client records with dynamic exact count detection (zero omissions)
  */
-export async function fetchAllClientsParallelFromSupabase(totalEstimate = 26000) {
+export async function fetchAllClientsParallelFromSupabase() {
   try {
     const pageSize = 1000;
-    const totalPages = Math.ceil(totalEstimate / pageSize);
+
+    // 1. Get exact total count dynamically from Supabase
+    let totalRecords = 30000;
+    try {
+      const { count, error: countErr } = await supabase
+        .from('Client')
+        .select('*', { count: 'exact', head: true });
+
+      if (!countErr && count && count > 0) {
+        totalRecords = count;
+      }
+    } catch (e) {
+      console.warn('Failed to get exact client count, using safe fallback:', e);
+    }
+
+    const totalPages = Math.ceil(totalRecords / pageSize);
 
     const promises = [];
     for (let i = 0; i < totalPages; i++) {

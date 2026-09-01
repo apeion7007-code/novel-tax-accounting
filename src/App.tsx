@@ -885,6 +885,7 @@ function App() {
         setDbManagers(mgrs);
 
         const mgrMap = new Map((mgrs || []).map((m: any) => [m.id, m.name ? m.name.trim() : '']));
+        const mgrTeamMap = new Map((mgrs || []).map((m: any) => [m.id, m.teamId]));
         const teamMap = new Map((teams || []).map((t: any) => [t.id, t.name ? t.name.trim() : '']));
 
         // Stage 1: Ultra-fast initial load (first 500 recent items in ~0.2s)
@@ -902,7 +903,8 @@ function App() {
               return s;
             };
 
-            const resolvedTeamName = teamMap.get(c.teamId) || '';
+            const resolvedTeamId = c.teamId || (c.managerId ? mgrTeamMap.get(c.managerId) : null);
+            const resolvedTeamName = (resolvedTeamId ? teamMap.get(resolvedTeamId) : '') || '';
             const cleanTeamName = resolvedTeamName.replace(/팀$/, '').trim();
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
@@ -953,7 +955,8 @@ function App() {
               return s;
             };
 
-            const resolvedTeamName = teamMap.get(c.teamId) || '';
+            const resolvedTeamId = c.teamId || (c.managerId ? mgrTeamMap.get(c.managerId) : null);
+            const resolvedTeamName = (resolvedTeamId ? teamMap.get(resolvedTeamId) : '') || '';
             const cleanTeamName = resolvedTeamName.replace(/팀$/, '').trim();
             const nat = (c.country && c.country.trim() !== '')
               ? c.country
@@ -2641,7 +2644,7 @@ function App() {
     customers.forEach(c => {
       const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
       const matchesManagerCountry = activeCountryFilter
-        ? (matchCountryName(c.managerCountry, activeCountryFilter) || matchCountryName(c.nationality, activeCountryFilter))
+        ? matchCountryName(c.managerCountry, activeCountryFilter)
         : true;
       if (!matchesManagerCountry) return;
 
@@ -2668,10 +2671,10 @@ function App() {
   };
 
   const filteredCustomers = customers.filter(c => {
-    // 국가 권한 필터링 (베트남 담당자면 베트남것만, 인도네시아면 인도네시아것만)
+    // 국가 권한 필터링 (담당 매니저/팀 소속 국가 기준)
     const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
     const matchesManagerCountry = activeCountryFilter
-      ? (matchCountryName(c.managerCountry, activeCountryFilter) || matchCountryName(c.nationality, activeCountryFilter))
+      ? matchCountryName(c.managerCountry, activeCountryFilter)
       : true;
 
     if (!matchesManagerCountry) return false;

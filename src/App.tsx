@@ -3030,6 +3030,7 @@ function App() {
                 getCombinedRefund={getCombinedRefund}
                 youthTaxReductionInfo={youthTaxReductionInfo}
                 isSuperAdmin={isSuperAdmin}
+                currentManager={currentManager}
               />
             )}
 

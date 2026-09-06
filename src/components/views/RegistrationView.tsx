@@ -63,6 +63,7 @@ interface RegistrationViewProps {
   // Youth Age Info
   youthTaxReductionInfo: any;
   isSuperAdmin?: boolean;
+  currentManager?: any; // 현재 로그인한 매니저 (메모 작성자 식별용)
 }
 
 export const RegistrationView: React.FC<RegistrationViewProps> = ({
@@ -106,7 +107,8 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   handleRemoveFreelancerYear,
   getCombinedRefund,
   youthTaxReductionInfo,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  currentManager
 }) => {
   // Modal Local States
   const [isManagerModalOpen, setIsManagerModalOpen] = useState<boolean>(false);
@@ -565,6 +567,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         setContractLanguage={setContractLanguage}
         triggerKoreanInvoiceDownload={triggerKoreanInvoiceDownload}
         isSuperAdmin={isSuperAdmin}
+        currentManager={currentManager}
       />
 
       {/* SME Modal */}

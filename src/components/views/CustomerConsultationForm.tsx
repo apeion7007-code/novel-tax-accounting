@@ -13,6 +13,7 @@ interface CustomerConsultationFormProps {
   consultMemos: any[];
   setConsultMemos: React.Dispatch<React.SetStateAction<any[]>>;
   dbManagers: any[];
+  currentManager: any; // 현재 로그인한 매니저 (메모 작성자 식별용)
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   handleSaveConsultInfo: () => Promise<void>;
   setCustomers: React.Dispatch<React.SetStateAction<any[]>>;
@@ -32,6 +33,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   consultMemos,
   setConsultMemos,
   dbManagers,
+  currentManager,
   showToast,
   handleSaveConsultInfo,
   setCustomers,
@@ -75,8 +77,8 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
 
     showToast('상담 메모를 등록하는 중...', 'info');
 
-    const currentMgr = dbManagers.find(m => m.name === regForm.managerName);
-    const managerId = currentMgr?.id || 'a6f8d012-d555-414a-b78f-9110864dae3a'; // fallback to 관리자
+    // 현재 로그인한 매니저의 ID를 사용 (고객 담당자가 아닌 실제 작성자)
+    const managerId = currentManager?.id || 'a6f8d012-d555-414a-b78f-9110864dae3a'; // fallback to 관리자
 
     try {
       const { data, error } = await supabase

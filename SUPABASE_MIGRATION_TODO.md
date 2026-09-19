@@ -31,6 +31,10 @@
    - `src/utils/supabaseClient.ts` 새 프로젝트 키 교체 완료
    - `npm run build` 빌드 통과 및 실서버 파일 열람(HTTP 200) 검증 통과
 
+5. **DB 시퀀스 및 스토리지 RLS 권한 동기화 완료**:
+   - `ConsultMemo`, `YearEndData`, `Team`, `Client.serial`, `Field`, `Option` 등 6개 테이블의 자동 증분 ID 시퀀스를 `MAX + 1`로 일괄 동기화 (중복 키 23505 에러 완전 해결)
+   - `novel_pdf` 및 `documents` 버킷에 대한 전체 RLS 권한 개방 및 실전 7단계 워크플로우 전수 검증 통과
+
 ---
 
 ## 2. 🔐 권장 후속 조치 (기존 프로젝트 영구 삭제)
@@ -41,3 +45,4 @@
   1. 기존 슈퍼베이스 대시보드 (`https://supabase.com/dashboard/project/jjdykydkgtosiymxjpmh`) 접속
   2. **Settings (⚙️)** ➔ **General** ➔ 하단의 **`Delete project`** 클릭
   3. 완료 시 이전 외주 개발자나 퇴사자의 접근 권한이 영구적으로 완전 소멸됩니다.
+

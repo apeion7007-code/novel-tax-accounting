@@ -1,5 +1,7 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, UserCheck } from 'lucide-react';
+import { ManagerSuccessionModal } from '../modals/ManagerSuccessionModal';
+import { toggleManagerBlockStatus } from '../../services/managerAccountService';
 
 interface Team {
   id: number;
@@ -33,6 +35,8 @@ interface StaffManagementViewProps {
   handleDeleteManager: (id: string, name: string) => void;
   handleSaveNewManager: (e: React.FormEvent) => void;
   formatKoreanDateTime: (dtStr: string) => string;
+  onManagerUpdated?: () => void;
+  showToast?: (msg: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
@@ -51,8 +55,31 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
   handleApproveManager,
   handleDeleteManager,
   handleSaveNewManager,
-  formatKoreanDateTime
+  formatKoreanDateTime,
+  onManagerUpdated,
+  showToast
 }) => {
+  const [selectedManagerForSuccession, setSelectedManagerForSuccession] = useState<any | null>(null);
+  const [isSuccessionModalOpen, setIsSuccessionModalOpen] = useState(false);
+
+  const handleToggleBlock = async (mgr: any) => {
+    const isCurrentlyConfirmed = mgr.isConfirmed;
+    const actionName = isCurrentlyConfirmed ? '접속 차단' : '가입 승인';
+    if (!window.confirm(`'${mgr.name}' 매니저를 ${actionName}하시겠습니까?`)) return;
+
+    if (!isCurrentlyConfirmed && handleApproveManager) {
+      handleApproveManager(mgr.id, mgr.name);
+      return;
+    }
+
+    const res = await toggleManagerBlockStatus(mgr.id, isCurrentlyConfirmed);
+    if (res.success) {
+      if (showToast) showToast(`'${mgr.name}' 매니저가 ${actionName}되었습니다.`, 'success');
+      if (onManagerUpdated) onManagerUpdated();
+    } else {
+      if (showToast) showToast(`${actionName} 실패: ${res.error}`, 'error');
+    }
+  };
   return (
     <div className="view-container" style={{ backgroundColor: '#ffffff', padding: '24px' }}>
       
@@ -134,21 +161,22 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
         </div>
 
         <div className="table-wrapper" style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
-          <table className="data-table" style={{ width: '100%', minWidth: '900px', textAlign: 'center', fontSize: '13px' }}>
+          <table className="data-table" style={{ width: '100%', minWidth: '1000px', textAlign: 'center', fontSize: '13px' }}>
             <thead>
               <tr style={{ backgroundColor: '#0f172a', color: 'white' }}>
-                <th style={{ padding: '10px', width: '80px' }}>번호</th>
-                <th style={{ padding: '10px' }}>등록일</th>
-                <th style={{ padding: '10px' }}>팀</th>
-                <th style={{ padding: '10px' }}>이름</th>
-                <th style={{ padding: '10px' }}>가입승인</th>
-                <th style={{ padding: '10px' }}>매니저삭제</th>
+                <th style={{ padding: '10px', width: '60px' }}>번호</th>
+                <th style={{ padding: '10px', width: '120px' }}>등록일</th>
+                <th style={{ padding: '10px', width: '130px' }}>팀</th>
+                <th style={{ padding: '10px' }}>이름 (계정 이메일)</th>
+                <th style={{ padding: '10px', width: '150px' }}>접속 상태/관리</th>
+                <th style={{ padding: '10px', width: '170px' }}>계정 승계 (인수인계)</th>
+                <th style={{ padding: '10px', width: '80px' }}>삭제</th>
               </tr>
             </thead>
             <tbody>
               {dbManagers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '24px', color: '#94a3b8' }}>등록된 매니저 정보가 없습니다.</td>
+                  <td colSpan={7} style={{ padding: '24px', color: '#94a3b8' }}>등록된 매니저 정보가 없습니다.</td>
                 </tr>
               ) : (
                 (() => {
@@ -171,26 +199,63 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
                             ))}
                           </select>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{mgr.name}</td>
-                        <td>
-                          {mgr.isConfirmed ? (
-                            <span style={{ fontSize: '12px', color: '#64748b' }}>승인됨</span>
-                          ) : (
-                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                              <button
-                                onClick={() => handleApproveManager(mgr.id, mgr.name)}
-                                style={{ backgroundColor: '#0ea5e9', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                승인
-                              </button>
-                              <button
-                                onClick={() => handleDeleteManager(mgr.id, mgr.name)}
-                                style={{ backgroundColor: '#f97316', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}
-                              >
-                                삭제
-                              </button>
-                            </div>
+                        <td style={{ textAlign: 'left', paddingLeft: '16px' }}>
+                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{mgr.name}</div>
+                          {mgr.email && (
+                            <div style={{ fontSize: '11px', color: '#64748b' }}>{mgr.email}</div>
                           )}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                            {mgr.isConfirmed ? (
+                              <>
+                                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 'bold' }}>정상</span>
+                                <button
+                                  onClick={() => handleToggleBlock(mgr)}
+                                  title="퇴사 시 클릭하면 해당 매니저의 로그인이 즉시 차단됩니다"
+                                  style={{ backgroundColor: '#ea580c', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  접속 차단
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span style={{ fontSize: '12px', color: '#ef4444', fontWeight: 'bold' }}>차단됨</span>
+                                <button
+                                  onClick={() => handleToggleBlock(mgr)}
+                                  title="재입사 또는 차단 해제 시 클릭하면 해당 매니저의 로그인이 즉시 복구됩니다"
+                                  style={{ backgroundColor: '#0284c7', color: 'white', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
+                                >
+                                  접속 복구
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            onClick={() => {
+                              setSelectedManagerForSuccession(mgr);
+                              setIsSuccessionModalOpen(true);
+                            }}
+                            title="신규 매니저에게 기존 고객 및 상담 이력을 100% 인계하고 계정 정보를 변경합니다"
+                            style={{
+                              backgroundColor: '#4f46e5',
+                              color: 'white',
+                              border: 'none',
+                              padding: '5px 12px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              fontWeight: 'bold',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                          >
+                            <UserCheck size={14} />
+                            계정 승계 / 비번 변경
+                          </button>
                         </td>
                         <td>
                           <button
@@ -350,6 +415,18 @@ export const StaffManagementView: React.FC<StaffManagementViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* 3. 계정 승계 및 비밀번호/정보 변경 모달 */}
+      <ManagerSuccessionModal
+        isOpen={isSuccessionModalOpen}
+        onClose={() => setIsSuccessionModalOpen(false)}
+        manager={selectedManagerForSuccession}
+        dbTeams={dbTeams}
+        onSuccess={() => {
+          if (onManagerUpdated) onManagerUpdated();
+        }}
+        showToast={showToast || ((msg) => alert(msg))}
+      />
 
     </div>
   );

@@ -3066,6 +3066,8 @@ function App() {
                 handleDeleteManager={handleDeleteManager}
                 handleSaveNewManager={handleSaveNewManager}
                 formatKoreanDateTime={formatKoreanDateTime}
+                onManagerUpdated={loadStaffData}
+                showToast={showToast}
               />
             )}
 

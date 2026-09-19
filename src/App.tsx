@@ -51,6 +51,7 @@ import { calculateCombinedRefund } from './utils/combinedTaxCalculator';
 export interface Customer {
   id: number;
   uuid?: string;
+  managerId?: string;
   registeredDate: string;
   nationality: string;
   name: string;
@@ -402,14 +403,28 @@ function App() {
     return Array.from(teams).filter(Boolean);
   }, [dbTeams, customers]);
 
-  // Dynamic All Available Managers List (Loaded strictly from Supabase DB Manager table)
+  const isSuperAdmin = useMemo(() => {
+    if (!currentManager) return false;
+    return Boolean(
+      currentManager.email === 'admin@novel.com' ||
+      currentManager.isAdmin ||
+      currentManager.teamId === 1 ||
+      (currentManager.name && (currentManager.name.includes('관리자') || currentManager.name.toLowerCase().includes('admin'))) ||
+      (currentManager.email && currentManager.email.toLowerCase().includes('admin'))
+    );
+  }, [currentManager]);
+
+  // Dynamic Available Managers List (All for Super Admin, Single for Regular Manager)
   const availableManagerList = useMemo(() => {
+    if (!isSuperAdmin && currentManager?.name) {
+      return [currentManager.name.trim()];
+    }
     const names = new Set<string>();
     if (dbManagers && dbManagers.length > 0) {
       dbManagers.forEach(m => { if (m && m.name && m.name.trim()) names.add(m.name.trim()); });
     }
     return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b, 'ko-KR'));
-  }, [dbManagers]);
+  }, [dbManagers, isSuperAdmin, currentManager]);
 
   const currentManagerCountry = useMemo(() => {
     if (!currentManager) return null;
@@ -431,17 +446,6 @@ function App() {
     }
     return null;
   }, [currentManager, dbTeams]);
-
-  const isSuperAdmin = useMemo(() => {
-    if (!currentManager) return false;
-    return Boolean(
-      currentManager.email === 'admin@novel.com' ||
-      currentManager.isAdmin ||
-      currentManager.teamId === 1 ||
-      (currentManager.name && (currentManager.name.includes('관리자') || currentManager.name.toLowerCase().includes('admin'))) ||
-      (currentManager.email && currentManager.email.toLowerCase().includes('admin'))
-    );
-  }, [currentManager]);
 
 
 
@@ -914,6 +918,7 @@ function App() {
             return {
               id: c.serial || (25000 + idx),
               uuid: c.id,
+              managerId: c.managerId,
               registeredDate,
               nationality: nat,
               name: c.name || '미상',
@@ -966,6 +971,7 @@ function App() {
             return {
               id: c.serial || (25000 + idx),
               uuid: c.id,
+              managerId: c.managerId,
               registeredDate,
               nationality: nat,
               name: c.name || '미상',
@@ -1856,9 +1862,16 @@ function App() {
       const clientIds = targetClientUuid ? [targetClientUuid] : [];
 
       const customerNat = clientDetails?.country || customer.nationality;
-      if (customerNat && currentManagerCountry && currentManagerCountry !== 'ALL' && customerNat !== currentManagerCountry) {
-        showToast(`⚠️ 접근 차단: 이 고객은 [${customerNat}팀] 소속입니다. [${currentManagerCountry}팀] 전용 화면에서는 조회가 불가합니다.`, 'error');
-        return;
+      if (!isSuperAdmin && currentManager) {
+        const isMyClient = Boolean(
+          (clientDetails?.managerId && clientDetails.managerId === currentManager.id) ||
+          (clientDetails?.managerName && currentManager.name && clientDetails.managerName.trim() === currentManager.name.trim()) ||
+          (customer.managerName && currentManager.name && customer.managerName.trim() === currentManager.name.trim()) ||
+          (customer.managerId && customer.managerId === currentManager.id)
+        );
+        if (!isMyClient && customerNat && currentManagerCountry && currentManagerCountry !== 'ALL' && customerNat !== currentManagerCountry) {
+          showToast(`⚠️ 접근 알림: 타 매니저 [${customerNat}팀] 고객입니다.`, 'info');
+        }
       }
 
       let yearRecords: any[] = [];
@@ -2642,11 +2655,21 @@ function App() {
     };
 
     customers.forEach(c => {
-      const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
-      const matchesManagerCountry = activeCountryFilter
-        ? matchCountryName(c.managerCountry, activeCountryFilter)
-        : true;
-      if (!matchesManagerCountry) return;
+      // 권한 필터링: 관리자는 국가/팀 필터, 일반 매니저는 본인 배정 고객 1:1 기준
+      let matchesAuthority = true;
+      if (isSuperAdmin) {
+        const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
+        matchesAuthority = activeCountryFilter
+          ? matchCountryName(c.managerCountry, activeCountryFilter)
+          : true;
+      } else {
+        const curMgrName = currentManager?.name?.trim();
+        const curMgrId = currentManager?.id;
+        matchesAuthority = Boolean(
+          (curMgrId && c.managerId ? c.managerId === curMgrId : (curMgrName && c.managerName && c.managerName.trim() === curMgrName))
+        );
+      }
+      if (!matchesAuthority) return;
 
       all++;
       if (!excludedStatuses.includes(c.refundStatus)) {
@@ -2661,7 +2684,7 @@ function App() {
     });
 
     return { all, inProgress, feeCompleted, nextYear };
-  }, [customers, pathCountry]);
+  }, [customers, pathCountry, isSuperAdmin, currentManager]);
 
   const matchCountryName = (countryA?: string, countryB?: string): boolean => {
     if (!countryA || !countryB) return false;
@@ -2671,13 +2694,22 @@ function App() {
   };
 
   const filteredCustomers = customers.filter(c => {
-    // 국가 권한 필터링 (담당 매니저/팀 소속 국가 기준)
-    const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
-    const matchesManagerCountry = activeCountryFilter
-      ? matchCountryName(c.managerCountry, activeCountryFilter)
-      : true;
+    // 권한 필터링: 관리자는 국가/팀 필터, 일반 매니저는 본인 배정 고객 1:1 기준
+    let matchesAuthority = true;
+    if (isSuperAdmin) {
+      const activeCountryFilter = pathCountry && pathCountry !== 'ALL' ? pathCountry : null;
+      matchesAuthority = activeCountryFilter
+        ? matchCountryName(c.managerCountry, activeCountryFilter)
+        : true;
+    } else {
+      const curMgrName = currentManager?.name?.trim();
+      const curMgrId = currentManager?.id;
+      matchesAuthority = Boolean(
+        (curMgrId && c.managerId ? c.managerId === curMgrId : (curMgrName && c.managerName && c.managerName.trim() === curMgrName))
+      );
+    }
 
-    if (!matchesManagerCountry) return false;
+    if (!matchesAuthority) return false;
 
     const matchesSearch =
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

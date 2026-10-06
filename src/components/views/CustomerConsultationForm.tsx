@@ -52,6 +52,11 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);
   const [selectedContractLang, setSelectedContractLang] = React.useState<string>('한국어');
   const memoScrollRef = React.useRef<HTMLDivElement | null>(null);
+  // 현재 화면에 열려 있는 고객 ID (비동기 메모 등록 완료 시점에 고객이 바뀌었는지 확인용)
+  const currentClientIdRef = React.useRef<string>(regForm.clientId || '');
+  React.useEffect(() => {
+    currentClientIdRef.current = regForm.clientId || '';
+  }, [regForm.clientId]);
 
   React.useEffect(() => {
     if (showFullContractModal) {
@@ -80,12 +85,16 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
     // 현재 로그인한 매니저의 ID를 사용 (고객 담당자가 아닌 실제 작성자)
     const managerId = currentManager?.id || 'a6f8d012-d555-414a-b78f-9110864dae3a'; // fallback to 관리자
 
+    // 등록 대상 고객과 내용을 요청 시작 시점에 고정
+    const targetClientId: string = regForm.clientId;
+    const memoContent: string = regForm.consultMemo.trim();
+
     try {
       const { data, error } = await supabase
         .from('ConsultMemo')
         .insert([{
-          clientId: regForm.clientId,
-          content: regForm.consultMemo.trim(),
+          clientId: targetClientId,
+          content: memoContent,
           managerId: managerId,
           createdAt: new Date().toISOString()
         }])
@@ -97,8 +106,11 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
       }
 
       if (data) {
-        setConsultMemos((prev: any[]) => [...prev, data]);
-        setRegForm((prev: any) => ({ ...prev, consultMemo: '' }));
+        // 등록 중 다른 고객으로 화면이 바뀌었다면, 그 고객의 목록/입력칸에는 손대지 않음
+        if (currentClientIdRef.current === targetClientId) {
+          setConsultMemos((prev: any[]) => [...prev, data]);
+        }
+        setRegForm((prev: any) => (prev.clientId === targetClientId ? { ...prev, consultMemo: '' } : prev));
         showToast('상담 내용 및 메모가 상담처리 로그에 등록되었습니다.', 'success');
       }
     } catch (err: any) {

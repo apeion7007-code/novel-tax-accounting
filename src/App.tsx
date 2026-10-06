@@ -1,5 +1,6 @@
 import { useExcelHandlers } from './hooks/useExcelHandlers';
 import { usePdfHandlers } from './hooks/usePdfHandlers';
+import { useLatestRequestGuard } from './hooks/useLatestRequestGuard';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Users,
@@ -377,6 +378,8 @@ function App() {
   const [dbTeams, setDbTeams] = useState<any[]>([]);
   const [dbManagers, setDbManagers] = useState<any[]>([]);
   const urlRegistrationOpenedRef = useRef<number | null>(null);
+  // 고객 상세 불러오기 경합 방지 (늦게 도착한 이전 고객 응답 폐기)
+  const { beginRequest: beginCustomerLoad, isLatestRequest: isLatestCustomerLoad } = useLatestRequestGuard();
   const initialUrlParamsRef = useRef<URLSearchParams>(new URLSearchParams(window.location.search));
   const [consultMemos, setConsultMemos] = useState<any[]>([]);
   const [managerPage, setManagerPage] = useState<number>(1);
@@ -1807,9 +1810,12 @@ function App() {
   };
 
   const handleOpenCustomerRegistration = async (customer: Customer) => {
+    const loadRequestId = beginCustomerLoad();
     try {
-      // 1. Immediately purge old consult memos state to prevent lingering memo leakage during loading
+      // 1. Immediately purge old consult memos state AND the unsent memo draft
+      //    to prevent the previous customer's memo from leaking into this customer
       setConsultMemos([]);
+      setRegForm(prev => ({ ...prev, consultMemo: '' }));
 
       showToast(`${customer.name || '고객'} 님의 상세 정보를 불러오는 중입니다...`, 'info');
 
@@ -1856,6 +1862,9 @@ function App() {
         if (countryMatched.length > 0) clientRecords = countryMatched;
       }
 
+      // 그 사이 다른 고객을 열었다면 이 응답은 폐기
+      if (!isLatestCustomerLoad(loadRequestId)) return;
+
       const clientDetails = clientRecords[0] || null;
       // Isolate strictly to the single selected client's UUID to prevent multi-client data leakage
       const targetClientUuid = clientDetails?.id || customer.uuid;
@@ -1883,6 +1892,8 @@ function App() {
         if (yData && yData.length > 0) yearRecords = yData;
       }
 
+      if (!isLatestCustomerLoad(loadRequestId)) return;
+
       // Fetch ConsultMemo logs strictly for this client's unique UUID
       let consultMemosList: any[] = [];
       if (targetClientUuid) {
@@ -1895,6 +1906,8 @@ function App() {
           consultMemosList = memoData;
         }
       }
+      // 메모 조회 이후 화면 반영(setConsultMemos ~ setRegForm)은 동기 구간이므로 여기서 최종 확인
+      if (!isLatestCustomerLoad(loadRequestId)) return;
       setConsultMemos(consultMemosList);
 
       const premappedYears = yearRecords.filter(y => !y.freelancerActive).map(y => {
@@ -2231,7 +2244,9 @@ function App() {
         contractConsentDate: clientDetails?.contractConsentDate || null,
         isNextYearApply: clientDetails?.isNextYearApply || false,
         years: yearsObj,
-        freelancerYears: freelancerYearsObj
+        freelancerYears: freelancerYearsObj,
+        // 작성 중이던 메모 입력칸은 고객 전환 시 반드시 비움 (이전 고객 메모 혼입 방지)
+        consultMemo: ''
       }));
 
       const loadedFeeRate = Number(clientDetails?.feeRate) || (clientDetails?.feeMethod ? Number(clientDetails.feeMethod.match(/\d+/)?.[0] || 22) : 22);
@@ -2241,15 +2256,12 @@ function App() {
       const displayName = customer?.name || regForm.name || '고객';
       showToast(`${displayName} 님의 고객 등록 관리 화면을 열었습니다.`, 'success');
     } catch (err) {
+      if (!isLatestCustomerLoad(loadRequestId)) return;
       console.error('Error loading customer details:', err);
-      setRegForm(prev => ({
-        ...prev,
-        name: customer.name,
-        foreignerNumber: formatForeignerNumber(customer.birthDate || ''),
-        nationality: customer.nationality,
-        visaType: customer.visa,
-      }));
-      setCurrentView('registration');
+      // 이전에는 이름 등 4개 필드만 새 고객으로 바꾸고 clientId/serial은 이전 고객 값을 유지한 채
+      // 화면을 열어, 메모·저장이 이전 고객에게 기록되는 사고가 발생할 수 있었음.
+      // → 신원이 뒤섞인 상태로 화면을 열지 않고 오류만 안내한다.
+      showToast(`${customer.name || '고객'} 님의 상세 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`, 'error');
     }
   };
 

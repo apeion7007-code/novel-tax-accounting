@@ -153,10 +153,9 @@ function cleanNum(val: any): number {
   const parsed = Number(cleaned);
   return isNaN(parsed) ? 0 : parsed;
 }
-
 export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: Record<string, File | null>) {
   try {
-    // 1. Map manager name to their actual UUID in the database to satisfy the foreign key constraint
+    // 1. 신규 등록 시 배정할 담당 매니저 조회
     let dbManagerId: string | null = null;
     let dbTeamId: number | null = null;
     try {
@@ -332,11 +331,19 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
     clientPayload.remittanceDocUrl = [...(regForm.remittanceDocUrl || []), ...uploadedRemitUrls].filter(Boolean);
 
     if (!isNewInsert) {
+      // 🛡️ [대원칙: 고객과 메모는 『최초 신규 등록한 사람』의 것으로 영구 고정]
+      // 기존 고객 수정 시에는 관리자나 다른 직원이 아무리 세무/서류/메모를 수정하더라도
+      // 최초 신규 등록된 담당 매니저(managerId)와 팀(teamId)을 절대 변경하지 않고 영구 보존합니다.
+      // update 대상에서 managerId와 teamId를 완전히 제외하여 DB 기존 값을 100% 불변 유지합니다.
+      delete clientPayload.managerId;
+      delete clientPayload.teamId;
+
       const { error: updateErr } = await supabase.from('Client').update(clientPayload).eq('id', clientId);
       if (updateErr) {
         throw new Error(`Client Update Error: ${updateErr.message}`);
       }
     } else {
+      // 🛡️ [신규 등록]: 최초 신규 등록한 사람(관리자든 매니저든)의 정보로 정상 등록!
       const { data: newClient, error: insertErr } = await supabase
         .from('Client')
         .insert([{ ...clientPayload, id: clientId, createdAt: new Date().toISOString() }])

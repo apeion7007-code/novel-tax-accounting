@@ -1,5 +1,10 @@
 import React, { useRef } from 'react';
 import { CONTRACT_LANG_CODES, BANK_DETAILS_MAP } from '../utils/contractTemplateStorage';
+import {
+  getContractExtraLabels,
+  getLocalizedCountryName,
+  formatContractDate
+} from '../utils/contractLocalization';
 
 /**
  * Dedicated isolated print utility for 2-page A4 Contract
@@ -176,6 +181,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 }) => {
   const localCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const activeCanvasRef = canvasRef || localCanvasRef;
+  const extra = getContractExtraLabels(language);
 
   const client = contractData || {
     name: 'HOSEN LOKMAN',
@@ -188,7 +194,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
     prepaidRate: 0,
     postpaidRate: 22,
     signatureUrl: '',
-    signedDate: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+    signedDate: formatContractDate(null, language)
   };
 
   const totalFeeRate = client.feeRate || 22;
@@ -427,7 +433,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
                 N
               </div>
               <div style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic', border: '1px dashed rgba(148, 163, 184, 0.4)', padding: '2px 8px', borderRadius: '4px' }}>
-                {renderEditableText('logoPlaceholder', '세무법인 노벨세무회계 CI')}
+                {renderEditableText('logoPlaceholder', extra.logoText)}
               </div>
             </div>
 
@@ -481,7 +487,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
                 <span style={{ fontWeight: '700', color: '#0f172a' }}>{client.name || '-'}</span>
 
                 <span style={{ color: '#64748b' }}>• {renderEditableText('nationalityLabel', '국적')}:</span>
-                <span>{client.country || '-'}</span>
+                <span>{getLocalizedCountryName(client.country, language)}</span>
 
                 <span style={{ color: '#64748b' }}>• {renderEditableText('regNumLabel', '외국인등록번호')}:</span>
                 <span>{client.regNum || '-'}</span>
@@ -570,7 +576,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               <div style={{ backgroundColor: '#f1f5f9', padding: '10px 14px', borderRadius: '6px', fontSize: '12px', color: '#0f172a', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid #e2e8f0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontWeight: '600' }}>{t.feeText2 || '• 약정 수수료율: '}</span>
-                  <strong style={{ color: '#1d4ed8', fontSize: '14px' }}>{totalFeeRate}%{prepaidRate > 0 && postpaidRate > 0 ? ` (선불 ${prepaidRate}%, 후불 ${postpaidRate}%)` : ''}</strong>
+                  <strong style={{ color: '#1d4ed8', fontSize: '14px' }}>{totalFeeRate}%{prepaidRate > 0 && postpaidRate > 0 ? ` (${extra.prepaidText} ${prepaidRate}%, ${extra.postpaidText} ${postpaidRate}%)` : ''}</strong>
                 </div>
               </div>
             </div>
@@ -600,8 +606,8 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
         {/* Sheet 1 Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '10px', marginTop: '12px', fontSize: '11px', color: '#94a3b8' }}>
-          <span>세무법인 노벨세무회계 경정청구 위임계약서</span>
-          <span style={{ fontWeight: 'bold', color: '#64748b' }}>페이지 1 / 2 (다음 장에 서명란이 이어집니다 ➔)</span>
+          <span>{renderEditableText('sheet1FooterTitle', extra.sheet1FooterTitle)}</span>
+          <span style={{ fontWeight: 'bold', color: '#64748b' }}>{renderEditableText('sheet1FooterPage', extra.sheet1FooterPage)}</span>
         </div>
 
       </div>
@@ -635,9 +641,9 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               <div style={{ width: '22px', height: '22px', borderRadius: '4px', backgroundColor: '#0f172a', color: '#38bdf8', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px', fontWeight: '900' }}>
                 N
               </div>
-              <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>세무법인 노벨세무회계</span>
+              <span style={{ fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>{t.firmNameVal || extra.sheet2HeaderFirm}</span>
             </div>
-            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>{renderEditableText('title', '세무 경정 청구 표준계약서')} (서명 및 체결)</span>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>{renderEditableText('title', '세무 경정 청구 표준계약서')} {renderEditableText('sheet2HeaderSuffix', extra.sheet2HeaderSuffix)}</span>
           </div>
 
           {/* Article 6 / Agreement Confirmation Section */}
@@ -654,7 +660,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           <div style={{ textAlign: 'center', margin: '24px 0 32px 0' }}>
             <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>{renderEditableText('dateLabel', '계약 체결 일자')}</div>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', letterSpacing: '1px' }}>
-              {client.signedDate || new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+              {formatContractDate(client.signedDate, language)}
             </div>
           </div>
 
@@ -684,7 +690,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
                       fontWeight: '700'
                     }}
                   >
-                    {renderEditableText('sigClear', '지우기')}
+                    {renderEditableText('sigClear', extra.sigClearText)}
                   </button>
                 )}
               </div>
@@ -719,12 +725,12 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
                 />
               ) : (
                 <div style={{ height: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px dashed #cbd5e1', color: '#94a3b8', fontSize: '12px' }}>
-                  (온라인 전자 서명 대기중)
+                  {renderEditableText('pendingSigText', extra.pendingSigText)}
                 </div>
               )}
 
               <div style={{ marginTop: '8px', textAlign: 'right', fontSize: '12px', color: '#475569' }}>
-                성명: <strong>{client.name || '-'}</strong> (인 / 서명)
+                {renderEditableText('clientSigNameLabel', extra.clientSigNameLabel)}: <strong>{client.name || '-'}</strong> {renderEditableText('clientSigStampLabel', extra.clientSigStampLabel)}
               </div>
             </div>
 
@@ -732,18 +738,18 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
             <div style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', marginBottom: '10px' }}>
-                  수임인 (을) 법인 및 대표자
+                  {renderEditableText('agentBoxTitle', extra.agentBoxTitle)}
                 </div>
                 <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>
-                  <div>• 상호: <strong>{t.firmNameVal || '세무법인 노벨세무회계'}</strong></div>
-                  <div>• 대표세무사: <strong>{t.representativeVal ? t.representativeVal.replace(/\(직인.*?\)/, '').trim() : '대표세무사'}</strong></div>
-                  <div>• 사업자번호: 540-85-01234</div>
+                  <div>• {renderEditableText('agentBoxFirmLabel', extra.agentBoxFirmLabel)}: <strong>{t.firmNameVal || '세무법인 노벨세무회계'}</strong></div>
+                  <div>• {renderEditableText('agentBoxRepLabel', extra.agentBoxRepLabel)}: <strong>{t.representativeVal ? t.representativeVal.replace(/\(직인.*?\)/, '').trim() : extra.agentRepStampTitle}</strong></div>
+                  <div>• {renderEditableText('agentBoxBizNumLabel', extra.agentBoxBizNumLabel)}: 540-85-01234</div>
                 </div>
               </div>
 
               {/* Official Seal Imprint */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>대표세무사</span>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>{renderEditableText('agentRepStampTitle', extra.agentRepStampTitle)}</span>
                 <div style={{
                   width: '64px',
                   height: '64px',
@@ -815,8 +821,8 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
         {/* Sheet 2 Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '10px', marginTop: '20px', fontSize: '11px', color: '#94a3b8' }}>
-          <span>NOVEL TAX LAW FIRM</span>
-          <span style={{ fontWeight: 'bold', color: '#64748b' }}>페이지 2 / 2 (최종 서명본)</span>
+          <span>{renderEditableText('sheet2FooterFirm', extra.sheet2FooterFirm)}</span>
+          <span style={{ fontWeight: 'bold', color: '#64748b' }}>{renderEditableText('sheet2FooterPage', extra.sheet2FooterPage)}</span>
         </div>
 
       </div>

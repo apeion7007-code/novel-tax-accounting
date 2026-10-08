@@ -44,7 +44,7 @@ export const TargetCustomerGuardBanner: React.FC<TargetCustomerGuardBannerProps>
             📌 [고객 정보 수정 모드] 대상 고객: [ {serial && serial > 0 ? `#${serial} ` : ''}{name ? name.toUpperCase() : '선택된 고객'}{nationality ? ` · ${nationality}` : ''} ]
           </div>
           <div style={{ fontSize: '12px', color: '#2563eb', marginTop: '2px' }}>
-            현재 위 고객님의 정보를 수정 중입니다. 다른 고객을 등록하시려면 상단 <strong>[전체 초기화]</strong> 또는 <strong>[➕ 신규 건으로 전환 (새 UID)]</strong>을 누르세요.
+            현재 위 고객님의 정보를 수정 중입니다. 다른 고객을 등록하시려면 고객등록관리 화면으로 나가서 신규고객등록을 누르세요.
           </div>
         </div>
       </div>

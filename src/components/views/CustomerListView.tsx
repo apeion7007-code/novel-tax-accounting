@@ -61,6 +61,7 @@ interface CustomerListViewProps {
   // Actions
   handleResetFilters: () => void;
   handleResetAll: () => void;
+  handleOpenNewRegistration?: () => void;
   handleDeleteCustomers: () => void;
   handleExportExcel: () => void;
   handleDownloadHometaxFile: () => void;
@@ -124,6 +125,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   setCurrentPage,
   handleResetFilters,
   handleResetAll,
+  handleOpenNewRegistration,
   handleDeleteCustomers,
   handleExportExcel,
   handleDownloadHometaxFile,
@@ -217,7 +219,17 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
         </div>
 
         <div className="action-controls">
-          <button className="btn-action btn-add" onClick={() => { handleResetAll(); setCurrentView('registration'); }}>
+          <button
+            className="btn-action btn-add"
+            onClick={() => {
+              if (handleOpenNewRegistration) {
+                handleOpenNewRegistration();
+              } else {
+                handleResetAll();
+                setCurrentView('registration');
+              }
+            }}
+          >
             <Plus size={16} />
             신규등록
           </button>

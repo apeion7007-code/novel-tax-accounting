@@ -6,6 +6,7 @@ import { CONTRACT_TRANSLATIONS } from '../ContractPage';
 import { getStoredContractTranslations } from '../../utils/contractTemplateStorage';
 import { ContractTemplateModal } from '../modals/ContractTemplateModal';
 import { A4ContractDocument, type ContractData, printA4ContractDocument } from '../A4ContractDocument';
+import { TargetCustomerGuardBanner } from '../common/TargetCustomerGuardBanner';
 
 interface CustomerConsultationFormProps {
   regForm: any;
@@ -426,12 +427,40 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
             <input type="date" className="form-control" style={{ height: '32px', fontSize: '13px', padding: '2px' }} value={regForm.greenContractDate || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, greenContractDate: e.target.value }))} />
           </div>
           <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '2px' }}>상담처리 메모</label>
-            <textarea className="form-control" style={{ height: '350px', fontSize: '13px', padding: '8px', lineHeight: '1.5' }} value={regForm.consultMemo || ''} onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))} placeholder="상담 세부 정보를 기입하세요" />
+            <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>상담처리 메모</label>
+            <TargetCustomerGuardBanner
+              clientId={regForm.clientId}
+              serial={regForm.serial}
+              name={regForm.name}
+              nationality={regForm.nationality}
+            />
+            <textarea
+              className="form-control"
+              style={{ height: '350px', fontSize: '13px', padding: '8px', lineHeight: '1.5' }}
+              value={regForm.consultMemo || ''}
+              onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))}
+              placeholder={regForm.clientId ? "상담 세부 정보를 기입하세요" : "⚠️ 신규 고객 저장 후 상담 메모를 작성하실 수 있습니다."}
+              disabled={!regForm.clientId}
+            />
           </div>
           
           <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', margin: '4px 0' }}>
-            <button type="button" className="btn-submit" style={{ backgroundColor: '#10b981', fontSize: '13px', padding: '8px 16px' }} onClick={handleRegisterConsultMemo}>상담처리 등록</button>
+            <button
+              type="button"
+              className="btn-submit"
+              style={{
+                backgroundColor: regForm.clientId ? '#10b981' : '#94a3b8',
+                fontSize: '13px',
+                padding: '8px 16px',
+                cursor: regForm.clientId ? 'pointer' : 'not-allowed',
+                opacity: regForm.clientId ? 1 : 0.7
+              }}
+              onClick={handleRegisterConsultMemo}
+              disabled={!regForm.clientId}
+              title={regForm.clientId ? "상담처리 메모를 등록합니다." : "고객 기본 정보가 먼저 저장되어야 메모를 등록할 수 있습니다."}
+            >
+              {regForm.clientId ? '상담처리 등록' : '고객 저장 후 메모 등록 가능'}
+            </button>
           </div>
 
           <div>

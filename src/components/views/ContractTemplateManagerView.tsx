@@ -48,7 +48,7 @@ export const ContractTemplateManagerView: React.FC<ContractTemplateManagerViewPr
     feeRate: 22,
     prepaidRate: 0,
     postpaidRate: 22,
-    signedDate: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+    signedDate: new Date().toISOString().slice(0, 10)
   });
 
   const currentTranslation = translations[selectedLanguage] || DEFAULT_CONTRACT_TRANSLATIONS[selectedLanguage] || DEFAULT_CONTRACT_TRANSLATIONS['한국어'];

@@ -1328,14 +1328,16 @@ function App() {
     }
   }, [currentView, currentManager]);
 
-  const handleResetAll = () => {
+  const handleResetAll = (forceClean: boolean = false): boolean => {
     // 폼에 입력 내용이 있거나 기존 고객이 로드된 상태인 경우 경고창 띄우기
-    const hasData = regForm.clientId || regForm.name || regForm.foreignerNumber || regForm.phone;
-    if (hasData) {
-      const confirmReset = window.confirm(
-        '⚠️ 정말 초기화하시겠습니까?\n현재 불러온 고객 정보와 입력된 모든 내용이 초기화되며, 신규 저장 화면으로 이동합니다.'
-      );
-      if (!confirmReset) return;
+    if (!forceClean) {
+      const hasData = regForm.clientId || regForm.name || regForm.foreignerNumber || regForm.phone;
+      if (hasData) {
+        const confirmReset = window.confirm(
+          '⚠️ 신규 고객 등록 화면으로 이동하시겠습니까?\n현재 화면의 내용이 초기화되고 깨끗한 신규 등록 화면이 열립니다.'
+        );
+        if (!confirmReset) return false;
+      }
     }
 
     const defaultNationality = (currentManagerCountry && currentManagerCountry !== 'ALL')
@@ -1429,6 +1431,19 @@ function App() {
     setConsultMemos([]);
     setTargetYears(['2021', '2022', '2023', '2024', '2025']);
     showToast('고객 등록 정보 및 정산 데이터가 전체 초기화되었습니다.', 'info');
+    return true;
+  };
+
+  /**
+   * 🛡️ [신규 고객 등록 전용 안전 핸들러]
+   * 사용자가 취소를 누르면 화면을 절대 이동하지 않고,
+   * 확인 시에는 이전 고객의 모든 잔여 데이터(clientId, serial, 메모 등)를 100% 완전 분리 초기화 후 진입합니다.
+   */
+  const handleOpenNewRegistration = () => {
+    const proceed = handleResetAll();
+    if (proceed) {
+      setCurrentView('registration');
+    }
   };
 
   // Local recalculateYearData function removed; using imported version from taxCalculator.ts
@@ -3016,6 +3031,7 @@ function App() {
                 countNextYear={tabCounts.nextYear}
                 handleResetFilters={handleResetFilters}
                 handleResetAll={handleResetAll}
+                handleOpenNewRegistration={handleOpenNewRegistration}
                 handleDeleteCustomers={handleDeleteCustomers}
                 handleExportExcel={handleExportExcel}
                 handleDownloadHometaxFile={handleDownloadHometaxFile}

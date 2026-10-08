@@ -423,35 +423,149 @@ export function getContractExtraLabels(language: string): CompleteContractExtraL
 }
 
 /**
- * Format date for the given language
+ * Safely parse date components (year, month, day) from various formats:
+ * - Date object
+ * - Korean string: "2026년 10월 8일", "2026년 10월 08일"
+ * - Dot notation: "2026. 10. 8.", "2026.10.08"
+ * - ISO string: "2026-10-08", "2026-10-08T..."
+ * - Slash string: "2026/10/08"
+ */
+function parseDateComponents(dateInput: string | Date | undefined | null): { year: number; month: number; day: number } | null {
+  if (!dateInput) {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+  }
+
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return null;
+    return { year: dateInput.getFullYear(), month: dateInput.getMonth() + 1, day: dateInput.getDate() };
+  }
+
+  const str = String(dateInput).trim();
+  if (!str) {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+  }
+
+  // 1. 한국어 형식 ("2026년 10월 8일")
+  const koMatch = str.match(/(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+  if (koMatch) {
+    return {
+      year: parseInt(koMatch[1], 10),
+      month: parseInt(koMatch[2], 10),
+      day: parseInt(koMatch[3], 10)
+    };
+  }
+
+  // 2. 점 형식 ("2026. 10. 8." or "2026.10.8")
+  const dotMatch = str.match(/(\d{4})\s*\.\s*(\d{1,2})\s*\.\s*(\d{1,2})/);
+  if (dotMatch) {
+    return {
+      year: parseInt(dotMatch[1], 10),
+      month: parseInt(dotMatch[2], 10),
+      day: parseInt(dotMatch[3], 10)
+    };
+  }
+
+  // 3. 하이픈/슬래시 형식 ("2026-10-08" or "2026/10/08")
+  const isoMatch = str.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (isoMatch) {
+    return {
+      year: parseInt(isoMatch[1], 10),
+      month: parseInt(isoMatch[2], 10),
+      day: parseInt(isoMatch[3], 10)
+    };
+  }
+
+  // 4. 표준 Date 파싱 시도
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) {
+    return {
+      year: parsed.getFullYear(),
+      month: parsed.getMonth() + 1,
+      day: parsed.getDate()
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Format date for all 14 supported languages with authentic native legal/contract phrasing
  */
 export function formatContractDate(signedDate: string | undefined | null, language: string): string {
-  const d = signedDate ? new Date(signedDate) : new Date();
-  if (isNaN(d.getTime())) return signedDate || '';
+  const parts = parseDateComponents(signedDate);
+  if (!parts) return signedDate || '';
 
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
+  const { year, month, day } = parts;
 
-  if (language === '한국어') {
-    return `${year}년 ${month}월 ${day}일`;
-  }
-  if (language === '우즈베크어') {
-    const uzMonths = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-    return `${year}-yil ${day}-${uzMonths[month - 1]}`;
-  }
-  if (language === '베트남어') {
-    return `Ngày ${day} tháng ${month} năm ${year}`;
-  }
-  if (language === '영어' || language === '필리핀어') {
-    const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return `${enMonths[month - 1]} ${day}, ${year}`;
-  }
-  if (language === '인도네시아어') {
-    const idMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    return `${day} ${idMonths[month - 1]} ${year}`;
-  }
+  switch (language) {
+    case '한국어':
+      return `${year}년 ${month}월 ${day}일`;
 
-  // Standard clean ISO-like format for other languages
-  return `${year}. ${String(month).padStart(2, '0')}. ${String(day).padStart(2, '0')}`;
+    case '우즈베크어': {
+      const uzMonths = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+      return `${year}-yil ${day}-${uzMonths[month - 1]}`;
+    }
+
+    case '베트남어':
+      return `Ngày ${day} tháng ${month} năm ${year}`;
+
+    case '인도네시아어': {
+      const idMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+      return `${day} ${idMonths[month - 1]} ${year}`;
+    }
+
+    case '영어': {
+      const enMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      return `${enMonths[month - 1]} ${day}, ${year}`;
+    }
+
+    case '필리핀어': {
+      const phMonths = ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Setyembre', 'Oktubre', 'Nobyembre', 'Disyembre'];
+      return `${phMonths[month - 1]} ${day}, ${year}`;
+    }
+
+    case '몽골어':
+      return `${year} оны ${month} сарын ${day} өдөр`;
+
+    case '미얀마어': {
+      const mmMonths = ['ဇန်နဝါရီ', 'ဖေဖော်ဝါရီ', 'မတ်', 'ဧပြီ', 'မေ', 'ဇွန်', 'ဇူလိုင်', 'သြဂုတ်', 'စက်တင်ဘာ', 'အောက်တိုဘာ', 'နိုဝင်ဘာ', 'ဒီဇင်ဘာ'];
+      return `${year} ခုနှစ်၊ ${mmMonths[month - 1]}လ ${day} ရက်`;
+    }
+
+    case '캄보디아어': {
+      const khMonths = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+      return `ថ្ងៃទី ${day} ខែ${khMonths[month - 1]} ឆ្នាំ ${year}`;
+    }
+
+    case '네팔어': {
+      const npMonths = ['जनवरी', 'फेब्रुअरी', 'मार्च', 'अप्रिल', 'मे', 'जुन', 'जुलाई', 'अगस्ट', 'सेप्टेम्बर', 'अक्टोबर', 'नोभेम्बर', 'डिसेम्बर'];
+      return `${day} ${npMonths[month - 1]} ${year}`;
+    }
+
+    case '방글라데시어': {
+      const bnMonths = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+      return `${day} ${bnMonths[month - 1]} ${year}`;
+    }
+
+    case '파키스탄어': {
+      const urMonths = ['جنوری', 'فروری', 'مارچ', 'اپریل', 'مئی', 'جون', 'جولائی', 'اگست', 'ستمبر', 'اکتوبر', 'نومبر', 'دسمبر'];
+      return `${day} ${urMonths[month - 1]} ${year}ء`;
+    }
+
+    case '태국어': {
+      const thMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+      return `วันที่ ${day} ${thMonths[month - 1]} ค.ศ. ${year}`;
+    }
+
+    case '스리랑카어': {
+      const siMonths = ['ජනවාරි', 'පෙබරවාරි', 'මාර්තු', 'අප්‍රේල්', 'මැයි', 'ජූනි', 'ජූලි', 'අගෝස්තු', 'සැප්තැම්බර්', 'ඔක්තෝබර්', 'නොවැම්බර්', 'දෙසැම්බර්'];
+      return `${year} ${siMonths[month - 1]} මස ${day} වැනි දින`;
+    }
+
+    default:
+      return `${year}. ${String(month).padStart(2, '0')}. ${String(day).padStart(2, '0')}`;
+  }
 }
+

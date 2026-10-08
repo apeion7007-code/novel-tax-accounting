@@ -328,7 +328,7 @@ export function ContractPage({ token }: ContractPageProps) {
     prepaidRate: Number(client.prepaidRate) || 0,
     postpaidRate: Number(client.postpaidRate) || feeRate,
     signatureUrl: success ? (canvasRef.current?.toDataURL('image/png') || client.signatureUrl) : client.signatureUrl,
-    signedDate: new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+    signedDate: new Date().toISOString().slice(0, 10)
   };
 
   return (

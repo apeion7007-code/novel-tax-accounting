@@ -8,6 +8,7 @@ import { WageSettlementTable } from '../WageSettlementTable';
 import { FreelancerSettlementTable } from '../FreelancerSettlementTable';
 import { CombinedSummaryTable } from '../CombinedSummaryTable';
 import { CustomerConsultationForm } from './CustomerConsultationForm';
+import { TargetCustomerGuardBanner } from '../common/TargetCustomerGuardBanner';
 
 interface RegistrationViewProps {
   regForm: any;
@@ -354,6 +355,16 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           )}
           <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>목록</button>
         </div>
+      </div>
+
+      {/* Target Customer Status & Safety Guard Banner */}
+      <div style={{ marginBottom: '14px' }}>
+        <TargetCustomerGuardBanner
+          clientId={regForm.clientId}
+          serial={regForm.serial}
+          name={regForm.name}
+          nationality={regForm.nationality}
+        />
       </div>
 
       {/* Form Group 1: Basic Information Input Grid */}

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { checkClientIdentityMatch } from '../services/clientIdentityGuard';
 
 const SUPABASE_URL = "https://ymloiwyxqedpzlkopwfc.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbG9pd3l4cWVkcHpsa29wd2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MDc1MzksImV4cCI6MjEwMDI4MzUzOX0.McMl3dn2ZT6rFqi0wGrvwA_CNb190xQi9iwMl23YsiE";
@@ -206,6 +207,48 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
             return v.toString(16);
           });
       isNewInsert = true;
+    } else {
+      // 🛡️ [저장 직전 DB 신원 대조 검증 - 덮어쓰기 원천 방어]
+      try {
+        const { data: existingClient } = await supabase
+          .from('Client')
+          .select('id, serial, name, regNum')
+          .eq('id', clientId)
+          .maybeSingle();
+
+        if (existingClient) {
+          const identityCheck = checkClientIdentityMatch(
+            existingClient,
+            regForm.name || '',
+            regForm.foreignerNumber || ''
+          );
+
+          if (identityCheck.isDifferentPerson) {
+            console.warn(`🚨 [덮어쓰기 원천 차단] ${identityCheck.reason}`);
+            // 기존 고객(A) 덮어쓰기를 원천 취소하고, 새 고객(B)을 위한 독립된 신규 UUID 발급!
+            clientId = typeof self !== 'undefined' && self.crypto && self.crypto.randomUUID 
+              ? self.crypto.randomUUID() 
+              : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                  const r = Math.random() * 16 | 0;
+                  const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                  return v.toString(16);
+                });
+            isNewInsert = true;
+
+            // 이전 고객의 데이터/서류가 오염되는 것을 완벽 차단
+            regForm.deletedYearIds = [];
+            regForm.familyDocUrl = [];
+            regForm.remittanceDocUrl = [];
+            regForm.rentContractDocUrl = '';
+            regForm.rentReceiptDocUrl = '';
+            regForm.contractSignatureUrl = '';
+            regForm.contractStatus = '대기';
+            regForm.contractConsentDate = null;
+          }
+        }
+      } catch (checkErr) {
+        console.warn('Identity guard pre-check warning:', checkErr);
+      }
     }
 
     // 월세 계약서 및 영수증 파일 업로드 처리
@@ -532,7 +575,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
       };
 
       let existingRecordId: any = null;
-      if (yrData.id && !String(yrData.id).startsWith('temp_')) {
+      if (!isNewInsert && yrData.id && !String(yrData.id).startsWith('temp_')) {
         const { data: existingYr } = await supabase
           .from('YearEndData')
           .select('id')

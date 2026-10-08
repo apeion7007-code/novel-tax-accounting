@@ -27,24 +27,25 @@ export const TargetCustomerGuardBanner: React.FC<TargetCustomerGuardBannerProps>
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
-          padding: '8px 12px',
+          gap: '10px',
+          padding: '10px 14px',
           backgroundColor: '#eff6ff',
-          border: '1.5px solid #3b82f6',
-          borderRadius: '6px',
-          marginBottom: '8px',
-          fontSize: '12.5px',
-          color: '#1e40af'
+          border: '2px solid #3b82f6',
+          borderRadius: '8px',
+          marginBottom: '10px',
+          fontSize: '13px',
+          color: '#1e40af',
+          boxShadow: '0 2px 6px rgba(59, 130, 246, 0.12)'
         }}
       >
-        <UserCheck size={18} style={{ color: '#2563eb', flexShrink: 0 }} />
-        <div style={{ lineHeight: '1.4' }}>
-          <span style={{ fontWeight: 'bold' }}>
-            📌 대상 고객: [ {serial && serial > 0 ? `#${serial} ` : ''}{name ? name.toUpperCase() : '선택된 고객'}{nationality ? ` · ${nationality}` : ''} ]
-          </span>
-          <span style={{ display: 'block', fontSize: '11px', color: '#3b82f6', marginTop: '1px' }}>
-            작성하신 상담 메모는 위 고객님의 고유 차트에 안전하게 저장됩니다.
-          </span>
+        <UserCheck size={20} style={{ color: '#2563eb', flexShrink: 0 }} />
+        <div style={{ lineHeight: '1.5' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '13.5px', color: '#1e3a8a' }}>
+            📌 [고객 정보 수정 모드] 대상 고객: [ {serial && serial > 0 ? `#${serial} ` : ''}{name ? name.toUpperCase() : '선택된 고객'}{nationality ? ` · ${nationality}` : ''} ]
+          </div>
+          <div style={{ fontSize: '12px', color: '#2563eb', marginTop: '2px' }}>
+            현재 위 고객님의 정보를 수정 중입니다. 다른 고객을 등록하시려면 상단 <strong>[전체 초기화]</strong> 또는 <strong>[➕ 신규 건으로 전환 (새 UID)]</strong>을 누르세요.
+          </div>
         </div>
       </div>
     );
@@ -55,24 +56,25 @@ export const TargetCustomerGuardBanner: React.FC<TargetCustomerGuardBannerProps>
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '8px 12px',
+        gap: '10px',
+        padding: '10px 14px',
         backgroundColor: '#fffbeb',
-        border: '1.5px solid #f59e0b',
-        borderRadius: '6px',
-        marginBottom: '8px',
-        fontSize: '12.5px',
-        color: '#b45309'
+        border: '2px solid #f59e0b',
+        borderRadius: '8px',
+        marginBottom: '10px',
+        fontSize: '13px',
+        color: '#b45309',
+        boxShadow: '0 2px 6px rgba(245, 158, 11, 0.12)'
       }}
     >
-      <AlertTriangle size={18} style={{ color: '#d97706', flexShrink: 0 }} />
-      <div style={{ lineHeight: '1.4' }}>
-        <span style={{ fontWeight: 'bold' }}>
-          ⚠️ 아직 저장되지 않은 [신규 고객 등록] 상태입니다
-        </span>
-        <span style={{ display: 'block', fontSize: '11px', color: '#d97706', marginTop: '1px' }}>
-          상담 메모는 상단 [고객 등록 완료]를 먼저 누른 후 작성하실 수 있습니다.
-        </span>
+      <AlertTriangle size={20} style={{ color: '#d97706', flexShrink: 0 }} />
+      <div style={{ lineHeight: '1.5' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '13.5px', color: '#92400e' }}>
+          ⚠️ 아직 저장되지 않은 [신규 고객 등록] 상태입니다. (꼭 상단 [신규저장]을 누르셔야 저장이 됩니다.)
+        </div>
+        <div style={{ fontSize: '12px', color: '#b45309', marginTop: '2px' }}>
+          상담 메모 및 계약 업무는 상단 <strong>[신규저장]</strong>을 먼저 누른 후 작성하실 수 있습니다.
+        </div>
       </div>
     </div>
   );

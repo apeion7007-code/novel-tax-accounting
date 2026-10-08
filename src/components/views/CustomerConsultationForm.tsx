@@ -439,7 +439,7 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               style={{ height: '350px', fontSize: '13px', padding: '8px', lineHeight: '1.5' }}
               value={regForm.consultMemo || ''}
               onChange={(e) => setRegForm((prev: any) => ({ ...prev, consultMemo: e.target.value }))}
-              placeholder={regForm.clientId ? "상담 세부 정보를 기입하세요" : "⚠️ 신규 고객 저장 후 상담 메모를 작성하실 수 있습니다."}
+              placeholder={regForm.clientId ? "상담 세부 정보를 기입하세요" : "⚠️ 상단 [신규저장] 완료 후 상담 메모를 작성하실 수 있습니다."}
               disabled={!regForm.clientId}
             />
           </div>
@@ -457,9 +457,9 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               }}
               onClick={handleRegisterConsultMemo}
               disabled={!regForm.clientId}
-              title={regForm.clientId ? "상담처리 메모를 등록합니다." : "고객 기본 정보가 먼저 저장되어야 메모를 등록할 수 있습니다."}
+              title={regForm.clientId ? "상담처리 메모를 등록합니다." : "상단 [신규저장]을 먼저 완료하셔야 메모를 등록할 수 있습니다."}
             >
-              {regForm.clientId ? '상담처리 등록' : '고객 저장 후 메모 등록 가능'}
+              {regForm.clientId ? '상담처리 등록' : '상단 [신규저장] 후 메모 등록 가능'}
             </button>
           </div>
 

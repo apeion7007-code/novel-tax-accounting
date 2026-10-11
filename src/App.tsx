@@ -16,6 +16,7 @@ import { generateHometaxFile, generateFreelancerHometaxFile } from './utils/home
 import { ConsentPage } from './components/ConsentPage';
 import { ContractPage } from './components/ContractPage';
 import { HometaxExcelSyncModal } from './components/modals/HometaxExcelSyncModal';
+import { SaveSyncStatusModal, type SyncStatus } from './components/modals/SaveSyncStatusModal';
 
 import { DashboardView } from './components/views/DashboardView';
 import { ChangePasswordView } from './components/views/ChangePasswordView';
@@ -164,6 +165,19 @@ function App() {
   // Navigation State: customer = List View, registration = Register/Detail View, dashboard = Analytics Dashboard, staff = Staff View, password = Password View, consent = Client Consent View, validator = Hometax Validator View, contract = Client Contract View, contractManager = Contract Template Manager View
   const [currentView, setCurrentView] = useState<'customer' | 'registration' | 'dashboard' | 'staff' | 'password' | 'consent' | 'validator' | 'contract' | 'contractManager'>('customer');
   const [isHometaxExcelSyncModalOpen, setIsHometaxExcelSyncModalOpen] = useState<boolean>(false);
+  const [saveSyncModalState, setSaveSyncModalState] = useState<{
+    isOpen: boolean;
+    status: SyncStatus;
+    customerName: string;
+    isUpdate: boolean;
+    serial?: number;
+    errorMessage?: string;
+  }>({
+    isOpen: false,
+    status: 'syncing',
+    customerName: '',
+    isUpdate: false
+  });
   const [consentToken, setConsentToken] = useState<string | null>(null);
   const [tempInlineEdits, setTempInlineEdits] = useState<Record<number, { nationality?: string; managerName?: string; managerCountry?: string }>>({});
 
@@ -2462,13 +2476,23 @@ function App() {
       }
     });
 
+    const isUpdate = Boolean(regForm.serial && regForm.serial > 0);
+
+    // 동기화 진행 상태 모달 열기 (화면 이탈 및 브라우저 닫기 차단)
+    setSaveSyncModalState({
+      isOpen: true,
+      status: 'syncing',
+      customerName: regForm.name || '고객',
+      isUpdate,
+      serial: regForm.serial || undefined
+    });
+
     showToast('Supabase 클라우드 저장소에 고객 정보 및 PDF 파일 동기화를 진행 중입니다...', 'info');
 
     try {
       const res = await saveRegistrationToSupabase(regForm, pdfFiles);
       if (res && res.success) {
         // Map registration form to simplified list view customer using actual serial from DB
-        const isUpdate = regForm.serial && regForm.serial > 0;
         const actualSerial = res.serial || regForm.serial || nextId;
 
         let companyName = '-';
@@ -2533,6 +2557,15 @@ function App() {
           };
         });
 
+        // 완벽 동기화 완료 확인 팝업 모달 띄우기
+        setSaveSyncModalState({
+          isOpen: true,
+          status: 'completed',
+          customerName: regForm.name || '고객',
+          isUpdate,
+          serial: actualSerial
+        });
+
         showToast('고객 정보, 정산 결과 및 PDF 파일이 Supabase DB에 완벽히 동기화되었습니다!', 'success');
       } else {
         const errObj = (res.error || {}) as any;
@@ -2540,6 +2573,14 @@ function App() {
         const errCode = errObj.code || 'N/A';
         const errDetails = errObj.details || '없음';
         const errHint = errObj.hint || '없음';
+
+        setSaveSyncModalState({
+          isOpen: true,
+          status: 'error',
+          customerName: regForm.name || '고객',
+          isUpdate,
+          errorMessage: errMsg
+        });
 
         alert(
           "[Supabase 저장 실패 상세 안내]\n\n" +
@@ -2559,13 +2600,23 @@ function App() {
       }
     } catch (err: any) {
       console.warn('Supabase save error:', err);
+      const exceptionMsg = err.message || String(err);
+
+      setSaveSyncModalState({
+        isOpen: true,
+        status: 'error',
+        customerName: regForm.name || '고객',
+        isUpdate,
+        errorMessage: exceptionMsg
+      });
+
       alert(
         "[Supabase 저장 예외 발생]\n\n" +
-        "• 예외 메시지: " + (err.message || err) + "\n" +
+        "• 예외 메시지: " + exceptionMsg + "\n" +
         "• Stack Trace: " + (err.stack || "없음") + "\n\n" +
         "이 팝업 내용을 캡처하거나 텍스트를 복사하여 개발자에게 전달해 주세요."
       );
-      showToast(`Supabase 저장 예외: ${err.message || err}`, 'error');
+      showToast(`Supabase 저장 예외: ${exceptionMsg}`, 'error');
     }
 
     // setCurrentView('customer'); // Return to list view
@@ -3335,6 +3386,20 @@ function App() {
           </div>
         </div>
       )}
+
+      <SaveSyncStatusModal
+        isOpen={saveSyncModalState.isOpen}
+        status={saveSyncModalState.status}
+        customerName={saveSyncModalState.customerName}
+        isUpdate={saveSyncModalState.isUpdate}
+        serial={saveSyncModalState.serial}
+        errorMessage={saveSyncModalState.errorMessage}
+        onConfirm={() => setSaveSyncModalState(prev => ({ ...prev, isOpen: false }))}
+        onGoToList={() => {
+          setSaveSyncModalState(prev => ({ ...prev, isOpen: false }));
+          setCurrentView('customer');
+        }}
+      />
     </>
   );
 }

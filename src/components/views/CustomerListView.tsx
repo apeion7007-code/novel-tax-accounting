@@ -161,10 +161,15 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
         '◆지방세수수료수납완료', 
         '♠지방세수수료수납완료', 
         '자격안됨', 
+        '◎자격안됨', 
         '◎자격안됨(확인완료)', 
         '고객취소', 
+        '◎고객취소', 
         '홈택스가입불가', 
-        '▲경정청구기각'
+        '◆홈택스가입불가', 
+        '▲경정청구기각',
+        '경정청구반려',
+        '▲경정청구반려'
       ];
       if (excludedStatuses.includes(c.refundStatus)) return;
 

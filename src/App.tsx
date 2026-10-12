@@ -945,7 +945,7 @@ function App() {
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
-              claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
+              claimDate: parseDate(c.rectificationRequestDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
               managerCountry: (cleanTeamName && cleanTeamName !== '관리자' && cleanTeamName !== '') ? cleanTeamName : nat,
@@ -998,7 +998,7 @@ function App() {
               refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
-              claimDate: parseDate(c.rectificationRequestDate || c.taxReductionSentDate || c.recordFileDate || c.claimDate || c.rectificationDate),
+              claimDate: parseDate(c.rectificationRequestDate || c.claimDate || c.rectificationDate),
               additionalApplyDate: parseDate(c.additionalApplyDate),
               additionalPerformance: c.fee_performance || 0,
               managerCountry: (cleanTeamName && cleanTeamName !== '관리자' && cleanTeamName !== '') ? cleanTeamName : nat,
@@ -1668,11 +1668,15 @@ function App() {
   ];
   const refundStatuses = [
     '대기',
+    '◎대기',
     '◎경정상담중',
     '자격안됨',
+    '◎자격안됨',
     '◎자격안됨(확인완료)',
     '고객취소',
+    '◎고객취소',
     '홈택스가입불가',
+    '◆홈택스가입불가',
     '◆간편인증서류가입요청',
     '◆간편인증서류완료',
     '◆녹취계약요청',
@@ -1680,14 +1684,18 @@ function App() {
     '※감면명세서요청중',
     '◇경청청구요청',
     '노벨경정청구중',
+    '◐노벨경정청구중',
     '세로경정청구중',
+    '◑세로경정청구중',
     '♥경정청구완료',
     '경정청구반려',
+    '▲경정청구반려',
     '▲경정청구기각',
     '♡수수료요청',
     '♡국세수수료수납완료',
     '◆지방세수수료수납완료',
     '♠지방세수수료수납완료',
+    '◆수수료연체',
     '◆수수료 연체'
   ];
   const visaTypes = [
@@ -2719,10 +2727,15 @@ function App() {
       '◆지방세수수료수납완료',
       '♠지방세수수료수납완료',
       '자격안됨',
+      '◎자격안됨',
       '◎자격안됨(확인완료)',
       '고객취소',
+      '◎고객취소',
       '홈택스가입불가',
-      '▲경정청구기각'
+      '◆홈택스가입불가',
+      '▲경정청구기각',
+      '경정청구반려',
+      '▲경정청구반려'
     ];
 
     const matchCountryName = (countryA?: string, countryB?: string): boolean => {
@@ -2867,10 +2880,15 @@ function App() {
         '◆지방세수수료수납완료',
         '♠지방세수수료수납완료',
         '자격안됨',
+        '◎자격안됨',
         '◎자격안됨(확인완료)',
         '고객취소',
+        '◎고객취소',
         '홈택스가입불가',
-        '▲경정청구기각'
+        '◆홈택스가입불가',
+        '▲경정청구기각',
+        '경정청구반려',
+        '▲경정청구반려'
       ];
       matchesTab = !excludedStatuses.includes(c.refundStatus);
     } else if (selectedTab === 'feeCompleted') {

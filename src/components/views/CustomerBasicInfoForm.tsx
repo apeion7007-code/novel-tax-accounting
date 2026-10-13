@@ -1,6 +1,7 @@
 import React from 'react';
 import { RentDeductionForm } from './RentDeductionForm';
 import { formatForeignerNumber } from '../../utils/supabaseClient';
+import { normalizeRefundStatus } from '../../constants/refundStatus';
 
 interface CustomerBasicInfoFormProps {
   regForm: any;
@@ -136,10 +137,12 @@ export const CustomerBasicInfoForm: React.FC<CustomerBasicInfoFormProps> = ({
               </div>
             </td>
             <td style={{ border: '1px solid #cbd5e1', padding: '4px' }}>
-              <select className="form-control" style={{ fontSize: '13px', height: '32px', padding: '2px' }} value={regForm.refundStatus} onChange={(e) => setRegForm((prev: any) => ({ ...prev, refundStatus: e.target.value }))}>
-                {regForm.refundStatus && !refundStatuses.includes(regForm.refundStatus) && (
-                  <option value={regForm.refundStatus}>{regForm.refundStatus}</option>
-                )}
+              <select
+                className="form-control"
+                style={{ fontSize: '13px', height: '32px', padding: '2px' }}
+                value={normalizeRefundStatus(regForm.refundStatus || '대기')}
+                onChange={(e) => setRegForm((prev: any) => ({ ...prev, refundStatus: e.target.value }))}
+              >
                 {refundStatuses.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </td>

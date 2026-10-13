@@ -1,6 +1,7 @@
 import React from 'react';
 import { Filter, RotateCcw, Search, Plus, Trash2, FileSpreadsheet, Download, X, AlertTriangle, Clock, ChevronDown } from 'lucide-react';
 import type { Customer } from '../../App';
+import { EXCLUDED_REFUND_STATUSES } from '../../constants/refundStatus';
 
 
 
@@ -155,22 +156,7 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
 
     filteredCustomers.forEach(c => {
       // Filter out completed, ineligible, or cancelled refund statuses (미 환급자만 추출)
-      const excludedStatuses = [
-        '♥경정청구완료', 
-        '♡국세수수료수납완료', 
-        '◆지방세수수료수납완료', 
-        '♠지방세수수료수납완료', 
-        '자격안됨', 
-        '◎자격안됨', 
-        '◎자격안됨(확인완료)', 
-        '고객취소', 
-        '◎고객취소', 
-        '홈택스가입불가', 
-        '◆홈택스가입불가', 
-        '▲경정청구기각',
-        '경정청구반려',
-        '▲경정청구반려'
-      ];
+      const excludedStatuses = EXCLUDED_REFUND_STATUSES;
       if (excludedStatuses.includes(c.refundStatus)) return;
 
       if (!c.visaExpireDate) return;

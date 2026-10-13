@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { checkClientIdentityMatch } from '../services/clientIdentityGuard';
+import { normalizeRefundStatus } from '../constants/refundStatus';
 
 const SUPABASE_URL = "https://ymloiwyxqedpzlkopwfc.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltbG9pd3l4cWVkcHpsa29wd2ZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MDc1MzksImV4cCI6MjEwMDI4MzUzOX0.McMl3dn2ZT6rFqi0wGrvwA_CNb190xQi9iwMl23YsiE";
@@ -327,7 +328,7 @@ export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: R
 
       // Mapped Supabase Columns
       visaExpireDate: safeToISOString(regForm.visaExpiry),
-      paybackProgress: regForm.refundStatus || '◎경정상담중',
+      paybackProgress: normalizeRefundStatus(regForm.refundStatus || '◎경정상담중'),
       taxReductionProgress: regForm.deductionSubmissionStatus || '◎제출이력없음',
       taxReductionApplyDateStart: safeToISOString(regForm.taxReductionApplyDateStart),
       taxReductionApplyDateEnd: safeToISOString(regForm.taxReductionApplyDateEnd),

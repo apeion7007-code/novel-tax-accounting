@@ -47,6 +47,13 @@ import {
   formatForeignerNumber
 } from './utils/supabaseClient';
 import { calculateCombinedRefund } from './utils/combinedTaxCalculator';
+import {
+  REFUND_STATUSES,
+  EXCLUDED_REFUND_STATUSES,
+  isFeeCompletedStatus,
+  normalizeRefundStatus
+} from './constants/refundStatus';
+
 
 
 // Define customer interface
@@ -942,7 +949,7 @@ function App() {
               birthDate: c.regNum || '-',
               visa: c.visa || 'E9',
               companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
-              refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
+              refundStatus: normalizeRefundStatus(c.paybackProgress || c.status || c.refundStatus || '◎경정상담중'),
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.claimDate || c.rectificationDate),
@@ -995,7 +1002,7 @@ function App() {
               birthDate: c.regNum || '-',
               visa: c.visa || 'E9',
               companyName: c.company || c.companyName || c.workPlace || (Array.isArray(c.years) && c.years[0]?.workPlace) || '-',
-              refundStatus: c.paybackProgress || c.status || c.refundStatus || '경정상담중',
+              refundStatus: normalizeRefundStatus(c.paybackProgress || c.status || c.refundStatus || '◎경정상담중'),
               submissionStatus: c.taxReductionProgress || c.taxReductionSubmissionStatus || c.taxReductionStatus || c.deductionStatus || c.submissionStatus || '-',
               monthlyRent: (c.isMonthlyTenant || c.isMonthlyRent === true || c.isMonthlyRent === '가' || c.isMonthlyRent === '예') ? '예' : '아니오',
               claimDate: parseDate(c.rectificationRequestDate || c.claimDate || c.rectificationDate),
@@ -1666,38 +1673,7 @@ function App() {
     '한국',
     '기타국가'
   ];
-  const refundStatuses = [
-    '대기',
-    '◎대기',
-    '◎경정상담중',
-    '자격안됨',
-    '◎자격안됨',
-    '◎자격안됨(확인완료)',
-    '고객취소',
-    '◎고객취소',
-    '홈택스가입불가',
-    '◆홈택스가입불가',
-    '◆간편인증서류가입요청',
-    '◆간편인증서류완료',
-    '◆녹취계약요청',
-    '◆녹취계약완료',
-    '※감면명세서요청중',
-    '◇경청청구요청',
-    '노벨경정청구중',
-    '◐노벨경정청구중',
-    '세로경정청구중',
-    '◑세로경정청구중',
-    '♥경정청구완료',
-    '경정청구반려',
-    '▲경정청구반려',
-    '▲경정청구기각',
-    '♡수수료요청',
-    '♡국세수수료수납완료',
-    '◆지방세수수료수납완료',
-    '♠지방세수수료수납완료',
-    '◆수수료연체',
-    '◆수수료 연체'
-  ];
+  const refundStatuses = [...REFUND_STATUSES];
   const visaTypes = [
     'F1',
     'F2',
@@ -2224,7 +2200,7 @@ function App() {
         isMonthlyRent: clientDetails?.isMonthlyTenant || clientDetails?.isMonthlyRent ? '가' : '부',
         refundBankName: clientDetails?.bank || '',
         refundBank: clientDetails?.bankAccount || '',
-        refundStatus: clientDetails?.paybackProgress || customer.refundStatus || '◎경정상담중',
+        refundStatus: normalizeRefundStatus(clientDetails?.paybackProgress || customer.refundStatus || '◎경정상담중'),
         residentRegisterAddress: clientDetails?.address || '',
         residentAddress: clientDetails?.hireDate ? clientDetails.hireDate.split('T')[0] : '',
         deductionSubmissionStatus: clientDetails?.taxReductionProgress || '◎제출이력없음',
@@ -2721,22 +2697,7 @@ function App() {
     let feeCompleted = 0;
     let nextYear = 0;
 
-    const excludedStatuses = [
-      '♥경정청구완료',
-      '♡국세수수료수납완료',
-      '◆지방세수수료수납완료',
-      '♠지방세수수료수납완료',
-      '자격안됨',
-      '◎자격안됨',
-      '◎자격안됨(확인완료)',
-      '고객취소',
-      '◎고객취소',
-      '홈택스가입불가',
-      '◆홈택스가입불가',
-      '▲경정청구기각',
-      '경정청구반려',
-      '▲경정청구반려'
-    ];
+    const excludedStatuses = EXCLUDED_REFUND_STATUSES;
 
     const matchCountryName = (countryA?: string, countryB?: string): boolean => {
       if (!countryA || !countryB) return false;
@@ -2766,7 +2727,7 @@ function App() {
       if (!excludedStatuses.includes(c.refundStatus)) {
         inProgress++;
       }
-      if (c.refundStatus === '♡국세수수료수납완료' || c.refundStatus === '◆지방세수수료수납완료' || c.refundStatus === '♠지방세수수료수납완료') {
+      if (isFeeCompletedStatus(c.refundStatus)) {
         feeCompleted++;
       }
       if (c.isNextYearApply) {
@@ -2874,25 +2835,10 @@ function App() {
     // 탭 필터링
     let matchesTab = true;
     if (selectedTab === 'inProgress') {
-      const excludedStatuses = [
-        '♥경정청구완료',
-        '♡국세수수료수납완료',
-        '◆지방세수수료수납완료',
-        '♠지방세수수료수납완료',
-        '자격안됨',
-        '◎자격안됨',
-        '◎자격안됨(확인완료)',
-        '고객취소',
-        '◎고객취소',
-        '홈택스가입불가',
-        '◆홈택스가입불가',
-        '▲경정청구기각',
-        '경정청구반려',
-        '▲경정청구반려'
-      ];
+      const excludedStatuses = EXCLUDED_REFUND_STATUSES;
       matchesTab = !excludedStatuses.includes(c.refundStatus);
     } else if (selectedTab === 'feeCompleted') {
-      matchesTab = c.refundStatus === '♡국세수수료수납완료' || c.refundStatus === '◆지방세수수료수납완료' || c.refundStatus === '♠지방세수수료수납완료';
+      matchesTab = isFeeCompletedStatus(c.refundStatus);
     } else if (selectedTab === 'nextYear') {
       matchesTab = c.isNextYearApply === true;
     }

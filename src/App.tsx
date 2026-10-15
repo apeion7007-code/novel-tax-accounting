@@ -1048,6 +1048,7 @@ function App() {
     name: '',
     foreignerNumber: '',
     nationality: '미얀마',
+    managerId: currentManager?.id || null,
     managerName: currentManager?.name || '관리자',
     telecom: 'SKT',
     phone: '',
@@ -1374,6 +1375,7 @@ function App() {
       companyAddress: '',
       companyPhone: '',
       companyIndustry: '',
+      managerId: currentManager?.id || null,
       managerName: currentManager?.name || '관리자',
       telecom: 'SKT',
       phone: '',
@@ -2474,7 +2476,11 @@ function App() {
     showToast('Supabase 클라우드 저장소에 고객 정보 및 PDF 파일 동기화를 진행 중입니다...', 'info');
 
     try {
-      const res = await saveRegistrationToSupabase(regForm, pdfFiles);
+      const payloadForm = {
+        ...regForm,
+        managerId: regForm.managerId || (currentManager?.name === regForm.managerName ? currentManager?.id : null)
+      };
+      const res = await saveRegistrationToSupabase(payloadForm, pdfFiles);
       if (res && res.success) {
         // Map registration form to simplified list view customer using actual serial from DB
         const actualSerial = res.serial || regForm.serial || nextId;

@@ -43,6 +43,8 @@ export function usePdfHandlers(
   setTargetYears: React.Dispatch<React.SetStateAction<string[]>>,
   showToast: (msg: string, type?: 'success' | 'error' | 'info') => void
 ) {
+  const isProcessingRef = React.useRef(false);
+
   const checkNegativeRefundsAndToast = (nextRegForm: any, successMsg: string) => {
     const years = nextRegForm.years || [];
     const targetYears = Array.from(new Set(years.filter((y: any) => y.active).map((y: any) => String(y.year))));
@@ -135,9 +137,11 @@ export function usePdfHandlers(
   };
 
   const handleSingleYearPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetId?: string) => {
+    if (isProcessingRef.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    isProcessingRef.current = true;
     try {
       showToast(`PDF 분석을 시작합니다 (${file.name})...`, 'info');
       const text = await extractTextFromPdf(file);
@@ -315,13 +319,18 @@ export function usePdfHandlers(
     } catch (err: any) {
       console.error(err);
       showToast(`PDF 분석 중 오류가 발생했습니다: ${err.message || err}`, 'error');
+    } finally {
+      isProcessingRef.current = false;
+      if (e.target) e.target.value = '';
     }
   };
 
   const handleFreelancerSingleYearPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>, fallbackYr?: string) => {
+    if (isProcessingRef.current) return;
     const file = e.target.files?.[0];
     if (!file) return;
 
+    isProcessingRef.current = true;
     try {
       showToast(`프리랜서 지급명세서 PDF 분석을 시작합니다 (${file.name})...`, 'info');
       const text = await extractTextFromPdf(file);
@@ -476,6 +485,9 @@ export function usePdfHandlers(
     } catch (err: any) {
       console.error(err);
       showToast(`PDF 분석 중 오류가 발생했습니다: ${err.message || err}`, 'error');
+    } finally {
+      isProcessingRef.current = false;
+      if (e.target) e.target.value = '';
     }
   };
 
@@ -577,10 +589,13 @@ export function usePdfHandlers(
   };
 
   const handleBulkPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isProcessingRef.current) return;
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    showToast(`${files.length}개 PDF 파일 자동 분석을 시작합니다...`, 'info');
+    isProcessingRef.current = true;
+    try {
+      showToast(`${files.length}개 PDF 파일 자동 분석을 시작합니다...`, 'info');
     let successCount = 0;
     const detectedYears: string[] = [];
 
@@ -759,7 +774,11 @@ export function usePdfHandlers(
         showToast(`파일 [${file.name}] 분석 중 오류가 발생했습니다.`, 'error');
       }
     }
-  };
+  } finally {
+    isProcessingRef.current = false;
+    if (e.target) e.target.value = '';
+  }
+};
 
   return {
     handleDownloadPdf,

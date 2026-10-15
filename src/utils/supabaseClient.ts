@@ -158,18 +158,26 @@ function cleanNum(val: any): number {
 export async function saveRegistrationToSupabase(regForm: any, pdfFileObjects: Record<string, File | null>) {
   try {
     // 1. 신규 등록 시 배정할 담당 매니저 조회
-    let dbManagerId: string | null = null;
+    let dbManagerId: string | null = regForm.managerId || null;
     let dbTeamId: number | null = null;
     try {
       const { data: managers } = await supabase
         .from('Manager')
         .select('id, name, teamId');
       
-      if (managers && regForm.managerName) {
-        const match = managers.find(m => m.name && m.name.trim().toLowerCase() === regForm.managerName.trim().toLowerCase());
-        if (match) {
-          dbManagerId = match.id;
-          dbTeamId = match.teamId || null;
+      if (managers) {
+        if (dbManagerId) {
+          const matchById = managers.find(m => m.id === dbManagerId);
+          if (matchById) {
+            dbTeamId = matchById.teamId || null;
+          }
+        }
+        if (!dbManagerId && regForm.managerName) {
+          const match = managers.find(m => m.name && m.name.trim().toLowerCase() === regForm.managerName.trim().toLowerCase());
+          if (match) {
+            dbManagerId = match.id;
+            dbTeamId = match.teamId || null;
+          }
         }
       }
     } catch (err) {

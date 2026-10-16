@@ -399,6 +399,85 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
             visibility: hidden !important;
           }
         }
+
+        /* 📱 Mobile Responsive Screen Styles (< 768px) */
+        @media screen and (max-width: 768px) {
+          .a4-document-container {
+            gap: 16px !important;
+            padding: 0 !important;
+            width: 100% !important;
+          }
+          .a4-page-sheet {
+            min-height: auto !important;
+            height: auto !important;
+            max-height: none !important;
+            padding: 20px 14px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+            border-radius: 12px !important;
+            border: 1px solid #e2e8f0 !important;
+          }
+          .contract-header-banner {
+            padding: 14px 12px !important;
+            margin-bottom: 12px !important;
+          }
+          .contract-header-title {
+            font-size: 17px !important;
+          }
+          .contract-lang-buttons {
+            gap: 4px !important;
+            margin-top: 10px !important;
+          }
+          .contract-lang-btn {
+            padding: 3px 6px !important;
+            font-size: 10px !important;
+          }
+          .contract-parties-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+            padding: 12px !important;
+            margin-bottom: 12px !important;
+          }
+          .contract-party-client {
+            border-right: none !important;
+            border-bottom: 1px dashed #e2e8f0 !important;
+            padding-right: 0 !important;
+            padding-bottom: 10px !important;
+          }
+          .contract-party-agent {
+            padding-left: 0 !important;
+            padding-top: 4px !important;
+          }
+          .contract-info-rows {
+            grid-template-columns: 100px 1fr !important;
+            gap: 5px !important;
+            word-break: break-word !important;
+          }
+          .contract-articles-container {
+            padding: 12px 14px !important;
+            gap: 10px !important;
+          }
+          .contract-agreement-box {
+            padding: 14px 16px !important;
+            margin-bottom: 16px !important;
+          }
+          .contract-date-box {
+            margin: 16px 0 20px 0 !important;
+          }
+          .contract-signatures-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+            margin-bottom: 20px !important;
+          }
+          .contract-sig-box {
+            padding: 14px !important;
+          }
+          .contract-stamp-box {
+            padding: 14px !important;
+          }
+          .contract-sig-canvas {
+            height: 170px !important;
+          }
+        }
       `}</style>
 
       {/* ========================================================= */}
@@ -425,7 +504,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
       >
         <div>
           {/* Header Banner */}
-          <div style={{ padding: '18px 20px', backgroundColor: '#0f172a', borderRadius: '10px', color: '#ffffff', textAlign: 'center', marginBottom: '18px' }}>
+          <div className="contract-header-banner" style={{ padding: '18px 20px', backgroundColor: '#0f172a', borderRadius: '10px', color: '#ffffff', textAlign: 'center', marginBottom: '18px' }}>
 
             {/* Top CI Logo */}
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -437,7 +516,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               </div>
             </div>
 
-            <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 6px 0', color: '#38bdf8', letterSpacing: '-0.5px' }}>
+            <h2 className="contract-header-title" style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 6px 0', color: '#38bdf8', letterSpacing: '-0.5px' }}>
               {renderEditableText('title', '세무 경정 청구 표준계약서')}
             </h2>
             <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: '1.4' }}>
@@ -446,13 +525,14 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
 
             {/* 14 Languages Selector Buttons */}
             {showLanguageSelector && (
-              <div className="no-print" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginTop: '14px', flexWrap: 'wrap' }}>
+              <div className="contract-lang-buttons no-print" style={{ display: 'flex', justifyContent: 'center', gap: '5px', marginTop: '14px', flexWrap: 'wrap' }}>
                 {Object.keys(CONTRACT_LANG_CODES).map((lang) => {
                   const isCurrent = language === lang;
                   return (
                     <button
                       key={lang}
                       type="button"
+                      className="contract-lang-btn"
                       onClick={() => onLanguageChange && onLanguageChange(lang)}
                       style={{
                         border: 'none',
@@ -475,14 +555,14 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           </div>
 
           {/* 1. Parties Info Table (의뢰인 갑 & 수임인 을) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', padding: '12px 14px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
+          <div className="contract-parties-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', padding: '12px 14px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
 
             {/* 甲: 의뢰인 */}
-            <div style={{ borderRight: '1px solid #e2e8f0', paddingRight: '10px' }}>
+            <div className="contract-party-client" style={{ borderRight: '1px solid #e2e8f0', paddingRight: '10px' }}>
               <div style={{ fontWeight: '800', color: '#2563eb', marginBottom: '6px', fontSize: '12.5px' }}>
                 {renderEditableText('clientLabel', '의뢰인 (갑)')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
+              <div className="contract-info-rows" style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
                 <span style={{ color: '#64748b' }}>• {renderEditableText('nameLabel', '성명')}:</span>
                 <span style={{ fontWeight: '700', color: '#0f172a' }}>{client.name || '-'}</span>
 
@@ -501,11 +581,11 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
             </div>
 
             {/* 乙: 수임인 */}
-            <div style={{ paddingLeft: '6px' }}>
+            <div className="contract-party-agent" style={{ paddingLeft: '6px' }}>
               <div style={{ fontWeight: '800', color: '#0f172a', marginBottom: '6px', fontSize: '12.5px' }}>
                 {renderEditableText('agentLabel', '수임인 (을)')}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
+              <div className="contract-info-rows" style={{ display: 'grid', gridTemplateColumns: '85px 1fr', gap: '3px', color: '#334155' }}>
                 <span style={{ color: '#64748b' }}>• {renderEditableText('firmNameLabel', '상호/법인명')}:</span>
                 <span style={{ fontWeight: '700' }}>{renderEditableText('firmNameVal', '세무법인 노벨세무회계')}</span>
 
@@ -541,7 +621,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           </div>
 
           {/* 2. Contract Articles (제1조 ~ 제5조) */}
-          <div style={{ fontSize: '12px', color: '#334155', lineHeight: '1.55', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '11px' }}>
+          <div className="contract-articles-container" style={{ fontSize: '12px', color: '#334155', lineHeight: '1.55', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '14px 16px', backgroundColor: '#fafafa', display: 'flex', flexDirection: 'column', gap: '11px' }}>
 
             {/* Article 1 */}
             <div>
@@ -647,7 +727,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           </div>
 
           {/* Article 6 / Agreement Confirmation Section */}
-          <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '20px 24px', marginBottom: '28px' }}>
+          <div className="contract-agreement-box" style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '20px 24px', marginBottom: '28px' }}>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: '800', color: '#0f172a' }}>
               {renderEditableText('completionTitle', '제6조 (계약의 체결 및 동의 확약)')}
             </h3>
@@ -657,7 +737,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           </div>
 
           {/* Contract Date Box */}
-          <div style={{ textAlign: 'center', margin: '24px 0 32px 0' }}>
+          <div className="contract-date-box" style={{ textAlign: 'center', margin: '24px 0 32px 0' }}>
             <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>{renderEditableText('dateLabel', '계약 체결 일자')}</div>
             <div style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', letterSpacing: '1px' }}>
               {formatContractDate(client.signedDate, language)}
@@ -665,10 +745,10 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
           </div>
 
           {/* Signature Grid (Party A Client vs Party B Contractor) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
+          <div className="contract-signatures-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '28px' }}>
 
             {/* 甲 의뢰인 서명란 */}
-            <div style={{ border: '2px solid #3b82f6', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <div className="contract-sig-box" style={{ border: '2px solid #3b82f6', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: '800', color: '#1d4ed8' }}>
                   ✍️ {renderEditableText('sigLabel', '의뢰인 (갑) 서명')}
@@ -703,15 +783,16 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
               ) : showSignaturePad ? (
                 <canvas
                   ref={activeCanvasRef}
-                  width={340}
-                  height={140}
+                  width={500}
+                  height={220}
+                  className="contract-sig-canvas"
                   style={{
                     width: '100%',
-                    height: '140px',
+                    height: '160px',
                     display: 'block',
                     backgroundColor: '#f8fafc',
                     borderRadius: '6px',
-                    border: '1px dashed #93c5fd',
+                    border: '1.5px dashed #93c5fd',
                     touchAction: 'none',
                     cursor: 'crosshair'
                   }}
@@ -735,7 +816,7 @@ export const A4ContractDocument: React.FC<A4ContractDocumentProps> = ({
             </div>
 
             {/* 乙 수임인 직인란 */}
-            <div style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="contract-stamp-box" style={{ border: '1px solid #cbd5e1', borderRadius: '10px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: '800', color: '#0f172a', marginBottom: '10px' }}>
                   {renderEditableText('agentBoxTitle', extra.agentBoxTitle)}

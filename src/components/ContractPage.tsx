@@ -188,21 +188,24 @@ export function ContractPage({ token }: ContractPageProps) {
     load();
   }, [token]);
 
-  // Canvas drawing coordinate calculations
+  // Canvas drawing coordinate calculations (scaled accurately for mobile responsive canvas)
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+
     if ('touches' in e) {
       if (e.touches.length === 0) return { x: 0, y: 0 };
       return {
-        x: e.touches[0].clientX - rect.left,
-        y: e.touches[0].clientY - rect.top
+        x: (e.touches[0].clientX - rect.left) * scaleX,
+        y: (e.touches[0].clientY - rect.top) * scaleY
       };
     } else {
       return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
       };
     }
   };
@@ -332,7 +335,14 @@ export function ContractPage({ token }: ContractPageProps) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', padding: '24px 16px', boxSizing: 'border-box', display: 'flex', justifyContent: 'center' }}>
+    <div className="contract-page-wrapper" style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', padding: '24px 16px', boxSizing: 'border-box', display: 'flex', justifyContent: 'center' }}>
+      <style>{`
+        @media screen and (max-width: 768px) {
+          .contract-page-wrapper {
+            padding: 12px 8px !important;
+          }
+        }
+      `}</style>
       <div style={{ width: '100%', maxWidth: '820px' }}>
         <A4ContractDocument
           language={selectedLanguage}

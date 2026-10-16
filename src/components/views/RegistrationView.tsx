@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { updateClientManagerInSupabase } from '../../utils/supabaseClient';
 import { CustomerBasicInfoForm } from './CustomerBasicInfoForm';
-import { DependentsDeductionPanel } from './DependentsDeductionPanel';
 import { SmeVerification } from '../SmeVerification';
 import { WageSettlementTable } from '../WageSettlementTable';
 import { FreelancerSettlementTable } from '../FreelancerSettlementTable';
@@ -27,9 +26,9 @@ interface RegistrationViewProps {
   availableManagerList: string[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   setCurrentView: (view: any) => void;
-  handleResetAll: () => void;
+  handleResetAll?: () => void;
   handleSaveRegistration: () => Promise<void>;
-  updateDependentsCount: (key: any, delta: number) => void;
+  updateDependentsCount?: (key: any, delta: number) => void;
   
   // PDF Handlers
   handleSingleYearPdfUpload: (e: React.ChangeEvent<HTMLInputElement>, targetId?: string) => Promise<void>;
@@ -84,9 +83,7 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
   availableManagerList,
   showToast,
   setCurrentView,
-  handleResetAll,
   handleSaveRegistration,
-  updateDependentsCount,
   handleSingleYearPdfUpload,
   handleFreelancerSingleYearPdfUpload,
   handleBulkPdfUpload,
@@ -327,7 +324,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
           >
             <span>{regForm.isNextYearApply ? `⭐ ${new Date().getFullYear() + 1}년 접수대상 (지정됨)` : `☆ ${new Date().getFullYear() + 1}년 접수대상 지정`}</span>
           </button>
-          <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ffffff', color: '#1e293b', border: '1px solid #cbd5e1', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleResetAll}>전체 초기화</button>
           <button className="btn-submit" style={{ padding: '6px 16px', fontSize: '13px', backgroundColor: '#2563eb', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={handleSaveRegistration}>{regForm.serial && regForm.serial > 0 ? '고객 업데이트' : '신규저장'}</button>
           {isSuperAdmin && (
             <button className="btn-cancel" style={{ padding: '6px 14px', fontSize: '13px', backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setCurrentView('customer')}>삭제</button>
@@ -357,14 +353,6 @@ export const RegistrationView: React.FC<RegistrationViewProps> = ({
         submissionStatuses={submissionStatuses}
         onChangeRentInfo={onChangeRentInfo}
         onChangeRentFile={onChangeRentFile}
-      />
-
-      {/* Dependents & Additional Deductions Setting Panel */}
-      <DependentsDeductionPanel
-        regForm={regForm}
-        setRegForm={setRegForm}
-        updateDependentsCount={updateDependentsCount}
-        showToast={showToast}
       />
 
       {/* 중소기업 판별기 영역 */}

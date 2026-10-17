@@ -201,8 +201,8 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
             <input
               type="text"
               className="form-control"
-              style={{ paddingLeft: '34px', width: '220px', height: '38px' }}
-              placeholder="이름 또는 회사명 검색"
+              style={{ paddingLeft: '34px', width: '240px', height: '38px' }}
+              placeholder="이름, 회사명, 연락처 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />

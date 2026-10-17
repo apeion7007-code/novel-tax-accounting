@@ -2769,11 +2769,20 @@ function App() {
 
     if (!matchesAuthority) return false;
 
+    const cleanSearch = searchQuery.trim();
+    const cleanSearchDigits = cleanSearch.replace(/\D/g, '');
+
     const matchesSearch =
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(c.id).includes(searchQuery) ||
-      (c.birthDate && c.birthDate.replace(/-/g, '').includes(searchQuery.replace(/-/g, '')));
+      c.name.toLowerCase().includes(cleanSearch.toLowerCase()) ||
+      c.companyName.toLowerCase().includes(cleanSearch.toLowerCase()) ||
+      String(c.id).includes(cleanSearch) ||
+      (c.birthDate && c.birthDate.replace(/-/g, '').includes(cleanSearch.replace(/-/g, ''))) ||
+      Boolean(
+        c.phone && (
+          c.phone.toLowerCase().includes(cleanSearch.toLowerCase()) ||
+          (cleanSearchDigits.length > 0 && c.phone.replace(/\D/g, '').includes(cleanSearchDigits))
+        )
+      );
 
     const matchesNationality = selectedNationality ? matchCountryName(c.nationality, selectedNationality) : true;
     const matchesRefundStatus = selectedRefundStatus ? c.refundStatus === selectedRefundStatus : true;

@@ -7,6 +7,8 @@ import { getStoredContractTranslations } from '../../utils/contractTemplateStora
 import { ContractTemplateModal } from '../modals/ContractTemplateModal';
 import { A4ContractDocument, type ContractData, printA4ContractDocument } from '../A4ContractDocument';
 import { TargetCustomerGuardBanner } from '../common/TargetCustomerGuardBanner';
+import { canManageConsultMemo, updateConsultMemo, deleteConsultMemo } from '../../services/consultMemoService';
+import { ConsultMemoEditModal } from '../modals/ConsultMemoEditModal';
 
 interface CustomerConsultationFormProps {
   regForm: any;
@@ -47,7 +49,8 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
   triggerKoreanInvoiceDownload,
   isSuperAdmin = false
 }) => {
-  const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ date: string; manager: string; content: string } | null>(null);
+  const [selectedMemoDetail, setSelectedMemoDetail] = React.useState<{ id: number; memo: any; date: string; manager: string; content: string } | null>(null);
+  const [editingMemo, setEditingMemo] = React.useState<{ id: number; content: string; date: string; manager: string } | null>(null);
   const [showContractSignature, setShowContractSignature] = React.useState<boolean>(false);
   const [isContractTemplateModalOpen, setIsContractTemplateModalOpen] = useState<boolean>(false);
   const [showFullContractModal, setShowFullContractModal] = React.useState<boolean>(false);
@@ -120,28 +123,46 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
     }
   };
 
-  const handleDeleteConsultMemo = async (memoId: number, e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent modal detail popup on clicking delete button
-    if (!isSuperAdmin) {
-      showToast('⚠️ 상담 메모 삭제 권한이 없습니다. (최고 관리자만 삭제 가능)', 'error');
+  const handleUpdateConsultMemo = async (memoId: number, updatedContent: string) => {
+    const targetMemo = consultMemos.find(m => m.id === memoId);
+    if (!targetMemo || !canManageConsultMemo(targetMemo, currentManager, isSuperAdmin, dbManagers)) {
+      showToast('⚠️ 본인이 직접 작성한 메모만 수정할 수 있습니다. (최고 관리자는 전체 수정 가능)', 'error');
       return;
     }
+
+    try {
+      await updateConsultMemo(memoId, updatedContent);
+      setConsultMemos((prev: any[]) => prev.map(m => m.id === memoId ? { ...m, content: updatedContent } : m));
+      setSelectedMemoDetail(prev => (prev && prev.id === memoId ? { ...prev, content: updatedContent } : prev));
+      showToast('상담 메모가 성공적으로 수정되었습니다.', 'success');
+    } catch (err: any) {
+      console.error('Error updating ConsultMemo:', err);
+      showToast('상담 메모 수정 실패: ' + err.message, 'error');
+      throw err;
+    }
+  };
+
+  const handleDeleteConsultMemo = async (memoId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation(); // prevent modal detail popup on clicking delete button
+    }
+    const targetMemo = consultMemos.find(m => m.id === memoId);
+    if (!targetMemo || !canManageConsultMemo(targetMemo, currentManager, isSuperAdmin, dbManagers)) {
+      showToast('⚠️ 본인이 직접 작성한 메모만 삭제할 수 있습니다. (최고 관리자는 전체 삭제 가능)', 'error');
+      return;
+    }
+
     const ok = window.confirm('이 상담 메모를 삭제하시겠습니까?');
     if (!ok) return;
 
     showToast('상담 메모를 삭제하는 중...', 'info');
 
     try {
-      const { error } = await supabase
-        .from('ConsultMemo')
-        .delete()
-        .eq('id', memoId);
-
-      if (error) {
-        throw error;
-      }
-
+      await deleteConsultMemo(memoId);
       setConsultMemos((prev: any[]) => prev.filter(m => m.id !== memoId));
+      if (selectedMemoDetail && selectedMemoDetail.id === memoId) {
+        setSelectedMemoDetail(null);
+      }
       showToast('상담 메모가 성공적으로 삭제되었습니다.', 'success');
     } catch (err: any) {
       console.error('Error deleting ConsultMemo:', err);
@@ -494,11 +515,9 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: isSuperAdmin ? '65%' : '70%', borderBottom: '1px solid #e2e8f0' }}>상담처리 메모</th>
-                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: isSuperAdmin ? '25%' : '30%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>처리일시/담당자</th>
-                    {isSuperAdmin && (
-                      <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '10%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>삭제</th>
-                    )}
+                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '60%', borderBottom: '1px solid #e2e8f0' }}>상담처리 메모</th>
+                    <th style={{ padding: '10px 12px', fontWeight: 'bold', color: '#475569', width: '26%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>처리일시/담당자</th>
+                    <th style={{ padding: '10px 8px', fontWeight: 'bold', color: '#475569', width: '14%', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>수정/삭제</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -519,13 +538,20 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                           timeZone: 'Asia/Seoul'
                         })
                       : '-';
+                    const isManageable = canManageConsultMemo(memo, currentManager, isSuperAdmin, dbManagers);
                     return (
                       <tr 
                         key={memo.id} 
                         className="clickable-log-row"
                         style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
                         onClick={() => {
-                          setSelectedMemoDetail({ date: formattedDate, manager: resolvedManager, content: memo.content });
+                          setSelectedMemoDetail({ 
+                            id: memo.id,
+                            memo: memo,
+                            date: formattedDate, 
+                            manager: resolvedManager, 
+                            content: memo.content 
+                          });
                         }}
                       >
                         <td style={{ padding: '10px 12px', whiteSpace: 'normal', wordBreak: 'break-all', verticalAlign: 'top' }}>
@@ -535,27 +561,73 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
                           <div>{formattedDate}</div>
                           <div style={{ fontWeight: 'bold', color: '#475569' }}>{resolvedManager}</div>
                         </td>
-                        {isSuperAdmin && (
-                          <td style={{ padding: '10px 12px', textAlign: 'center', verticalAlign: 'top' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteConsultMemo(memo.id, e)}
-                              style={{
-                                border: 'none',
-                                backgroundColor: 'transparent',
-                                color: '#ef4444',
-                                cursor: 'pointer',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '14px'
-                              }}
-                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                            >
-                              🗑️
-                            </button>
-                          </td>
-                        )}
+                        <td 
+                          style={{ padding: '8px 6px', textAlign: 'center', verticalAlign: 'top', whiteSpace: 'nowrap' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isManageable ? (
+                            <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                title="메모 수정"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingMemo({
+                                    id: memo.id,
+                                    content: memo.content,
+                                    date: formattedDate,
+                                    manager: resolvedManager
+                                  });
+                                }}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  backgroundColor: '#ffffff',
+                                  cursor: 'pointer',
+                                  padding: '3px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  lineHeight: 1
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#e0f2fe';
+                                  e.currentTarget.style.borderColor = '#38bdf8';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#ffffff';
+                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                }}
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                type="button"
+                                title="메모 삭제"
+                                onClick={(e) => handleDeleteConsultMemo(memo.id, e)}
+                                style={{
+                                  border: '1px solid #cbd5e1',
+                                  backgroundColor: '#ffffff',
+                                  cursor: 'pointer',
+                                  padding: '3px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  lineHeight: 1
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#fee2e2';
+                                  e.currentTarget.style.borderColor = '#f87171';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.backgroundColor = '#ffffff';
+                                  e.currentTarget.style.borderColor = '#cbd5e1';
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#cbd5e1', fontSize: '13px' }}>-</span>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -853,6 +925,58 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
               >
                 메모 복사
               </button>
+              {canManageConsultMemo(selectedMemoDetail.memo, currentManager, isSuperAdmin, dbManagers) && (
+                <>
+                  <button 
+                    onClick={() => {
+                      const detail = selectedMemoDetail;
+                      setSelectedMemoDetail(null);
+                      setEditingMemo({
+                        id: detail.id,
+                        content: detail.content,
+                        date: detail.date,
+                        manager: detail.manager
+                      });
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '13px',
+                      backgroundColor: '#0284c7',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    ✏️ 수정
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const idToDelete = selectedMemoDetail.id;
+                      handleDeleteConsultMemo(idToDelete);
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      fontSize: '13px',
+                      backgroundColor: '#ef4444',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    🗑️ 삭제
+                  </button>
+                </>
+              )}
               <button 
                 onClick={() => setSelectedMemoDetail(null)}
                 style={{
@@ -872,6 +996,17 @@ export const CustomerConsultationForm: React.FC<CustomerConsultationFormProps> =
           </div>
         </div>
       )}
+
+      {/* ✏️ 상담 메모 수정 모달 */}
+      <ConsultMemoEditModal
+        isOpen={Boolean(editingMemo)}
+        memoId={editingMemo?.id ?? null}
+        initialContent={editingMemo?.content || ''}
+        createdAtStr={editingMemo?.date || ''}
+        managerName={editingMemo?.manager || ''}
+        onClose={() => setEditingMemo(null)}
+        onSave={handleUpdateConsultMemo}
+      />
 
       {/* ✍️ 계약서 서명 이미지 보기 모달 */}
       {showContractSignature && regForm.contractSignatureUrl && (

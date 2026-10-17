@@ -1030,10 +1030,14 @@ function App() {
 
   // Sync URL path country code to pathCountry state dynamically
   useEffect(() => {
+    if (isSuperAdmin) {
+      setPathCountry('ALL');
+      return;
+    }
     const resolvedCountry = getCountryFromPath(dbTeams);
     const targetCountry = resolvedCountry || 'ALL';
     setPathCountry(prev => (prev === targetCountry ? prev : targetCountry));
-  }, [dbTeams]);
+  }, [dbTeams, isSuperAdmin]);
 
   // SmeModal States for company details
 
@@ -2287,7 +2291,14 @@ function App() {
 
     let parsedCountry = getCountryFromPath(dbTeams);
 
-    if (!parsedCountry) {
+    if (isSuperAdmin) {
+      parsedCountry = 'ALL';
+      setPathCountry('ALL');
+      const params = new URLSearchParams(window.location.search);
+      const newSearch = params.toString();
+      const newUrl = `/all` + (newSearch ? '?' + newSearch : '');
+      window.history.replaceState({}, document.title, newUrl);
+    } else if (!parsedCountry) {
       const managerCountry = currentManagerCountry || '미얀마';
       const code = getCodeFromCountry(dbTeams, managerCountry);
       const params = new URLSearchParams(window.location.search);
@@ -2349,7 +2360,7 @@ function App() {
         }
       }
     }
-  }, [isLoggedIn, currentManagerCountry, dbTeams, customers, dbManagers]);
+  }, [isLoggedIn, currentManagerCountry, dbTeams, customers, dbManagers, isSuperAdmin]);
 
   // Synchronize view state to URL query parameters
   useEffect(() => {
@@ -2363,13 +2374,16 @@ function App() {
       params.delete('serial');
     }
     const newSearch = params.toString();
-    const activeCountry = (currentView === 'registration' && regForm.nationality)
-      ? regForm.nationality
-      : pathCountry;
+    // 총괄관리자(isSuperAdmin)는 어떤 고객을 조회하든 항상 '/all' 경로 고정
+    const activeCountry = isSuperAdmin
+      ? 'ALL'
+      : ((currentView === 'registration' && regForm.nationality)
+          ? regForm.nationality
+          : pathCountry);
     const code = getCodeFromCountry(dbTeams, activeCountry);
     const newUrl = `/${code}` + (newSearch ? '?' + newSearch : '');
     window.history.replaceState({}, document.title, newUrl);
-  }, [currentView, regForm.serial, regForm.nationality, isLoggedIn, pathCountry, dbTeams]);
+  }, [currentView, regForm.serial, regForm.nationality, isLoggedIn, pathCountry, dbTeams, isSuperAdmin]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) setSelectedIds(filteredCustomers.map(c => c.id));
@@ -2955,7 +2969,17 @@ function App() {
             <nav className="sidebar-menu">
               <button
                 className={`sidebar-item ${currentView === 'customer' || currentView === 'registration' ? 'active' : ''}`}
-                onClick={() => setCurrentView('customer')}
+                onClick={() => {
+                  if (isSuperAdmin) {
+                    setPathCountry('ALL');
+                    const params = new URLSearchParams(window.location.search);
+                    params.delete('view');
+                    params.delete('serial');
+                    const newSearch = params.toString();
+                    window.history.replaceState({}, document.title, `/all` + (newSearch ? '?' + newSearch : ''));
+                  }
+                  setCurrentView('customer');
+                }}
               >
                 <UserCheck size={18} />
                 고객등록 관리

@@ -17,6 +17,7 @@ import { ConsentPage } from './components/ConsentPage';
 import { ContractPage } from './components/ContractPage';
 import { HometaxExcelSyncModal } from './components/modals/HometaxExcelSyncModal';
 import { SaveSyncStatusModal, type SyncStatus } from './components/modals/SaveSyncStatusModal';
+import { GlobalCustomerSearchModal } from './components/modals/GlobalCustomerSearchModal';
 
 import { DashboardView } from './components/views/DashboardView';
 import { ChangePasswordView } from './components/views/ChangePasswordView';
@@ -473,6 +474,10 @@ function App() {
 
 
 
+
+  // 슈퍼베이스 고객 전수 찾기 모달 상태
+  const [isGlobalCustomerSearchOpen, setIsGlobalCustomerSearchOpen] = useState<boolean>(false);
+  const [globalSearchInitialKeyword, setGlobalSearchInitialKeyword] = useState<string>('');
 
   // Hometax Submitter Modal States & Persistence
   const [isHometaxModalOpen, setIsHometaxModalOpen] = useState<boolean>(false);
@@ -3097,6 +3102,10 @@ function App() {
                 handleSaveRow={handleSaveRow}
                 tempInlineEdits={tempInlineEdits}
                 isSuperAdmin={isSuperAdmin}
+                onOpenGlobalSearch={(kw) => {
+                  setGlobalSearchInitialKeyword(kw || '');
+                  setIsGlobalCustomerSearchOpen(true);
+                }}
               />
             )}
 
@@ -3401,6 +3410,32 @@ function App() {
         onGoToList={() => {
           setSaveSyncModalState(prev => ({ ...prev, isOpen: false }));
           setCurrentView('customer');
+        }}
+      />
+
+      <GlobalCustomerSearchModal
+        isOpen={isGlobalCustomerSearchOpen}
+        onClose={() => setIsGlobalCustomerSearchOpen(false)}
+        currentManagerId={currentManager?.id}
+        currentManagerName={currentManager?.name || '관리자'}
+        currentManagerCountry={pathCountry && pathCountry !== 'ALL' ? pathCountry : '베트남'}
+        isSuperAdmin={isSuperAdmin}
+        initialKeyword={globalSearchInitialKeyword}
+        onCustomerClaimed={(serial, newManagerName, targetCountry) => {
+          setCustomers(prev =>
+            prev.map(c =>
+              c.id === serial
+                ? {
+                    ...c,
+                    managerName: newManagerName,
+                    managerId: currentManager?.id || c.managerId,
+                    nationality: targetCountry,
+                    managerCountry: targetCountry
+                  }
+                : c
+            )
+          );
+          showToast(`고객(#${serial})의 담당자가 [${newManagerName}] 매니저로 배정되었습니다.`, 'success');
         }}
       />
     </>

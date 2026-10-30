@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, RotateCcw, Search, Plus, Trash2, FileSpreadsheet, Download, X, AlertTriangle, Clock, ChevronDown } from 'lucide-react';
+import { Filter, RotateCcw, Search, Plus, Trash2, FileSpreadsheet, Download, X, AlertTriangle, Clock, ChevronDown, Database } from 'lucide-react';
 import type { Customer } from '../../App';
 import { EXCLUDED_REFUND_STATUSES } from '../../constants/refundStatus';
 
@@ -82,6 +82,7 @@ interface CustomerListViewProps {
   countFeeCompleted: number;
   countNextYear: number;
   isSuperAdmin?: boolean;
+  onOpenGlobalSearch?: (initialKeyword?: string) => void;
 }
 
 export const CustomerListView: React.FC<CustomerListViewProps> = ({
@@ -143,7 +144,8 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
   countInProgress,
   countFeeCompleted,
   countNextYear,
-  isSuperAdmin = false
+  isSuperAdmin = false,
+  onOpenGlobalSearch
 }) => {
   const [isVisaWidgetExpanded, setIsVisaWidgetExpanded] = React.useState<boolean>(false);
   const [isConsentOpen, setIsConsentOpen] = React.useState<boolean>(false);
@@ -207,6 +209,31 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <button
+            type="button"
+            className="btn-action"
+            style={{
+              backgroundColor: '#4f46e5',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '0 14px',
+              height: '38px',
+              fontSize: '13px',
+              fontWeight: '600',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(79, 70, 229, 0.25)',
+              transition: 'background-color 0.15s'
+            }}
+            onClick={() => onOpenGlobalSearch && onOpenGlobalSearch(searchQuery)}
+            title="내 목록이나 진행중 탭에 없는 고객을 슈퍼베이스 전체 데이터베이스에서 전수 검색합니다."
+          >
+            <Database size={15} />
+            슈퍼베이스 고객 찾기
+          </button>
         </div>
 
         <div className="action-controls">
@@ -518,8 +545,44 @@ export const CustomerListView: React.FC<CustomerListViewProps> = ({
             <tbody>
               {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={15} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    조건에 맞는 고객 정보가 존재하지 않습니다.
+                  <td colSpan={15} style={{ textAlign: 'center', padding: '48px 20px', color: '#64748b' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <p style={{ margin: 0, fontSize: '15px', fontWeight: '500', color: '#334155' }}>
+                        내 목록에 일치하는 고객 정보가 없습니다.
+                      </p>
+                      {searchQuery.trim() !== '' ? (
+                        <div style={{ marginTop: '4px' }}>
+                          <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#94a3b8' }}>
+                            타 매니저로 배정되었거나, 미배정(관리자) 상태이거나, 다른 탭(완료 등)에 있을 수 있습니다.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => onOpenGlobalSearch && onOpenGlobalSearch(searchQuery)}
+                            style={{
+                              backgroundColor: '#4f46e5',
+                              color: '#ffffff',
+                              border: 'none',
+                              padding: '8px 18px',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 5px rgba(79, 70, 229, 0.25)'
+                            }}
+                          >
+                            <Database size={15} />
+                            슈퍼베이스 전체 DB에서 "{searchQuery}" 전수 찾기
+                          </button>
+                        </div>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>
+                          설정된 필터 조건에 해당하는 고객이 없습니다. 필터를 초기화해 보세요.
+                        </p>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
